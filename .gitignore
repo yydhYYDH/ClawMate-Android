@@ -40,3 +40,7 @@ signing/
 
 # Phase-22 local backup of the delivery worktree gitdir pointer (target .git is untouched).
 .git-target-pointer
+
+# Local ArkUI-X / hvigor build scratch (SDKs, generated project, runtime).
+.arkui-x-validation/
+.hvigor/

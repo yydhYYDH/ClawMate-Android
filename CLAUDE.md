@@ -10,21 +10,32 @@ ClawMate Android is the Android migration of the HarmonyOS app "ClawMate" (upstr
 
 ## Build & Test Commands
 
-Builds require the environment variables below — the Gradle wrapper/daemon and caches write outside the repo, so plain `./gradlew` will not work:
+Builds need a JDK 17 and Android SDK on the machine, but install paths are **not**
+recorded here. Resolve them with the helper scripts:
 
 ```bash
-GRADLE_USER_HOME=/home/yydh/.gradle \
-ANDROID_HOME=/home/yydh/Android/Sdk \
-ANDROID_SDK_ROOT=/home/yydh/Android/Sdk \
-ANDROID_SDK_HOME=/tmp/clawmate-android-home \
+scripts/android-env.sh --check      # Compose baseline toolchain; explicit MISSING lines
+source scripts/android-env.sh
 ./gradlew :app:assembleDebug --console=plain
 ```
 
-- Run all unit tests: same env vars + `./gradlew :app:testDebugUnitTest --console=plain`
+For the shared frontend (ArkTS/ArkUI-X) use `scripts/arkui-env.sh`, which also
+sources `android-env.sh`:
+
+```bash
+scripts/arkui-env.sh --check
+source scripts/arkui-env.sh
+```
+
+Gradle writes its wrapper and caches outside the repo; keep `GRADLE_USER_HOME`
+at `$HOME/.gradle` (the default) rather than a project-local cache.
+
+- Run all unit tests: `source scripts/android-env.sh && ./gradlew :app:testDebugUnitTest --console=plain`
 - Run a single test: `./gradlew :app:testDebugUnitTest --tests "com.clawmate.app.chat.agent.AgentLoopTest" --console=plain`
 - Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Install on a connected device: `adb install -r app/build/outputs/apk/debug/app-debug.apk`, then `adb shell monkey -p com.clawmate.app 1`. Device inspection: `adb logcat`, `android screen capture`, `android layout` (see AGENTS.md).
-- If the sandbox rejects wrapper/cache access, rerun with elevated permissions (target paths are `/home/yydh/.gradle` and `/home/yydh/Android/Sdk`).
+- Install on a device: `adb install -r app/build/outputs/apk/debug/app-debug.apk`, then `adb shell monkey -p com.clawmate.app 1`. Confirm `adb devices -l` shows an authorized device first. Device inspection: `adb logcat`, `adb exec-out screencap -p`, `adb shell uiautomator dump`.
+- If a sandbox rejects wrapper/cache access, rerun with elevated permissions after confirming the resolved paths.
+- Pinned versions (owned by `gradle/libs.versions.toml`, `app/build.gradle.kts`): JDK 17, platform `android-34`, build-tools `34.0.0`, NDK `25.2.9519653`, CMake `3.22.1`, Gradle 8.9; shared frontend adds ArkUI-X `6.0.0.103`, OpenHarmony SDK `6.0.0.48`, hvigor `6.22.7`.
 
 Native code: `app/src/main/cpp` builds a JNI **stub** (`clawmate_local_model`) via CMake 3.22.1 / NDK 25.2.9519653 — it links no MNN runtime, it only reports honest capability boundaries.
 

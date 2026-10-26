@@ -70,7 +70,7 @@ Do not silently remove a feature or pretend that a mock response is real.
 
 ## Environment notes
 
-- `adb` is available (`/usr/bin/adb`); a real phone may be attached. Use it to
+- A real phone may be attached; `adb` is resolved by `scripts/android-env.sh`. Use it to
   install the debug APK and inspect the live app (logcat, screenshots, UI dumps)
   when a device is connected.
 - Google's `android` CLI skill is installed at `~/.codex/skills/android-cli/`
@@ -79,39 +79,60 @@ Do not silently remove a feature or pretend that a mock response is real.
 
 ## Build environment
 
-The Android build environment lives at `~/Android/Sdk` on the DSH host. Gradle
-operations may need elevated permissions because the wrapper and daemon write
-outside the repository. Use the persistent Gradle cache at
-`/home/yydh/.gradle`; do not create a project-local cache or commit generated
-Gradle state. The Android SDK and Gradle cache paths are environment-specific
-and must not be copied into application source or configuration files.
-
-The verified build command is:
+For the shared frontend (ArkTS/ArkUI-X host), resolve its toolchain the same
+environment-agnostic way instead of recording install paths:
 
 ```bash
-cd /home/yydh/ClawMate-Android && \
-GRADLE_USER_HOME=/home/yydh/.gradle \
-ANDROID_HOME=/home/yydh/Android/Sdk \
-ANDROID_SDK_ROOT=/home/yydh/Android/Sdk \
-ANDROID_SDK_HOME=/tmp/clawmate-android-home \
+scripts/arkui-env.sh --check     # ArkUI-X SDK, OpenHarmony SDK, hvigor, plus JDK/Android SDK
+source scripts/arkui-env.sh
+```
+
+`scripts/arkui-env.sh` sources `scripts/android-env.sh`, so one `source` sets up
+both stages. See `shared-frontend/README.md` for the build stages; on Windows use
+`shared-frontend/build.ps1`, which takes the JDK and Android SDK paths as
+parameters. Keep generated SDKs, upstream inputs and runtime libraries in the
+ignored workspace. Do not replace the original application ID or copy its
+private data as part of ordinary frontend checks.
+
+The OpenHarmony mirror publishes Beta SDKs under some `*-Release` directories.
+`scripts/arkui-env.sh --check` warns when `releaseType` is not `Release`. hvigor
+6.x also requires components nested by API level (`<sdk>/20/ets`,
+`<sdk>/20/toolchains`); a flat layout fails with "SDK management mode has
+changed".
+
+Gradle writes its wrapper distribution and dependency cache outside the
+repository. Keep `GRADLE_USER_HOME` at its default (`$HOME/.gradle`) rather than
+a project-local cache, and never commit generated Gradle state. Resolve the SDK
+location with `scripts/android-env.sh`; do not copy absolute paths into
+application source or configuration files.
+
+Build the Compose baseline with:
+
+```bash
+source scripts/android-env.sh
 ./gradlew :app:assembleDebug
 ```
 
-If the sandbox rejects wrapper/cache access, rerun the same command with
-elevated permissions after confirming the target paths.
+If a sandbox rejects wrapper or cache access, rerun the same command with
+elevated permissions after confirming the resolved target paths.
 
-### SDK components (verified working)
+### Pinned SDK components
 
-| Component | Location |
-|-----------|----------|
-| **Java** | `/usr/bin/java` — OpenJDK 17.0.18 |
-| **Android SDK** | `~/Android/Sdk/platforms/android-34` |
-| **Build tools** | `~/Android/Sdk/build-tools/34.0.0`, `35.0.0` |
-| **NDK** | `~/Android/Sdk/ndk/` |
-| **CMake** | `~/Android/Sdk/cmake/` |
-| **Gradle Wrapper** | `/home/yydh/ClawMate-Android/gradlew` — Gradle 8.9 |
-| **Gradle Cache** | `/home/yydh/.gradle/wrapper/dists/gradle-8.9-bin/` |
+Versions are owned by the project (`gradle/libs.versions.toml`,
+`app/build.gradle.kts`) and verified by `scripts/android-env.sh --check`. Install
+roots are machine-specific and intentionally not recorded.
 
+| Component | Pinned version |
+|-----------|----------------|
+| JDK | 17 |
+| Android platform | `platforms;android-34` |
+| Build tools | `build-tools;34.0.0` |
+| NDK | `25.2.9519653` |
+| CMake | `3.22.1` |
+| Gradle | 8.9 (wrapper) |
+| ArkUI-X SDK | `6.0.0.103` (API 20) |
+| OpenHarmony SDK | `6.0.0.48` (API 20, Release) |
+| hvigor | `6.22.7` + arkui-x plugin `4.22.7` |
 
 ## Verification
 
