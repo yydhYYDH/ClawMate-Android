@@ -1,0 +1,44 @@
+{
+  "scope": "Minimum compatible API 20 probe; not API 22 certification",
+  "androidGradlePlugin": "8.5.2",
+  "gradle": "8.9",
+  "java": 17,
+  "nodeForBuild": "20.19.5",
+  "hvigor": "6.22.7",
+  "arkuiXBuildPlugin": "4.22.7",
+  "arkuiXRuntime": "6.0.0.103",
+  "openHarmonySdk": "6.0.0.47",
+  "apiVersion": 20,
+  "artifacts": [
+    {
+      "name": "ets-windows-api20.zip",
+      "url": "https://contentcenter-drcn.dbankcdn.cn/pub_1/DevEcoSpace_1_900_9/3/v3/kVOiW2ExTiu3UiJnx8W3XA/DiUrdLeiRGOlrkcpyxjh4w.zip",
+      "sha256": "0e26a24430e1457488351a0a240522762a36c83db7c334d7af6824123e325b6d"
+    },
+    {
+      "name": "js-windows-api20.zip",
+      "url": "https://contentcenter-drcn.dbankcdn.cn/pub_1/DevEcoSpace_1_900_9/f1/v3/vAJmXL7-T8qiZ6b4189BBA/ElLS9UT0TvmfyY05vpCN3w.zip",
+      "sha256": "0a46911796bc75df13e588f9d34e5f0c4348371fefaa892fcb4ed607f2b443f6"
+    },
+    {
+      "name": "native-windows-api20.zip",
+      "url": "https://contentcenter-drcn.dbankcdn.cn/pub_1/DevEcoSpace_1_900_9/e6/v3/002LUKHaTFCGabunGDl7lQ/7g6PHBTtTh608VBl7HeGrg.zip",
+      "sha256": "d6b86c8305f2e1d6daeeb5c5c0ee63d378bd57429a61ad1fcc2e7c19c4720fa5"
+    },
+    {
+      "name": "previewer-windows-api20.zip",
+      "url": "https://contentcenter-drcn.dbankcdn.cn/pub_1/DevEcoSpace_1_900_9/29/v3/FNQbUGxtT4eSp2b2BFjS2g/Yvm16XAvSE2LTA4KRnTyPA.zip",
+      "sha256": "18661ec9242742e1dbeee780e9b1540e64482786def05207f24b7ef6ff40125d"
+    },
+    {
+      "name": "toolchains-windows-api20.zip",
+      "url": "https://contentcenter-drcn.dbankcdn.cn/pub_1/DevEcoSpace_1_900_9/aa/v3/fJyyBUiPRM2Ue69gbVddlg/sKqpaa4WQouU7kYuYSXxgQ.zip",
+      "sha256": "425b32010a837517c0888a337437d4bb5053de39c7ead5dd43cd90b3fff61bde"
+    },
+    {
+      "name": "arkui-x-windows-api20.zip",
+      "url": "https://repo.huaweicloud.com/arkui-crossplatform/sdk/6.0.0.103/windows/arkui-x-windows-x64-6.0.0.103-Release.zip",
+      "sha256": "b2ba90b1bb62ebbcb0f2647dee00db7cb41f597d21198f58619e13624bf7661d"
+    }
+  ]
+}

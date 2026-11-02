@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "phase": "SH-17",
+  "date": "2026-10-27",
+  "guest": {
+    "android": "17",
+    "api": 37,
+    "architecture": "aarch64",
+    "page_size": 16384,
+    "kernel": "6.12.96-android16-6-g3b7cac078605-ab16733175",
+    "vm_manager": "qemu_cli",
+    "cpu_emulation": "TCG on x86-64",
+    "cpus": 4,
+    "memory_mb": 4096,
+    "gpu": "guest_swiftshader",
+    "external_network": false,
+    "extra_kernel_cmdline": "initcall_blacklist=gunyah_init,gunyah_rm_init"
+  },
+  "artifacts": [
+    {
+      "build": "16644040",
+      "target": "aosp_cf_arm64_only_phone-userdebug",
+      "artifact": "aosp_cf_arm64_only_phone-img-16644040.zip",
+      "bytes": 1101174958,
+      "md5": "21542c7cbc096a76d91b723c17ea391f",
+      "sha256": "a9314183f3cf4d15a0a2121a85f8300ca7990788c52474d322c6fe9320b40802",
+      "source": "https://ci.android.com/builds/submitted/16644040/aosp_cf_arm64_only_phone-userdebug/latest/aosp_cf_arm64_only_phone-img-16644040.zip"
+    },
+    {
+      "build": "16644040",
+      "target": "aosp_cf_arm64_only_phone-userdebug",
+      "artifact": "cvd-host_package-x86_64.tar.gz",
+      "bytes": 898832924,
+      "md5": "6603cdf1d4f4ded816ffb3f850cf1565",
+      "sha256": "ec02c8e23985b37d9769732bf8bed992f10d851f40f7a835cf97128888900ecc",
+      "source": "https://ci.android.com/builds/submitted/16644040/aosp_cf_arm64_only_phone-userdebug/latest/cvd-host_package-x86_64.tar.gz"
+    },
+    {
+      "build": "16733175",
+      "target": "kernel_virt_aarch64_16k",
+      "artifact": "initramfs.img",
+      "bytes": 10658302,
+      "md5": "6e0df19e32de971bf963c626da1db549",
+      "sha256": "de5d28536c13eb65c1f6586e6b2c2962dff378e05413d83718153a28eecc59cb",
+      "source": "https://ci.android.com/builds/submitted/16733175/kernel_virt_aarch64_16k/latest/initramfs.img"
+    },
+    {
+      "build": "16733175",
+      "target": "kernel_virt_aarch64_16k",
+      "artifact": "kernel_aarch64_16k_dot_config",
+      "bytes": 225274,
+      "md5": "5c251e5a530c783960f69200a4f5e893",
+      "sha256": "131d47fbf38157bc7671a7f005cc0ea1f458ac26e7782e1a6772a444d58fe5d9",
+      "source": "https://ci.android.com/builds/submitted/16733175/kernel_virt_aarch64_16k/latest/kernel_aarch64_16k_dot_config"
+    },
+    {
+      "build": "16733175",
+      "target": "kernel_virt_aarch64_16k",
+      "artifact": "Image",
+      "bytes": 42699264,
+      "md5": "15871eb6b088b992ac9bb8d4279b41ea",
+      "sha256": "a1b4077191e4f5e283f7c9b43e726947f7e25dc9ed85c9182602acfc4ba2a5bb",
+      "source": "https://ci.android.com/builds/submitted/16733175/kernel_virt_aarch64_16k/latest/Image"
+    }
+  ],
+  "public_model_inputs": [
+    {
+      "path": "models/sensevoice/model.int8.onnx",
+      "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx",
+      "bytes": 239233841
+    },
+    {
+      "path": "models/sensevoice/tokens.txt",
+      "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt",
+      "bytes": 315894
+    },
+    {
+      "path": "models/sensevoice/test_wavs/zh.wav",
+      "sha256": "b77f1794fe374a0ba1ee1dc458bfaf9349496cbbfc32780c50ba3c5a7ad8e373",
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/test_wavs/zh.wav",
+      "bytes": 178988
+    },
+    {
+      "path": "models/silero_vad.onnx",
+      "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx",
+      "bytes": 643854
+    },
+    {
+      "path": "models/segmentation.tar.bz2",
+      "sha256": "24615ee884c897d9d2ba09bb4d30da6bb1b15e685065962db5b02e76e4996488",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2",
+      "bytes": 6958444
+    },
+    {
+      "path": "models/campplus.onnx",
+      "sha256": "f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx",
+      "bytes": 28281138
+    }
+  ]
+}

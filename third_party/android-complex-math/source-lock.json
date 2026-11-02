@@ -1,0 +1,128 @@
+{
+  "repository": "https://github.com/termux/termux-packages",
+  "revision": "706caf5e5ec39084ec19dc4c4fb99282fca85434",
+  "package": "packages/libandroid-complex-math",
+  "version": "0.2",
+  "files": [
+    {
+      "path": "LICENSE",
+      "gitBlob": "9011ffc358a3f8e3dd89071facbc4758f6f7b02f",
+      "sha256": "c1891a6c96097c64d03f38d0f35296036aacdc418ba27fd2fb7f299ac24daf72"
+    },
+    {
+      "path": "build.sh",
+      "gitBlob": "7c8fd08f8348359bddfbacfe09d909cc41c822e1",
+      "sha256": "4568b053fe3e34ca4a90693f9caefeddf9b148376d9257117f59402f51b7b775"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cacoshl.c",
+      "gitBlob": "b2a148729af09770501af46288ea19afa220dbc0",
+      "sha256": "f24bcf838e993811706229795bc6c8364bee75d701272f6630418bbba7a9589c"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cacosl.c",
+      "gitBlob": "73e77ae3f0a9b01b167263fb64e2c07f62a8ca99",
+      "sha256": "0052f178c49a2c0f04ca1c159e7a4994675313e5143af627e5f64877daa84343"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/casinhl.c",
+      "gitBlob": "0829d68adbcf424d9458591a81d3e432e3e85037",
+      "sha256": "16a4ff32bde44842a85efd354d8099e55188bc8167dddb19f081ac7abb799da5"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/casinl.c",
+      "gitBlob": "4af1737ffc164b1e5bbb31836c8f0d7f1cdcf04a",
+      "sha256": "166907ce8ab6b967715b5b446ba2633b5283c40cdcf99112f0596be36632df67"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/catanhl.c",
+      "gitBlob": "b6343386588c5acefbcdcdd5b91b2f0b1d26742e",
+      "sha256": "a9517548855de24d08b51aa895a00ff0c2f2c8965fca850c5c573551d42eff32"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/catanl.c",
+      "gitBlob": "bdff23f4608e8e2ee2f0b1d8d6c0978afc5037a4",
+      "sha256": "c3e4c03bd1cbc9ac8387ed5693eca3791bc736d31f1390a516c9b28d386c8fb9"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/ccoshl.c",
+      "gitBlob": "4c33f9de33d5e6647020c1e41c5669ad618f680d",
+      "sha256": "c7c336d7f73ed1764bc35f06d246cf8f4fece2b9c8bb143362afb0d0c5f9caf7"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/ccosl.c",
+      "gitBlob": "6ce5661a1596e3575c08cd04697e185fd7dac4be",
+      "sha256": "f82fa97dafed8aebbb000f93faf5cdac31fd06f7a29940271396e55d78646e45"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cephes_subrl.c",
+      "gitBlob": "90dbd869ac8dcad2cb05e9fcacddb15c2bee55cd",
+      "sha256": "cfd8d94603cd24e1e9c766b6a6c424a2d1c65c721e017ef8e871a3ffe181426f"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cephes_subrl.h",
+      "gitBlob": "6354b23a75427414aae380a2e5298707e91dba9a",
+      "sha256": "22579517fd22a0791571ea7423493647b2b03ba087930732aa26889736d9b45d"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cexpl.c",
+      "gitBlob": "a1e2235bf291eebcc6ab779ee7d7c3feac87c74e",
+      "sha256": "b1f7e41a330f3290939e3ee0742bf36d54ac8c8997f83f1a80d96de8c7979a85"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/clog.c",
+      "gitBlob": "6362c4456743b5196115c829fd9f064c8a19d9dc",
+      "sha256": "6f5c17c0a0e9d27183a75ae99db8336d2294e0fa0a8cdd80c80dd632ccb8ba36"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/clogf.c",
+      "gitBlob": "c3cdad07f869dddeff957b9b9fd11d4a09c66076",
+      "sha256": "2f3af1de2fb877d392c9ac7d60698354e93056e416b27b9d3d24f11d0dafeced"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/clogl.c",
+      "gitBlob": "11e7a15087fea465a5030c8d9a5d1c757879f35e",
+      "sha256": "2b1b51e68d3b87485fb5919aaba71f4d339cb8f0084270ad4a74f86697b51cbc"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cpow.c",
+      "gitBlob": "5bc8d3f6086b01d8f8601af631d7894ab5007b2b",
+      "sha256": "b0939daa819b36e515def70fae77d0bda678e803d3f818bbdda88484724bd2d2"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cpowf.c",
+      "gitBlob": "f7af10ae736f1758d6b6ada8e4de4a5179867417",
+      "sha256": "2b82ea12fe3af60e057b0444171f01c3f1376a5bd484a19aa0abd6d41987652f"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/cpowl.c",
+      "gitBlob": "39336ead660acec6675d125cfcea1781cb2767b6",
+      "sha256": "aa9c4967f0329860d2ff002681984af437091c4508436aada89069939a2a0370"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/csinhl.c",
+      "gitBlob": "b78f7f1c87f0a63d9aa57fd07e63751d64d4e8e8",
+      "sha256": "96480ca5793a120f92cac45d48681ae67caaa56b26468e9e4e6e6fa24264e09b"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/csinl.c",
+      "gitBlob": "c86847be90299d30335da5b1daaea9a7601fd9ee",
+      "sha256": "8c0090185fe19339687ee8e5fa619f0995dabfcc41f5114262a16d69ea2ab4be"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/ctanhl.c",
+      "gitBlob": "0894dd00d7af48e6dae9c6d0c5632722f9e7d819",
+      "sha256": "ccd6f3ad93c1d1d34d36dc7389886061faf51eb985c177e878e953f8aab4d225"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/complex/ctanl.c",
+      "gitBlob": "7932aefe967cdd1abf62b2973df3e1f43caa9d20",
+      "sha256": "c911d595be7a1780f2c53ebca9a016f3b50b2f37090d8713df4ea3b69051c816"
+    },
+    {
+      "path": "upstream-netbsd/lib/libm/src/namespace.h",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

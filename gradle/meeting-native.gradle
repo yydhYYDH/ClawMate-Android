@@ -1,0 +1,27 @@
+// Applied only to the optional meeting SDK, never the Compose baseline.
+plugins.withId('com.android.library') {
+    // Ninja on Windows cannot use the SDK checkout's non-ASCII output path.
+    // All dependency outputs stay in this host's ignored build workspace.
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('meeting-sdk'))
+    def originalJni = file('src/main/jniLibs')
+    def filteredJni = rootProject.layout.buildDirectory.dir('meeting-native/jniLibs')
+    def stageJni = tasks.register('stageClawMateMeetingJni', Sync) {
+        from(originalJni) { exclude '**/libandroid-complex-math.so' }
+        into(filteredJni)
+    }
+    android {
+        ndkVersion '25.2.9519653'
+        externalNativeBuild {
+            cmake {
+                path rootProject.file('third_party/android-complex-math/CMakeLists.txt')
+                version '3.22.1'
+                buildStagingDirectory rootProject.file('.cxx/meeting-sdk')
+            }
+        }
+        sourceSets.main.jniLibs.setSrcDirs([filteredJni])
+    }
+    // CMake supplies the replacement; staging retains every other SDK library.
+    tasks.configureEach {
+        if (name.matches(/merge.*JniLibFolders/)) dependsOn(stageJni)
+    }
+}

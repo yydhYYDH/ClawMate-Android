@@ -1,0 +1,6 @@
+# Preserve the byte-verified upstream inputs on Windows checkouts.
+third_party/android-complex-math/** -text
+# This upstream header intentionally ends with a blank line; keep its Git blob.
+third_party/android-complex-math/upstream-netbsd/lib/libm/complex/cephes_subrl.h whitespace=-blank-at-eof
+shared-app/src/main/assets/notices/android-complex-math.txt text eol=lf
+scripts/build-shared.sh text eol=lf

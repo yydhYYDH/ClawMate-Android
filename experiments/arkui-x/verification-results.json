@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-25",
+  "sourceCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "scope": "Isolated API 20 ArkUI-X Android protocol fixture; no real account, model, personal data or other OS certification",
+  "device": {
+    "model": "PKB110",
+    "android": 16,
+    "api": 36
+  },
+  "sourceSample": {
+    "lockedInputs": 77,
+    "staged": 53,
+    "exactUnchanged": 41,
+    "adapted": 8,
+    "authoredArkTs": 4
+  },
+  "originalTransportRun": {
+    "sourceCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+    "sdkApi": 20,
+    "results": [
+      "PASS ArkTS→Android bridge: Android 16 / API 36",
+      "PASS Android→ArkTS Unicode bridge",
+      "PASS Android clipboard adapter",
+      "PASS original home layout contract",
+      "PASS original login gate remains closed",
+      "FAIL original HTTP/SSE and split UTF-8: callbacks=3",
+      "PASS original streamed tool-call assembly",
+      "PASS original file persistence round trip",
+      "PASS HTTP error is reported",
+      "FAIL client cancellation settles: PROBE_TIMEOUT",
+      "PASS privacy revocation settles: ERROR:隐私授权已撤回",
+      "FAIL probe completed: 隐私设置尚未就绪，请稍后重试"
+    ],
+    "storedMessages": 2
+  },
+  "correctedTransportRun": {
+    "sourceCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+    "sdkApi": 20,
+    "results": [
+      "PASS ArkTS→Android bridge: Android 16 / API 36",
+      "PASS Android→ArkTS Unicode bridge",
+      "PASS Android clipboard adapter",
+      "PASS original home layout contract",
+      "PASS original login gate remains closed",
+      "PASS shared HTTP/SSE and split UTF-8: callbacks=3",
+      "PASS original streamed tool-call assembly",
+      "PASS original file persistence round trip",
+      "PASS HTTP error is reported",
+      "PASS client cancellation settles: ERROR:请求已取消",
+      "PASS privacy revocation settles: ERROR:隐私授权已撤回",
+      "PASS transport read timeout settles: ERROR:Timeout was reached"
+    ],
+    "storedMessages": 2
+  },
+  "coldStart": {
+    "restoredMessages": 2,
+    "activityTotalTimeMs": 660,
+    "xmlAssertionPassed": true
+  },
+  "sharedSourceUpdate": {
+    "simulation": true,
+    "change": "HomePage.ets: 今日概览 → 今日概览 · 同步验证",
+    "deviceXmlAssertionPassed": true,
+    "nativeSourcesCompared": 4,
+    "nativeSourcesChanged": 0
+  },
+  "hostContracts": {
+    "exactFiles": 7,
+    "passed": 8
+  },
+  "artifacts": [
+    {
+      "file": "clawmate-reuse-probe-fixed.apk",
+      "bytes": 90621045,
+      "sha256": "27b681f21c47f8e9f768748b836cf1486358aa3304a2be7bf9cf1360ad8b36dc"
+    },
+    {
+      "file": "clawmate-reuse-probe-sync.apk",
+      "bytes": 90621151,
+      "sha256": "238dce9486bb35673cb2a5bbaa1940c3609a91588c03ef5e33af8e15c8119fbf"
+    },
+    {
+      "file": "device-home-baseline.png",
+      "bytes": 1068932,
+      "sha256": "d55a9c8223db74390f53c472ea6de2cfa57b07db45c0bf439460d5d98e9157dd"
+    },
+    {
+      "file": "device-chat-baseline.png",
+      "bytes": 326245,
+      "sha256": "770dc4da21331f546ceb42e6d3a9f19f0f3f0af797bf203e97002b8d96067dc0"
+    },
+    {
+      "file": "device-checks-fixed.png",
+      "bytes": 283051,
+      "sha256": "b2aaecb94cb285e92626d498ff9553066136302415072bb9437bc98399f40812"
+    },
+    {
+      "file": "device-home-sync.png",
+      "bytes": 1066910,
+      "sha256": "3cabaeb2b057f3868c340a9ea6bf606cfb158dba99f077ba8b6eb0c5794facc1"
+    },
+    {
+      "file": "device-chat-persisted.png",
+      "bytes": 179544,
+      "sha256": "a2d5614092516d4eb6c8616893f7428915876a34f178aee2103d784de07891d4"
+    },
+    {
+      "file": "device-cold-start.xml",
+      "bytes": 6935,
+      "sha256": "49473ab17c8dd34a00b5ad13b12ce21347285bd31c0e0ef6cab8ccba6d8b1298"
+    }
+  ]
+}

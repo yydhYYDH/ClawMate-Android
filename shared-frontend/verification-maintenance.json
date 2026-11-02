@@ -1,0 +1,396 @@
+{
+  "phase": "SH-10",
+  "date": "2026-10-26",
+  "baseCommit": "630a042",
+  "meetingSdkCommit": "93b58adc901268a7eed052ce6b849e9be870060f",
+  "upstreamCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "conclusion": "Continue shared ArkTS/ArkUI-X development with Kotlin platform adapters. Production switch remains conditional.",
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "pageSizeBytes": 4096
+  },
+  "hostChecksPassed": 51,
+  "jvm": [
+    {
+      "module": "compose",
+      "tests": 1243,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "capabilities",
+      "tests": 104,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "meeting-sdk",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "deviceChecksPassed": 7,
+  "arktsInputs": {
+    "total": 139,
+    "unchanged": 78,
+    "adapted": 35,
+    "new": 26,
+    "scope": "File counts in compilation input; not product reuse percentage"
+  },
+  "preparedDigest": "595f1f6172b7648f5ac3c5c63ce16a795c4441d70563b59e772b3f3673c4e52f",
+  "apkAudit": {
+    "v": 1,
+    "apk": "shared-app-debug.apk",
+    "sha256": "45d45ce522299c47a9289dbfdf08a64fd49c0c8601183573deffc8a874efdd61",
+    "apkBytes": 312628291,
+    "groups": {
+      "other": {
+        "compressedBytes": 2538657,
+        "uncompressedBytes": 3196880
+      },
+      "dex": {
+        "compressedBytes": 4746907,
+        "uncompressedBytes": 12118084
+      },
+      "native": {
+        "compressedBytes": 165551568,
+        "uncompressedBytes": 476376425
+      },
+      "arkui-assets": {
+        "compressedBytes": 31841265,
+        "uncompressedBytes": 62768351
+      },
+      "python-assets": {
+        "compressedBytes": 58041287,
+        "uncompressedBytes": 59066783
+      }
+    },
+    "nativeLibraries": 325,
+    "elf16kbFailures": [
+      "lib/arm64-v8a/libandroid-complex-math.so"
+    ],
+    "arkui16kbFailures": [],
+    "nativeByOwner": {
+      "arkui-x": {
+        "count": 107,
+        "uncompressedBytes": 157061488
+      },
+      "other": {
+        "count": 39,
+        "uncompressedBytes": 319314937
+      },
+      "python-embedded": {
+        "count": 179,
+        "uncompressedBytes": 77334995
+      }
+    },
+    "scope": "Static ELF PT_LOAD audit including Chaquopy embedded extensions; ZIP alignment and real 16 KB execution must be verified separately"
+  },
+  "elfFailureDetails": [
+    {
+      "path": "lib/arm64-v8a/libandroid-complex-math.so",
+      "owner": "other",
+      "sha256": "e5c352aee1123bbb2a77d7bf6b16e8d675a1b275804fa55e9770989e929b9a12",
+      "bytes": 20096,
+      "compression": 8,
+      "segments": [
+        {
+          "offset": 0,
+          "vaddr": 0,
+          "alignment": 4096,
+          "compatible16kb": false
+        },
+        {
+          "offset": 6344,
+          "vaddr": 10440,
+          "alignment": 4096,
+          "compatible16kb": false
+        },
+        {
+          "offset": 17696,
+          "vaddr": 25888,
+          "alignment": 4096,
+          "compatible16kb": false
+        }
+      ],
+      "compatible16kb": false
+    }
+  ],
+  "startup": {
+    "samples": [
+      {
+        "iteration": 1,
+        "totalTimeMs": 763,
+        "waitTimeMs": 768
+      },
+      {
+        "iteration": 2,
+        "totalTimeMs": 746,
+        "waitTimeMs": 756
+      },
+      {
+        "iteration": 3,
+        "totalTimeMs": 740,
+        "waitTimeMs": 745
+      }
+    ],
+    "scope": "Process cold start using am start -W -S; filesystem caches retained; not time to interactive"
+  },
+  "memory": {
+    "pssKiB": 345229,
+    "rssKiB": 577596,
+    "scope": "One sample about three seconds after final launch; full-plugin debug build, not release steady state"
+  },
+  "commands": [
+    {
+      "command": "node shared-frontend/verify.mjs",
+      "exitCode": 0,
+      "passed": 6
+    },
+    {
+      "command": "node shared-frontend/verify-native.mjs",
+      "exitCode": 0,
+      "passed": 7
+    },
+    {
+      "command": "node shared-frontend/verify-integration.mjs",
+      "exitCode": 0,
+      "passed": 12
+    },
+    {
+      "command": "node shared-frontend/verify-meeting.mjs",
+      "exitCode": 0,
+      "passed": 5
+    },
+    {
+      "command": "node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+      "exitCode": 0,
+      "passed": 8
+    },
+    {
+      "command": "node shared-frontend/verify-maintenance.mjs --prepare-twice",
+      "exitCode": 0,
+      "passed": 9
+    },
+    {
+      "command": "python -B shared-frontend/verify-apk-audit.py",
+      "exitCode": 0,
+      "passed": 4
+    },
+    {
+      "command": "./gradlew.bat :app:testDebugUnitTest :android-capabilities:testDebugUnitTest :app:assembleDebug --offline --no-daemon --console=plain",
+      "meetingSdkConfigured": false,
+      "exitCode": 0,
+      "note": "Baseline builds without meeting checkout; this invocation reused existing unit reports"
+    },
+    {
+      "command": "./gradlew.bat :shared-app:preBuild --offline --no-daemon --console=plain",
+      "meetingSdkConfigured": false,
+      "exitCode": 1,
+      "expectedFailure": "Shared host requires meetingSdkRoot"
+    },
+    {
+      "command": "./gradlew.bat :shared-app:preBuild --offline --no-daemon --console=plain",
+      "meetingSdkConfigured": true,
+      "exitCode": 1,
+      "expectedFailure": "Compiled ArkUI-X runtime is stale or changed"
+    },
+    {
+      "command": "./shared-frontend/build.ps1 -JavaHome $Jdk17 -AndroidSdk $AndroidSdk -MeetingSdkRoot $MeetingSdkRoot -Offline",
+      "exitCode": 0,
+      "note": "Local paths passed as parameters; ArkTS/HAP and runtime export ran; Gradle incremental build passed"
+    },
+    {
+      "command": "./gradlew.bat :app:testDebugUnitTest --rerun :android-capabilities:testDebugUnitTest --rerun :meeting-sdk:testDebugUnitTest --rerun :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+      "meetingSdkConfigured": true,
+      "exitCode": 0,
+      "note": "All three JVM test tasks executed, not UP-TO-DATE"
+    },
+    {
+      "command": "node shared-frontend/build-state.mjs verify",
+      "exitCode": 0
+    },
+    {
+      "command": "python -B shared-frontend/audit-apk.py shared-app/build/outputs/apk/debug/shared-app-debug.apk --runtime-root .arkui-x-validation/application/runtime --output .arkui-x-validation/application/sh10-apk-audit.json --require-16kb",
+      "exitCode": 1,
+      "expectedFailure": "One meeting dependency has 4 KB ELF alignment"
+    },
+    {
+      "command": "zipalign -c -P 16 -v 4 shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "python <meeting-sdk-checkout>/android/verify_host_apk.py shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "adb install -r shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "adb install -r shared-app/build/outputs/apk/androidTest/debug/shared-app-debug-androidTest.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.NativeCapabilitiesDeviceTest,com.clawmate.shared.MeetingIntegrationDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "exitCode": 0,
+      "passed": 7
+    },
+    {
+      "command": "adb shell am start -W -S -n com.clawmate.shared/.SharedActivity",
+      "exitCode": 0,
+      "iterations": 3
+    },
+    {
+      "command": "adb shell dumpsys meminfo com.clawmate.shared",
+      "exitCode": 0
+    },
+    {
+      "command": "adb shell getconf PAGE_SIZE",
+      "exitCode": 0,
+      "result": 4096
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/application/sh10-apk-audit.json",
+      "sha256": "c19155b7463d6110078f9f3a81601f73dd4914cefc0db930b36489c96044b2b9"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-apk-audit.log",
+      "sha256": "6a204edcd08994f8fc7b4a770f8569672445a5c978bcef43acacfe4131e6b7a8"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-baseline-without-meeting.log",
+      "sha256": "4fb529f2cf05f2c543ece06a89aab299ea54b2f7b530385c95bf783236a4a805"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-build.log",
+      "sha256": "568fb5ade580523a34b920f7a2efbed115b18f6728c51f6643dc4a0e0c405134"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-contracts.log",
+      "sha256": "c56cc71cd5e18dcd79ca5fb1a147f2d244766931e2657a7ebe2f89fcbdac5070"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-device.log",
+      "sha256": "06933287e2da5a8059e502c29a31d582e9cdcd33f4e3912eb1764c9060be30a9"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-elf-tests.log",
+      "sha256": "127fb999854c96dc96dff063cfd695940743a212266bcc74188e5f0315f2feac"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-final-build.log",
+      "sha256": "7d41af82117c421e94f0fb7f36f906197aef2ca95b599d7e7da4c19e710eeb76"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-final-regression.log",
+      "sha256": "c6ad5f5d60c484cdffa51c1793684d76357d8f9d767c7cc229db7b4839df5c0a"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-integration.log",
+      "sha256": "9cd938cc649ec733620a65b0f01783e6d3b1acc81207fe7445915e488f09055a"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-launch.png",
+      "sha256": "2ecf5af45a1f6de944d5c3648b2d55c65a2b2cb0137896c1f8edd2529d707084"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-maintenance.log",
+      "sha256": "a2673b740e7e1cb617002f052c4f87c6554caaee57503441efc3c4ae28c9b71d"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-meeting-apk.log",
+      "sha256": "a18c85d4e744ae3fa5dd12370507ad2ed141154b4ea1ca54bbd1f66f49348b02"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-meeting.log",
+      "sha256": "ac3e25fdcbe6f467bb1270f039efce0297be153986681fb275285ec3ce2e1d94"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-meminfo.log",
+      "sha256": "03e7d8686f6a999bbf6062bf0ff00740aa5ded9cd8061744d8a7e0081c9ed2cf"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-missing-sdk.log",
+      "sha256": "24b8a9ec31ce5637c96f63d1205dc8afb2f4c6fe59bef1c28b80a1d4441ec00f"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-native.log",
+      "sha256": "2b7145c29225c4c1d4dd93f5282285326f12816cbdfd5d5497dfdbf9c0ab47bb"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-provenance.log",
+      "sha256": "422125c27cb9537d968d43f170f373ce3debf00e73778c2e02fa346dbced7d42"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-shared.log",
+      "sha256": "2e7cac1efaa6c3eaa7f77a0ad16493f207f5e85a345426515e8e9bebf799d157"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-stale-runtime.log",
+      "sha256": "7db4df57dbc7610a442d8eeafb09d3164e0253f9871cacc8f0be88f45a1f04c1"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-start-1.log",
+      "sha256": "2f821f17db808e87b39f4968aea814faaf8546fda006de5661ed5d6ad3cc9180"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-start-2.log",
+      "sha256": "a57a110fa84a149ec711b7ae16f5d85b8ab22983d317162672b1a6566ada5a38"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-start-3.log",
+      "sha256": "ca0f33d51bd922422976133217ff41ddfd561b044fe47db091d8ba09fd35d899"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-startup.json",
+      "sha256": "260910b168f7644e692be2cf84cbc796a0f81b089325ce7361e808909079703b"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-test-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh10-zipalign.log",
+      "sha256": "43e744468f38735fefd3074ad9d917a95fea4a389f9310985c995e02143dce72"
+    }
+  ],
+  "limitations": [
+    "Meeting dependency libandroid-complex-math.so requires rebuilding/upgrading for 16 KB; SHA256 matches meeting SDK source binary",
+    "ZIP alignment passed but real 16 KB execution remains untested",
+    "Single Android device only; TalkBack, other vendors, iOS and release size/performance unverified",
+    "Actual upstream revision and SDK upgrade rehearsals, fresh-machine setup, real cloud services and production data migration remain open",
+    "Gradle --offline does not constrain the meeting SDK Python installer network behavior",
+    "Meeting instrumentation preserves one imported public audio sample copy for inspection and moves its source meeting to reversible trash; microphone never started",
+    "Initial README working-tree edit was preserved and excluded from this phase commit"
+  ],
+  "changedFiles": [
+    ".gitignore",
+    "MIGRATION_BACKLOG.md",
+    "MIGRATION_STATUS.md",
+    "docs/SHARED_FRONTEND_MAINTENANCE.md",
+    "experiments/arkui-x/prepare-project.mjs",
+    "settings.gradle.kts",
+    "shared-app/build.gradle",
+    "shared-frontend/README.md",
+    "shared-frontend/build.ps1",
+    "shared-frontend/prepare.mjs",
+    "shared-frontend/source-patches.mjs",
+    "shared-frontend/build-state.mjs",
+    "shared-frontend/verify-maintenance.mjs",
+    "shared-frontend/audit-apk.py",
+    "shared-frontend/verify-apk-audit.py",
+    "shared-frontend/verification-maintenance.json"
+  ]
+}

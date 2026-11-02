@@ -1,0 +1,260 @@
+{
+  "phase": "SH-22",
+  "date": "2026-10-28",
+  "baseCommit": "1051b48",
+  "feature": "F12/P05 third subphase: custom avatar in shared chat",
+  "implementation": [
+    "Existing DigitalAvatarView supports personal images but pinned chat instances hardcode mascot; checked overlays connect an explicit local default/personal choice",
+    "Original welcome/empty conversation/message/thinking view, voice visual-state/tap animation and static task-trace click owner reused",
+    "Full foreground for welcome, 168x216 message cache for messages; original current-avatar assets and authoritative facade.paths.avatarAssetsRoot used",
+    "Only style is persisted; private image URIs remain transient, imported version IDs and asset URIs are restricted, unknown choices/missing images fall back to mascot",
+    "Selection does not add avatar images to chat records or model requests; saving failure rolls choice back"
+  ],
+  "commands": [
+    "shared-frontend/build.ps1 -JavaHome <local-jdk17> -AndroidSdk <local-sdk> -MeetingSdkRoot <read-only-meeting-sdk> -Offline",
+    "node shared-frontend/verify-chat-avatar.mjs",
+    "Existing shared host verify*.mjs scripts; experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference; Python runtime-export and apk-audit suites",
+    "gradlew.bat :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+    "scripts/test-shared-device.ps1 -Adb <adb> -Serial <phone> -EvidenceName sh22-phone-current",
+    "adb shell am instrument -w -r -e class com.clawmate.shared.ChatAvatarDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+    "Same instrument command in isolated target processes for AvatarForegroundDeviceTest and AvatarReferenceDeviceTest",
+    "scripts/test-meeting-native.ps1 -AndroidSdk <sdk> -Serial <phone> -EvidenceName sh22-phone-native",
+    "node shared-frontend/build-state.mjs verify"
+  ],
+  "host": {
+    "exporter": 8,
+    "contractAndSourcePassLines": 162,
+    "jvmTestsRerun": false,
+    "total": 180,
+    "newChatAvatarChecks": 10,
+    "nativeIntegrity": 5,
+    "provenance": 1,
+    "apkAudit": 4
+  },
+  "builds": {
+    "hapSeconds": 21.948,
+    "elf16kbFailures": [],
+    "elfLibraries": 326,
+    "android": "33s; 93 tasks, 10 executed, 83 up-to-date",
+    "zip16kbPassed": true,
+    "androidTest": "73s; 101 tasks, 11 executed, 90 up-to-date",
+    "stagedArkts": {
+      "adapted": 39,
+      "new": 33,
+      "total": 148,
+      "unchanged": 76
+    },
+    "runtimeFiles": 398
+  },
+  "device": {
+    "updatedFallbackAccessibilityLabelFound": false,
+    "accessibilityGap": "Expected updated image accessibility label was not found in virtual nodes after fallback; virtual-node/cache/merged-semantics cause remains unproven. Functional bitmap fallback is verified separately and does not close TalkBack acceptance.",
+    "photoConsentSeconds": 3.164,
+    "numericalExports": 22,
+    "model": "OPPO PKB110",
+    "assertions": [
+      "Actual rendered default/personal switch and settings flush",
+      "Activity recreation preserves choice and reloads original cache paths",
+      "Welcome renders full foreground; message view renders different-colored thumbnail",
+      "Static task-trace avatar click persists expansion of the correct trace record",
+      "Switch back to default removes custom pixels and renders actual mascot",
+      "Fresh-version corrupt cache triggers real image-load failure and mascot bitmap fallback",
+      "Original avatar version bytes unchanged; only synthetic fixture session/images used"
+    ],
+    "actualRenderedPixels": {
+      "mascotAfterCorruptImage": 2472,
+      "messageThumbnail": 14780,
+      "fullImageInMessageView": 0,
+      "welcomeFullImage": 69837
+    },
+    "photoConsentChecks": 1,
+    "chatAvatarFunctionalChecks": 1,
+    "totalFunctionalChecks": 14,
+    "pageSize": 4096,
+    "coreChecks": 9,
+    "foregroundChecks": 3,
+    "foregroundSeconds": 1.626,
+    "visualEvidenceReviewed": true,
+    "accessibilityPassed": false,
+    "chatAvatarSeconds": 9.021,
+    "android": 16
+  },
+  "failureHistory": [
+    "Early source-preparation overlay bypassed existing IME/focus adaptations; moved ChatPage delta after the platform adaptation and build passed",
+    "First test APK compile rejected missing whitespace around Kotlin else; corrected and rebuilt",
+    "Physical test exposed duplicate files segment in asset allowlist: real personal avatar could not be selected; fixed by consuming original facade.paths.avatarAssetsRoot and added regression",
+    "Trace fixture initially omitted original Debug-only trace visibility; enabled/restored its private debug preference. Supplemented virtual-node lookup with bounds of actual rendered synthetic avatars and retained persisted-expansion assertion",
+    "Original accessibility assertion still fails despite visually successful fallback. Preserved failure evidence, logged false accessibility result and independently verified functional image fallback through positive mascot pixels and inspected screenshots; no accessibility-pass claim"
+  ],
+  "apk": {
+    "sha256": "029d904b113411bbea0f63200a529ce610edf79b679782603daadd58fffd3ca0",
+    "bytes": 312628469,
+    "testSha256": "fafda1879dd9842e780d130faea7d58635f2b5e583092a01c588942696195aa2"
+  },
+  "cleanup": {
+    "syntheticAssetsVersionsAndSessionRemoved": true,
+    "appRelaunched": true,
+    "originalSettingsDebugStateAndSessionIndexRestored": true,
+    "backupDirectoriesAbsent": true,
+    "phoneEvidenceCopiesRemoved": true
+  },
+  "boundaries": [
+    "F12/P05 code connections are in shared host; overall feature acceptance remains incomplete",
+    "Dynamic image accessibility labels remain unresolved and separately listed in backlog",
+    "Listening/thinking/speaking/interrupted mappings and unchanged animations checked on host; real ASR/TTS synchronization and animation quality not accepted in this device fixture",
+    "Synthetic foreground caches verify real UI rendering; no real avatar provider generation or photo-picker quality claim",
+    "Prior image generation, cartoon/complex-background segmentation and other-vendor acceptance gaps remain",
+    "No new 16KB kernel runtime result; earlier stability/cold-boot blockers remain",
+    "No Harmony reference, Compose source, native capability source or meeting SDK source changes; original README edit preserved; no production switch or PR",
+    "Next unported feature is F13 MiMO streaming voice, followed by P01/P04, P02/P03 and P06"
+  ],
+  "finalEvidence": [
+    {
+      "file": ".arkui-x-validation/sh22/product-path-fixed-build.log",
+      "bytes": 56164,
+      "sha256": "337b32e2f00feaf3f7496e918ba8d93b86fbecc4e1d14b2f0e5f20d7fbb21741"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/test-functional-fallback-build.log",
+      "bytes": 9758,
+      "sha256": "abfafc7f410f72189e297db9352e887af43ddfb2afc4db2acc2df9d562c375c3"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/host-checks-final.log",
+      "bytes": 18012,
+      "sha256": "9f534137e2670bc67b42bee81bedd0be94d51aae325f549db24b8af6bc597616"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-host-final.log",
+      "bytes": 1347,
+      "sha256": "87ea981da7bd72132f1af688445a5777f088ffa1c411aff96fcf1119dfa9c0a9"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/provenance-verified.log",
+      "bytes": 117,
+      "sha256": "20b603651e895cc7a085b747aff0255b68adb36cfda647d8b76ba3de6eba6ec8"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-functional-device.log",
+      "bytes": 1541,
+      "sha256": "b38d9a10ed3f27f062c8c445e580ac8968e6d00630970e8396690a16a9de34ad"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/foreground-regression.log",
+      "bytes": 2347,
+      "sha256": "f20ebee4f39e5df33da2801386480a06901ee638c430e52f7e99d8f4c6897e59"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/photo-consent-regression.log",
+      "bytes": 1259,
+      "sha256": "c2aa75bf145c5584a84e72eba559002f418b809f800f8142dd599c554fa201bf"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-custom-final.png",
+      "bytes": 175342,
+      "sha256": "8c256b780bd6c7c51a4f0003aa762ce691c99338de36da483b6cf432d9c84736"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-fallback-final.png",
+      "bytes": 212833,
+      "sha256": "e8b90bb224f5fb2b1518a61c43484db7d53e8bc278552737d0105de228122e9d"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/cleanup.log",
+      "bytes": 222,
+      "sha256": "a393eef44775e30fcfb815bcaa7881485ac0ba6e0aa9353ba7b56f83f901d8d6"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/phone-current-driver.log",
+      "bytes": 151,
+      "sha256": "b8fdb936c4b7f7113646f02e9cc4902ffe1190180795fe446ce9029b64cdbbf2"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/native-driver.log",
+      "bytes": 75,
+      "sha256": "6b368736a82bd404aab09d79d35ea27e28a0d2a45527472d797899c57a96e82b"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh22-phone-current/native-meeting.log",
+      "bytes": 6594,
+      "sha256": "df562c465f586d94840dee512ffe6478ce8ffb0d0c0a784b009d3aff9918586e"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh22-phone-current/chat.log",
+      "bytes": 1173,
+      "sha256": "a715e0fc6c103dcc6fb7fdd9654b4295897339ff85d20dd0426435e8add5af4b"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh22-phone-current/workflow.log",
+      "bytes": 2013,
+      "sha256": "ed2e6361b5f44a0d77e53c196cdfe6ac56bbd4910b448cbb9a797b7a7c5c0da0"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh22-phone-current/install.log",
+      "bytes": 76,
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh22-phone-native/environment.json",
+      "bytes": 141,
+      "sha256": "1c88bc7325418794339d2f5f2553d7c1ad8c4e04d569b8dfe98a5824b153f7f2"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh22-phone-native/numerical.log",
+      "bytes": 52,
+      "sha256": "a9adb45f88814eabdd462a20f4048d93052a9578bf1588599a831ef3ad1db8c7"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh22-phone-native/installed-library-sha256.log",
+      "bytes": 186,
+      "sha256": "ade2869d12e821b007419cc153ad55ea9447026a482d95eabf91d123447cd93c"
+    }
+  ],
+  "earlierFailureEvidence": [
+    {
+      "file": ".arkui-x-validation/sh22/prepare.log",
+      "bytes": 2359,
+      "sha256": "1ecf5ef913feba4029cb19496b0e86a2361d1f95c035c465699bdf3f23ff2c9d"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/test-build.log",
+      "bytes": 9608,
+      "sha256": "a5af8974df87687328b1927377f8c003b4ba92830ced40550ca95a8f05516d5c"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-device.log",
+      "bytes": 2079,
+      "sha256": "0c822c58363aef3dd2e771f28328732f4c7e3dc32a694be677f47068834d9f14"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-diagnostic-device.log",
+      "bytes": 2034,
+      "sha256": "9784a1108e5157717f50dd8df43411c1e923cdfc69e8c8292df63ec87a71fc4d"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-device-final.log",
+      "bytes": 2155,
+      "sha256": "80deaeefb0abaa7109fad42d8bbd55b4fa219b43634d650c2501256723d7d63f"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-device-trace-mode.log",
+      "bytes": 2282,
+      "sha256": "73f02ee222ffa3e640f4819eb419fb01e68b31b7f087d426f09a8fc1fcc47e85"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-device-verified.log",
+      "bytes": 2500,
+      "sha256": "994a67694b901c2ffa2ea474a68d2da3ca58584e37b2d6735f1414142c23422e"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-failure.png",
+      "bytes": 318156,
+      "sha256": "1eac47a91c121f77a50428efee50806904d9f730d63281413cf95153261d22c4"
+    },
+    {
+      "file": ".arkui-x-validation/sh22/chat-avatar-trace-mode-failure.png",
+      "bytes": 173646,
+      "sha256": "74bd40d7eba7cc866b4061b5687fec42391eefdf0808819f110fb399da088b5c"
+    }
+  ]
+}

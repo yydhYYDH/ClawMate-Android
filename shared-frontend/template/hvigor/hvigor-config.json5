@@ -1,0 +1,7 @@
+{
+  "modelVersion": "6.0.2",
+  "dependencies": {
+    "@ohos/hvigor-ohos-plugin": "6.22.7",
+    "@ohos/hvigor-ohos-arkui-x-plugin": "4.22.7"
+  }
+}

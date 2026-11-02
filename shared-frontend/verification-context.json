@@ -1,0 +1,364 @@
+{
+  "phase": "SH-11",
+  "date": "2026-10-26",
+  "baseCommit": "fdb017a",
+  "upstreamCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "feature": "Automatic cloud chat context summaries with bounded labelled local extraction fallback",
+  "sourceMapping": {
+    "budget": "Original pages/chat/ChatContextBudget.ets unchanged",
+    "orchestration": "10 pinned pages/Index.ets methods extracted by shared-frontend/context-source.mjs",
+    "adapter": "shared-frontend/adapters/platform/ChatContext.ets",
+    "assembly": "shared-frontend/app/Index.ets",
+    "storage": "Original ChatSessionRecord contextSummary fields and ChatSessionStorage"
+  },
+  "hostChecksPassed": 67,
+  "newContextChecksPassed": 16,
+  "jvm": [
+    {
+      "module": "compose",
+      "tests": 1243,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "capabilities",
+      "tests": 104,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "meeting-sdk",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "passed": 8,
+    "context": 1,
+    "nativeAndMeeting": 7
+  },
+  "deviceScope": [
+    "Actual synthetic input via keyboard events in the rendered ArkUI chat page",
+    "Cloud request fails for a reserved .invalid host; real local extraction is labelled, raw history and summary coverage persist",
+    "After Activity recreation, the second input reuses saved summary without advancing summary timestamp",
+    "Synthetic preferences and session index restored, fixture session and private backups removed; original credential values never displayed"
+  ],
+  "arktsInputs": {
+    "total": 141,
+    "unchanged": 78,
+    "adapted": 35,
+    "newPlatformFiles": 28,
+    "note": "Includes generated extracted orchestration; not a code reuse percentage"
+  },
+  "preparedDigest": "af6b7680afcb77948f688ae3b115442d032311a9e08fe037fdd295f2b6021184",
+  "apk": {
+    "sha256": "f5c9b3234f76775c8667e567d5e483d1bfefdfc93d0b06a0cbb8321c93942094",
+    "apkBytes": 312628291,
+    "nativeLibraries": 325,
+    "elf16kbFailures": [
+      "lib/arm64-v8a/libandroid-complex-math.so"
+    ],
+    "arkui16kbFailures": []
+  },
+  "commands": [
+    {
+      "command": "node shared-frontend/verify.mjs",
+      "passed": 6,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-native.mjs",
+      "passed": 7,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-integration.mjs",
+      "passed": 12,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-meeting.mjs",
+      "passed": 5,
+      "exitCode": 0
+    },
+    {
+      "command": "node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+      "passed": 8,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-maintenance.mjs --prepare-twice",
+      "passed": 9,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-context.mjs",
+      "passed": 16,
+      "exitCode": 0
+    },
+    {
+      "command": "python -B shared-frontend/verify-apk-audit.py",
+      "passed": 4,
+      "exitCode": 0
+    },
+    {
+      "command": "./shared-frontend/build.ps1 -JavaHome $Jdk17 -AndroidSdk $AndroidSdk -MeetingSdkRoot $MeetingSdkRoot -Offline",
+      "exitCode": 0,
+      "scope": "Actual ArkTS/HAP compilation, runtime export and shared Android APK build"
+    },
+    {
+      "command": "./gradlew.bat :shared-app:assembleDebugAndroidTest :app:testDebugUnitTest --rerun :android-capabilities:testDebugUnitTest --rerun :meeting-sdk:testDebugUnitTest --rerun --offline --no-daemon --console=plain",
+      "exitCode": 0,
+      "scope": "All three JVM tasks executed, not cached test results"
+    },
+    {
+      "command": "adb install -r shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "adb install -r shared-app/build/outputs/apk/androidTest/debug/shared-app-debug-androidTest.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "adb shell am force-stop com.clawmate.shared; adb shell am instrument -w -r -e class com.clawmate.shared.ChatContextDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "passed": 1,
+      "exitCode": 0,
+      "scope": "Standalone process, real UI, synthetic history and unavailable .invalid provider; local fallback and Activity recreation"
+    },
+    {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.NativeCapabilitiesDeviceTest,com.clawmate.shared.MeetingIntegrationDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "passed": 7,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/build-state.mjs verify",
+      "exitCode": 0
+    },
+    {
+      "command": "python -B shared-frontend/audit-apk.py shared-app/build/outputs/apk/debug/shared-app-debug.apk --runtime-root .arkui-x-validation/application/runtime --output .arkui-x-validation/application/sh11-apk-audit.json --require-16kb",
+      "exitCode": 1,
+      "knownFailure": "Existing meeting dependency libandroid-complex-math.so has 4 KB ELF alignment"
+    },
+    {
+      "command": "zipalign -c -P 16 -v 4 shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "python <meeting-checkout>/android/verify_host_apk.py shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "node20 shared-frontend/verify-context.mjs",
+      "exitCode": 1,
+      "scope": "Recorded unsupported host test runtime; corrected by explicitly using Node24"
+    }
+  ],
+  "initialDeviceFailures": [
+    {
+      "log": "sh11-context-device.log",
+      "result": "Failed to locate Send after accessibility ACTION_SET_TEXT"
+    },
+    {
+      "log": "sh11-context-device2.log",
+      "result": "Keyboard input visible; exact OCR match missed Send with microphone glyph"
+    },
+    {
+      "log": "sh11-context-device3.log",
+      "result": "First summary flow passed; editable accessibility node missing after Activity recreation"
+    },
+    {
+      "log": "sh11-context-device4.log",
+      "result": "Same missing editable node after recreation; confirmed visible rendered input"
+    }
+  ],
+  "testDriverRepair": "Use actual keyboard events and live OCR bounds, accepting Send glyph prefix and finding placeholder when editable nodes are stale. Product accessibility issue remains open.",
+  "limitations": [
+    "Real cloud model summary quality is not certified by controlled model ports or the local fallback device test",
+    "Context budget is the original character estimate, not a model tokenizer; actual provider limits can differ",
+    "Persistence failure tests verify in-memory rollback; extreme disk interruption and cross-file session/index transaction safety remain unverified",
+    "Activity recreation verified, not full device reboot or multi-vendor/iOS/TalkBack certification",
+    "Known meeting native library still fails 16 KB ELF audit; no release compatibility claim",
+    "Meeting regression preserves imported public audio sample as designed; no private database or signing key copied",
+    "Pre-existing README working-tree edit preserved outside the phase commit"
+  ],
+  "changedFiles": [
+    "MIGRATION_BACKLOG.md",
+    "MIGRATION_STATUS.md",
+    "docs/SHARED_ARCHITECTURE.md",
+    "docs/CHAT_CONTEXT_MIGRATION.md",
+    "shared-frontend/README.md",
+    "shared-frontend/prepare.mjs",
+    "shared-frontend/context-source.mjs",
+    "shared-frontend/app/Index.ets",
+    "shared-frontend/adapters/platform/ChatContext.ets",
+    "shared-frontend/verify-context.mjs",
+    "shared-frontend/verification-context.json",
+    "shared-app/src/androidTest/java/com/clawmate/shared/ChatContextDeviceTest.kt"
+  ],
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/application/sh11-apk-audit.json",
+      "sha256": "3743fdd3def8679c29bc9e5089b9d3e414a76ed52f06561abe1a4d07651f8694"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-apk-audit.log",
+      "sha256": "46d218581db07559ee774663528c79ee37c9e58befa621c4d8533e215929a492"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-build.log",
+      "sha256": "bf02058fb87ee1036d9987c504799007f834d2f7ee99ee2d743f5f7d2d6be2cf"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-cleanup.log",
+      "sha256": "562bc38db715ae07faba5258012f1d8b77a16890308805ad3a727671a0d1ab4b"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-device-final.log",
+      "sha256": "a0a24654083cbc90728230e54a4c031ca601160d990018817d0cef176b111d3f"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-device.log",
+      "sha256": "66abcbdbca49b0df457ce9aebe79d0513ab551362cb464ea050a97d3b56e593d"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-device2.log",
+      "sha256": "c80b19b85c842f6bd7f2fb766011dda4e70dbafe7c2427d4ff0d67bcda16b7fd"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-device3.log",
+      "sha256": "47009da6e49d7d99c97bc18c9ec7fd16d54ca9b6b71b2576884bf24fad5e8112"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-device4.log",
+      "sha256": "abfbe089ced81c25267bf940be3fcf079f913ec4e2da10e06cd0ea02ee7c2e8f"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-input-final.png",
+      "sha256": "66e9ca3c1da0e48c7bfc047a7e4ee7bb750e986b92f069ee4829ab29583e420f"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-input.png",
+      "sha256": "c5ded96cf9d710d4a4dad668b5b9ad9ab50bf58a6bda00f691dd16281c227eac"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context-input4.png",
+      "sha256": "eaf0114b1bbd0c967c4f17de84fa5268e9ac06f1a266bc1f3eb6b1f6636142af"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-context.log",
+      "sha256": "af2a174563579c33d30e2832b47c46143e1c97628c090edd78abaeb1a038b7e7"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-contracts.log",
+      "sha256": "edb08ba0999cd6203dea231d7d800e63406c4b13648ee2ec61a8068e40eb9204"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-device-test-rebuild.log",
+      "sha256": "aa18be23fd371767569af4110179651fe683913280e08e0754ac6a0b1bafac1a"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-device-test-rebuild3.log",
+      "sha256": "edcbeef43d896ba9b529589beda5d2d61d6013ccce6be7491c7375e58419efbb"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-device-test-rebuild4.log",
+      "sha256": "fbfa8c6938c3ebef9a6c654a78bb3d24354d1857d8d7797299879722bbbf2c51"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-elf-tests.log",
+      "sha256": "127fb999854c96dc96dff063cfd695940743a212266bcc74188e5f0315f2feac"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-final-build.log",
+      "sha256": "4a80d7657a8901bba558488c3ce63334cfefecbc3aa2660746aefbf55b2ed5be"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-final-regression.log",
+      "sha256": "ad6d63a49f6bac013ab4bbb2f3a3713f53755652c0f049816f7bc53a2fe03c60"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-install-final.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-integration.log",
+      "sha256": "32018804bc1869d2f5401bd895a94ce8d6aa09eff65846104536f9721e0a86e7"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-maintenance.log",
+      "sha256": "a2673b740e7e1cb617002f052c4f87c6554caaee57503441efc3c4ae28c9b71d"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-meeting.log",
+      "sha256": "b7b922ca49fb8eef094d75569139cba8045bcf7c62f9dd1123c15c32b673df71"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-native.log",
+      "sha256": "9ad3bee86cbe60d6b8117e75e300c754457c9779b0bb0702efec56a612a1ad58"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-node20-runner-error.log",
+      "sha256": "5166518aa996fbe93586f5c26865b5d1c20d9f997fe7ef32cf3e4c9756424560"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-payload.log",
+      "sha256": "6804cdf22b40c3291e0522dfa2dacc2c067ab116a40fce9884b053553425f59a"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-prepare.log",
+      "sha256": "848cd69e11b13da212e63d4a9c663f7c0d8ecdc92f282715f62c49ed50aff6d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-provenance.log",
+      "sha256": "469ec12c43a790ae9b47213a00bfcb5976d9cc2bb55ff28626e07a17872eda41"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-regression-device.log",
+      "sha256": "968f266962835b3a86290af85f7eaa65f964d3799af5ff10217d2a2b534dc3b3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-shared.log",
+      "sha256": "93a83154a49a1161c26c1459b889b6c607de46d25473449f9739573fba969dca"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-test-install-final.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-test-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-test-install2.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-test-install3.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-test-install4.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-tests-build.log",
+      "sha256": "48aad6f019528ce67c6ba6387c7358c17b8a8790cfe001f0e0e86d8ed63c1303"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh11-zipalign.log",
+      "sha256": "86737b32345ccabb51be9d2c534cfc6cb4c58dc472090973c0e7df182154c471"
+    }
+  ],
+  "testRunnerCorrection": "A post-build host check initially used the build script Node20 PATH and failed to import stripTypeScriptTypes. Explicit Node24 rerun passed all 16 checks; build remains pinned to Node20.",
+  "localCloudIsolation": "Actual shared send host test verifies local histories are rejected by the summary adapter and switching to cloud creates an isolated session without uploading local history"
+}

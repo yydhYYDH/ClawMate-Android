@@ -1,0 +1,127 @@
+{
+  "scope": "Conservative import graph, not a compiler result or code reuse percentage",
+  "mainEtsFiles": 197,
+  "filesWithDirectPlatformImports": 90,
+  "filesWithoutDirectPlatformImports": 107,
+  "filesWithUiDecorators": 38,
+  "platformModules": [
+    "@kit.AbilityKit",
+    "@kit.AccessibilityKit",
+    "@kit.AccountKit",
+    "@kit.ArkData",
+    "@kit.ArkTS",
+    "@kit.ArkUI",
+    "@kit.AudioKit",
+    "@kit.BackgroundTasksKit",
+    "@kit.BasicServicesKit",
+    "@kit.CameraKit",
+    "@kit.CoreFileKit",
+    "@kit.CoreSpeechKit",
+    "@kit.CoreVisionKit",
+    "@kit.CryptoArchitectureKit",
+    "@kit.IMEKit",
+    "@kit.ImageKit",
+    "@kit.LocalizationKit",
+    "@kit.MediaKit",
+    "@kit.MediaLibraryKit",
+    "@kit.NetworkKit",
+    "@kit.NotificationKit",
+    "@kit.PerformanceAnalysisKit",
+    "@kit.ShareKit",
+    "@kit.UIDesignKit",
+    "@ohos.data.dataSharePredicates",
+    "@ohos.file.fs",
+    "@ohos.pasteboard",
+    "@ohos.promptAction",
+    "@ohos.resourceManager",
+    "libentry.so"
+  ],
+  "roots": {
+    "pages/home/HomePage.ets": {
+      "conservativeFileCount": 61,
+      "platformModules": [
+        "@kit.AbilityKit",
+        "@kit.ArkData",
+        "@kit.ArkTS",
+        "@kit.ArkUI",
+        "@kit.BasicServicesKit",
+        "@kit.CoreFileKit",
+        "@kit.CoreVisionKit",
+        "@kit.CryptoArchitectureKit",
+        "@kit.ImageKit",
+        "@kit.LocalizationKit",
+        "@kit.MediaLibraryKit",
+        "@kit.NetworkKit",
+        "@kit.PerformanceAnalysisKit",
+        "@kit.UIDesignKit",
+        "@ohos.file.fs",
+        "libentry.so"
+      ]
+    },
+    "pages/chat/ChatPage.ets": {
+      "conservativeFileCount": 34,
+      "platformModules": [
+        "@kit.AbilityKit",
+        "@kit.ArkData",
+        "@kit.ArkTS",
+        "@kit.ArkUI",
+        "@kit.BasicServicesKit",
+        "@kit.IMEKit",
+        "@kit.LocalizationKit",
+        "@kit.NetworkKit",
+        "@kit.PerformanceAnalysisKit",
+        "@kit.UIDesignKit",
+        "libentry.so"
+      ]
+    },
+    "utils/CloudModelClient.ets": {
+      "conservativeFileCount": 14,
+      "platformModules": [
+        "@kit.AbilityKit",
+        "@kit.ArkData",
+        "@kit.ArkTS",
+        "@kit.NetworkKit",
+        "@kit.PerformanceAnalysisKit",
+        "libentry.so"
+      ]
+    },
+    "utils/AgentLoopRunner.ets": {
+      "conservativeFileCount": 41,
+      "platformModules": [
+        "@kit.AbilityKit",
+        "@kit.ArkData",
+        "@kit.ArkTS",
+        "@kit.BackgroundTasksKit",
+        "@kit.BasicServicesKit",
+        "@kit.CoreFileKit",
+        "@kit.CryptoArchitectureKit",
+        "@kit.ImageKit",
+        "@kit.NetworkKit",
+        "@kit.PerformanceAnalysisKit",
+        "libentry.so"
+      ]
+    },
+    "utils/WorkflowRunner.ets": {
+      "conservativeFileCount": 24,
+      "platformModules": [
+        "@kit.AbilityKit",
+        "@kit.ArkData",
+        "@kit.ArkTS",
+        "@kit.CoreFileKit",
+        "@kit.NetworkKit",
+        "@kit.PerformanceAnalysisKit",
+        "@ohos.file.fs",
+        "@ohos.resourceManager",
+        "libentry.so"
+      ]
+    },
+    "pages/onboarding/FirstLaunchOnboarding.ets": {
+      "conservativeFileCount": 3,
+      "platformModules": [
+        "@kit.AbilityKit",
+        "@kit.ArkUI",
+        "@kit.LocalizationKit"
+      ]
+    }
+  }
+}

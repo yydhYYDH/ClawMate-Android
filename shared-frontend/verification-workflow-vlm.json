@@ -1,0 +1,376 @@
+{
+  "phase": "SH-13",
+  "date": "2026-10-27",
+  "baseCommit": "245a3a9b177fd6886432bdc697fbee9b9284f75e",
+  "branch": "codex/workflow-vlm-qa",
+  "feature": "Opt-in local-image vlm_qa workflow port with explicit Decider confirmation",
+  "hostChecksPassed": 98,
+  "newHostChecks": 17,
+  "newJvmTests": 12,
+  "upstreamCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "sourceRunnerBlob": "7a76bf0fd0bfe0633aa7306dd438ff3648209444",
+  "jvm": [
+    {
+      "module": "compose",
+      "tests": 1243,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "capabilities",
+      "tests": 120,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "meeting-sdk",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "passed": 12,
+    "newModel": 3,
+    "nativeAndMeeting": 7,
+    "chat": 1,
+    "reminderDenied": 1
+  },
+  "deviceScope": [
+    "Actual bridge/model mailbox/runner preserves controlled text and 16K JSON-escaped response, rejects replay and late replies",
+    "Native cancellation ends pending wait; image preparation refuses non-private path",
+    "Actual ArkTS Task -> Configure -> Run -> explicit model/image confirmation -> cancellation or real .invalid provider failure -> failed run without successful summary",
+    "Original OCR/TTS/images/workflow/meeting/chat/denied-reminder regression on final APK"
+  ],
+  "cleanup": "Settings, privacy and task index restored; own synthetic config, image and run records removed; private backup absence checked. Notification permission remains false. Earlier positive reminder tests were not rerun; see SH-12.",
+  "preparedDigest": "c9cc9bda3da214970bdc3497605a28a5bb5fa60c08187e0f9b79892e6233f294",
+  "arktsInputs": {
+    "total": 142,
+    "unchanged": 77,
+    "adapted": 36,
+    "newPlatformFiles": 29
+  },
+  "apk": {
+    "sha256": "59775bd88a46258d7b8a3485bb4e3b0199a6d2b7acaabd6f4d248924a5f5713f",
+    "apkBytes": 312628291,
+    "nativeLibraries": 325,
+    "elf16kbFailures": [
+      "lib/arm64-v8a/libandroid-complex-math.so"
+    ],
+    "arkui16kbFailures": []
+  },
+  "commands": [
+    {
+      "command": "node shared-frontend/verify.mjs",
+      "passed": 6,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-native.mjs",
+      "passed": 7,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-integration.mjs",
+      "passed": 12,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-meeting.mjs",
+      "passed": 5,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-context.mjs",
+      "passed": 16,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-reminders.mjs",
+      "passed": 14,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-workflow-vlm.mjs",
+      "passed": 17,
+      "exitCode": 0
+    },
+    {
+      "command": "node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+      "passed": 8,
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/verify-maintenance.mjs --prepare-twice",
+      "passed": 9,
+      "exitCode": 0
+    },
+    {
+      "command": "python -B shared-frontend/verify-apk-audit.py",
+      "passed": 4,
+      "exitCode": 0
+    },
+    {
+      "command": "./shared-frontend/build.ps1 -JavaHome $Jdk17 -AndroidSdk $AndroidSdk -MeetingSdkRoot $MeetingSdkRoot -Offline",
+      "exitCode": 0
+    },
+    {
+      "command": "./gradlew.bat :shared-app:assembleDebugAndroidTest :android-capabilities:testDebugUnitTest --rerun :app:testDebugUnitTest --rerun :meeting-sdk:testDebugUnitTest --rerun --offline --no-daemon --console=plain",
+      "exitCode": 0
+    },
+    {
+      "command": "./gradlew.bat :shared-app:assembleDebug :shared-app:assembleDebugAndroidTest :android-capabilities:testDebugUnitTest --rerun --offline --no-daemon --console=plain",
+      "exitCode": 0
+    },
+    {
+      "command": "adb install -r shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "adb install -r shared-app/build/outputs/apk/androidTest/debug/shared-app-debug-androidTest.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "node shared-frontend/build-state.mjs verify",
+      "exitCode": 0
+    },
+    {
+      "command": "python -B shared-frontend/audit-apk.py shared-app/build/outputs/apk/debug/shared-app-debug.apk --runtime-root .arkui-x-validation/application/runtime --output .arkui-x-validation/application/sh13-apk-audit.json --require-16kb",
+      "exitCode": 1,
+      "knownFailure": "Existing meeting libandroid-complex-math.so 4 KB ELF alignment"
+    },
+    {
+      "command": "zipalign -c -P 16 -v 4 shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "python <meeting-checkout>/android/verify_host_apk.py shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.WorkflowModelDeviceTest#actualTaskConfirmationCancellationAndUnavailableModelNeverWriteSuccessfulSummary com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "exitCode": 0,
+      "passed": 1
+    },
+    {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.WorkflowModelDeviceTest#realBridgePreservesModelOutputAndRejectsReplay,com.clawmate.shared.WorkflowModelDeviceTest#cancellingPendingModelRejectsLateReply com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "exitCode": 0,
+      "passed": 2
+    },
+    {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.NativeCapabilitiesDeviceTest,com.clawmate.shared.MeetingIntegrationDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "exitCode": 0,
+      "passed": 7
+    },
+    {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.ChatContextDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "exitCode": 0,
+      "passed": 1
+    },
+    {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.ReminderDeviceTest#deniedPermissionLeavesNoRegisteredReminder com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "exitCode": 0,
+      "passed": 1
+    }
+  ],
+  "initialFailures": [
+    {
+      "log": "sh13-model-jvm.log",
+      "result": "Kotlin interpolation parsed adjacent Chinese as identifier; fixed braces"
+    },
+    {
+      "log": "sh13-build.log",
+      "result": "ArkTS ArrayBufferLike needed explicit ArrayBuffer typing"
+    },
+    {
+      "log": "sh13-model-ui.log",
+      "result": "Test driver omitted Configure navigation before Run"
+    },
+    {
+      "log": "sh13-model-ui-final.log",
+      "result": "Real native file:/ URI was rejected by overly strict file:// guard; fixed acceptance while retaining native private-root validation"
+    }
+  ],
+  "limitations": [
+    "No real cloud inference quality certification; controlled successful reply and .invalid failure are labelled separately",
+    "JSON object format checked, not full JSON Schema or upstream alias/type normalization",
+    "Sequential bounded requests, not deferred concurrent summaries or implicit retry",
+    "Private imported copies retained after discarded edits; reference-aware garbage collection pending",
+    "GUI/HDC screenshot and device planning remain blocked; no claim default collection workflows all execute",
+    "No early step_dir/daily_log_path output before ArkTS final commit",
+    "Existing meeting native library still blocks 16 KB release gate; no real 16 KB execution check",
+    "Model branch remains separate from PR #6; no additional PR created",
+    "Original README whitespace edit excluded from commit"
+  ],
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/application/sh13-apk-audit.json",
+      "sha256": "2b06c05897c29421ba06828d9438dd7b9b5ffdbbf0c06e71f0882491705d58f5"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-apk-audit.log",
+      "sha256": "2bbb3f15f431bd6cf7119d3a76fdbf71fc07a05a8d1100f9584544cee0c8eb82"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-backup-cleanup.log",
+      "sha256": "275d56450e810f33738fdec9631736fd3c9812cfa394f952f0c075c0a9a6c39e"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-build.log",
+      "sha256": "f704a8fabb28ad205de810958439d5e7b8af22806c57ccda387e228b00325075"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-build2.log",
+      "sha256": "9aa757f514e3be5d2b952dd06db8d49e6b1d6b2438eefb5671d0c67a658f12d0"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-chat-device.log",
+      "sha256": "ebf77f99b4d7d70c0c6c75cdac50faaa2e87bd45ae9222ab736c2c6d00684cf6"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-context.log",
+      "sha256": "3a04ddfd926ce6c6c83f8f0a18f2fc206d5bf036d61223a95e88703d247a1c56"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-contracts.log",
+      "sha256": "bb4882f485dbaa0af21315530b4d430aef72bd35e9c3c9f845387568fb6e269f"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-elf-tests.log",
+      "sha256": "731f3a08495ba50ddf2eebdcc613db05f46bded4f36501333f0e1894560f1836"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-android.log",
+      "sha256": "68b6be82ac33c02165a558ae52a732bc0c684fa85de7bdd4d07331c85163fb15"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-arkts.log",
+      "sha256": "db8cfea618f37610bf4a9a35662a15059cf04f20b086d424e470657504d92926"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-build.log",
+      "sha256": "9f4df92afe03a3207aaaed50ab075bb4173f0b8ad651cdc8ed0bd8a8abf71a64"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-install2.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-prepare.log",
+      "sha256": "07adf161ae8e24ee08ce7c2436b1c3cd682f42481e14e65d840cd4aa31dc7bde"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-runtime.log",
+      "sha256": "c27c371e7b4df4b787db5775ad246d0527a3fc5cc09121c1db95f6eae786f786"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-final-test-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-integration.log",
+      "sha256": "869f9d6bec297b2bd81cb1ab07503f0b733c2cf50f7150b1ea2e7f6e7ed10e81"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-maintenance.log",
+      "sha256": "a2673b740e7e1cb617002f052c4f87c6554caaee57503441efc3c4ae28c9b71d"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-meeting.log",
+      "sha256": "07a4ab750a420dd6847350fcf5b8438bfea6237695e2dc2c6c2d3fde03e028a6"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-host.log",
+      "sha256": "766587e069daca6cd7718a6324d355cac5594738e4619315b76f1d652a1c2201"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-jvm.log",
+      "sha256": "7f9f45a66829cfd2e64730136a3d6c92a1666a48e4aae278f925e668cc183dae"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-jvm2.log",
+      "sha256": "103a7b1f08340f91f4cbbfeb5a8475a870968bdf27b120b46a0830f69d08fd0c"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-native-final.log",
+      "sha256": "66791bf14abcf3ca4633b09df2179d9cd9337bbcd8044341717935ce40b71a09"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-native.log",
+      "sha256": "17717729133ee94dc4759a8e4bc4a35745b270966e22b835c47d1f1a7f5e66d9"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-ui-final.log",
+      "sha256": "0f66247939df70424b7fb1e9d13bf9b425d47709a288daf43be8c6a954352d22"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-ui-final2.log",
+      "sha256": "14d2fe55598e5bba62f65b2f1ca20a9cbea44e374fd62906d553399dd0063a35"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-model-ui.log",
+      "sha256": "46d293265f2a4c2b5fb90b139a4dbbdd06f82acb6a1be7e85dafdb5e443de838"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-native-meeting-device.log",
+      "sha256": "e806333ef61ed8644e0578a1fddf71d938553fe529e7c2ad01f84c014895d1b4"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-native.log",
+      "sha256": "6de2422e7035d091802879e9879bc50c12683ac29483b12046eda3e13eac4674"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-payload.log",
+      "sha256": "924c8b01c3ef37bc5be8d49ddbb8c4b901c09b532a10a34ab2081f07561adc7a"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-permission-cleanup.log",
+      "sha256": "eac8b051e30ee040f1edd95d2cd199491be87be44dc71c83fe1ebd82b5683ba0"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-prepare.log",
+      "sha256": "07adf161ae8e24ee08ce7c2436b1c3cd682f42481e14e65d840cd4aa31dc7bde"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-provenance.log",
+      "sha256": "7e62f9e62188588123ab6d458372a593ae2c4f160238deee65a4458c5050f5b1"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-regression.log",
+      "sha256": "c42129edcfdaa9b599b477145faf1c3f9daf10accde5e38eb54b4ec73ecc3fba"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-reminder-denied-device.log",
+      "sha256": "c1b25a1974cab5ea46d3441e512a06fcd894c86037bdcec4f6553658d2acb847"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-reminders.log",
+      "sha256": "e5ba1bbc95aacd76e83ef8e3690f9b43a72d2e2445b2c33f446c6eb728e97dda"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-shared.log",
+      "sha256": "2677c551496fb86213e964a9c8415ccd8485042a7de938adc7fbe7d4586be0e4"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-test-install.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh13-zipalign.log",
+      "sha256": "c772fed2af433dfe409bcbe841fece76a5e42322a0cc9af036a0374402f8f11a"
+    }
+  ]
+}

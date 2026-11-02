@@ -1,0 +1,279 @@
+{
+  "phase": "SH-01",
+  "date": "2026-10-26",
+  "upstreamCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "package": "com.clawmate.shared",
+  "sourceCounts": {
+    "stagedArkTS": 127,
+    "unchanged": 83,
+    "adapted": 29,
+    "authored": 15,
+    "uniqueLockedInputs": 119
+  },
+  "sourceCountScope": "Generated compilation inputs only; not a whole-product reuse percentage.",
+  "toolchain": {
+    "openHarmony": "API 20 / 6.0.0.47",
+    "arkuiX": "API 20 / 6.0.0.103",
+    "androidCompileSdk": 34,
+    "androidTargetSdk": 34,
+    "androidMinSdk": 26,
+    "abi": [
+      "arm64-v8a"
+    ]
+  },
+  "device": {
+    "manufacturer": "OPPO",
+    "model": "PKB110",
+    "android": "16",
+    "api": 36,
+    "oplusRom": "V16.1.0"
+  },
+  "checks": [
+    {
+      "command": "node shared-frontend/verify.mjs",
+      "passed": 6,
+      "scope": "Host source locks, routes, settings persistence/retry, context budget"
+    },
+    {
+      "command": "node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+      "passed": 8,
+      "scope": "Original source host contracts; not device/cloud tests"
+    },
+    {
+      "command": "./shared-frontend/build.ps1 -JavaHome <local JDK 17> -AndroidSdk <local Android SDK> -Offline",
+      "result": "success",
+      "log": ".arkui-x-validation/application/shared-build-final-3.log",
+      "arktsBuild": "BUILD SUCCESSFUL in 17 s 374 ms",
+      "androidBuild": "BUILD SUCCESSFUL in 20s"
+    },
+    {
+      "command": "adb install -r <final APK>",
+      "result": "Success",
+      "latestColdStartTotalTimeMs": 721,
+      "scope": "Single recorded launch, not a performance benchmark"
+    },
+    {
+      "command": "node --check (three changed JavaScript modules); Python ast.parse(package-android.py); git diff --check",
+      "result": "passed"
+    }
+  ],
+  "manualDeviceChecks": [
+    {
+      "flow": "Four-page onboarding and persisted completion after process restart/update",
+      "evidence": [
+        "first-launch.xml",
+        "onboarding-guide.xml",
+        "final-home.xml"
+      ]
+    },
+    {
+      "flow": "Five primary tabs, gallery, collection, task editor and file viewer navigation",
+      "evidence": [
+        "home.xml",
+        "collection.xml",
+        "task-main.xml",
+        "chat-main.xml",
+        "settings.xml",
+        "gallery.xml",
+        "file-viewer.xml"
+      ]
+    },
+    {
+      "flow": "Cloud authorization gate, declaration accept/revoke; native system photo picker open/cancel",
+      "evidence": [
+        "gallery-authorization-gate.xml",
+        "privacy-dialog.png",
+        "picker.xml",
+        "authorization-revoked.xml"
+      ],
+      "selectedPhotos": 0
+    },
+    {
+      "flow": "Workflow graph add/save/copy/delete with actual JSON files and unsaved edit confirmation",
+      "evidence": [
+        "workflow-node.xml",
+        "workflow-saved.xml",
+        "workflow-copied.xml",
+        "workflow-discard.png",
+        "file-viewer.xml",
+        "workflow-cleaned.xml"
+      ],
+      "observedTaskCounts": [
+        11,
+        12,
+        13,
+        12,
+        11
+      ],
+      "executedWorkflows": 0
+    },
+    {
+      "flow": "Managed file category count refreshes immediately after deletion",
+      "evidence": [
+        "workflow-count-updated.xml",
+        "workflow-cleaned.xml"
+      ]
+    },
+    {
+      "flow": "Desktop URL persisted across force-stop/restart, then cleared; Android physical back returns from secondary route",
+      "evidence": [
+        "desktop-restored.xml",
+        "desktop-clean-on-restart.xml",
+        "hardware-back-fixed.xml"
+      ],
+      "fixtureUrl": "https://fixture.invalid/desktop",
+      "openedUrl": false
+    },
+    {
+      "flow": "Chat session create/pin/rename, force-stop/restart restore, confirmation/delete",
+      "evidence": [
+        "chat-session-created.xml",
+        "chat-pinned.xml",
+        "chat-restored.xml",
+        "chat-cleaned.xml"
+      ],
+      "modelRequests": 0
+    }
+  ],
+  "cleanup": {
+    "testWorkflowsRemoved": true,
+    "finalTaskCount": 11,
+    "testChatSessionRemoved": true,
+    "finalChatSessionCount": 0,
+    "fixtureDesktopUrlCleared": true,
+    "cloudAuthorizationRevoked": true,
+    "oldComposePackageOrDataModified": false,
+    "phoneLeftOn": "Shared frontend home"
+  },
+  "limitations": [
+    "Actual cloud inference, gallery analysis and image-generation providers not exercised.",
+    "No private photos selected/uploaded and no old application data migrated.",
+    "Automatic context summary and tool/agent execution not integrated.",
+    "OCR, voice, notifications, HMS/A2A, HDC/GUI/Python and native MNN/HiAI capabilities remain explicitly unavailable or unverified.",
+    "Only this OPPO phone tested; no Xiaomi, other OEM, iOS or ArkUI-X API 22 certification.",
+    "Debug APK contains full SDK plugins; release signing, trimming, size/performance and release target SDK acceptance pending.",
+    "This phase does not replace the existing Compose product."
+  ],
+  "artifacts": [
+    {
+      "path": "shared-app/build/outputs/apk/debug/ClawMateShared-debug.apk",
+      "bytes": 97612247,
+      "sha256": "e302d829129b7d0d94932f8881c2f5d49577837bcea2825b9d567facdfb4be0e"
+    },
+    {
+      "path": ".arkui-x-validation/application/clawmate-shared-final.apk",
+      "bytes": 97612247,
+      "sha256": "e302d829129b7d0d94932f8881c2f5d49577837bcea2825b9d567facdfb4be0e"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-build-final-3.log",
+      "bytes": 41101,
+      "sha256": "f7f8be19c8eb988ab709f0f91b6dbc605f8a527afe3d9cbdd194d7c69d03620b"
+    },
+    {
+      "path": ".arkui-x-validation/application/first-launch.xml",
+      "bytes": 9619,
+      "sha256": "6e3ea31740022fe4b6b6313d8cb15e01bab3804eba3c2273c1bb2d340220eb61"
+    },
+    {
+      "path": ".arkui-x-validation/application/onboarding.png",
+      "bytes": 922138,
+      "sha256": "4e9a99a49385325482a49ece5f35a55df6406ff8980930ddf98bf78be3b1f510"
+    },
+    {
+      "path": ".arkui-x-validation/application/onboarding-guide.xml",
+      "bytes": 18407,
+      "sha256": "05f8aab25f57830fc4397c5a7b0388855a12b061ab5042b0ffff0b95e98f6a87"
+    },
+    {
+      "path": ".arkui-x-validation/application/final-home-returned.png",
+      "bytes": 1073960,
+      "sha256": "d7a4545ed3ea00c680caa4a03ff830b448e90b6529f11920b9fb7a7d94f4aa22"
+    },
+    {
+      "path": ".arkui-x-validation/application/final-home-returned.xml",
+      "bytes": 47602,
+      "sha256": "501d529e26c0bbdd510087d8d507d8a83bdd250b3ff76f0eabefbaa3977a9e69"
+    },
+    {
+      "path": ".arkui-x-validation/application/gallery.png",
+      "bytes": 163924,
+      "sha256": "442ba9b4b37328d1024ee9b077d24db81b868d66630a1e328037975cb2fe4d26"
+    },
+    {
+      "path": ".arkui-x-validation/application/gallery-authorization-gate.xml",
+      "bytes": 27671,
+      "sha256": "00b69b6a373368cdc850c9dca96be189534141a4ab978c3a04128e2323b94d6b"
+    },
+    {
+      "path": ".arkui-x-validation/application/privacy-dialog.png",
+      "bytes": 391338,
+      "sha256": "79c98aeac109f8f114600a8f7ed9a050ea275566bb2f2154865862290b13d75e"
+    },
+    {
+      "path": ".arkui-x-validation/application/picker.xml",
+      "bytes": 27552,
+      "sha256": "bf8b43eefc200acee3b6f4bfca2878fcbcfd54c3669ff9048d79355e7e61f4b2"
+    },
+    {
+      "path": ".arkui-x-validation/application/authorization-revoked.xml",
+      "bytes": 35256,
+      "sha256": "a22b2b3d76c755b0636a2a5715c6f8e082e3ac846c72c806b43ec110aa205f1e"
+    },
+    {
+      "path": ".arkui-x-validation/application/workflow-discard.png",
+      "bytes": 190256,
+      "sha256": "623c7d570f62bb50a6a49c4bcc5fd81171b11ee0fc56033f2e32312b5ff59a62"
+    },
+    {
+      "path": ".arkui-x-validation/application/workflow-saved.xml",
+      "bytes": 49895,
+      "sha256": "8b6d5e4950f315c85d00fde6d014a9b842379e15bff4e5e0d3fbd083e3b4e67b"
+    },
+    {
+      "path": ".arkui-x-validation/application/workflow-copied.xml",
+      "bytes": 56929,
+      "sha256": "7871d51cb5b28e925d0b7814f5073046fc7811d0dda21087fc18c51e8ea8a941"
+    },
+    {
+      "path": ".arkui-x-validation/application/workflow-count-updated.xml",
+      "bytes": 49895,
+      "sha256": "cfb603813072f16b227314df72c7498e278003de55803ae64ee36d6bcce869fc"
+    },
+    {
+      "path": ".arkui-x-validation/application/workflow-cleaned.xml",
+      "bytes": 43079,
+      "sha256": "5217eb0eb9d1fc9f17795b8f8639a3f73af0cf86c1e688a4ea8d46cbe97015de"
+    },
+    {
+      "path": ".arkui-x-validation/application/file-viewer.xml",
+      "bytes": 17700,
+      "sha256": "6d84498268f7753b835fbf843ce878bc7f2e7a545c27834d8c119ab94be378d1"
+    },
+    {
+      "path": ".arkui-x-validation/application/desktop-restored.xml",
+      "bytes": 6487,
+      "sha256": "d18e0e549f73e2fc602242367044b922fc45f5e13d1b2ded53449bc1367d285c"
+    },
+    {
+      "path": ".arkui-x-validation/application/desktop-clean-on-restart.xml",
+      "bytes": 6436,
+      "sha256": "831d07634c6874db0bba7acd16957862baa00437f0488f6676c119307a971703"
+    },
+    {
+      "path": ".arkui-x-validation/application/hardware-back-fixed.xml",
+      "bytes": 35256,
+      "sha256": "a22b2b3d76c755b0636a2a5715c6f8e082e3ac846c72c806b43ec110aa205f1e"
+    },
+    {
+      "path": ".arkui-x-validation/application/chat-restored.xml",
+      "bytes": 46323,
+      "sha256": "2719aced9e73c6db03aba77c205993100d95fee00811827e16542e5cd2ab69ea"
+    },
+    {
+      "path": ".arkui-x-validation/application/chat-cleaned.xml",
+      "bytes": 43764,
+      "sha256": "46b4ee5dd9bcab6c1310c395b19194a24f1bf001257c5d1d8c329dcec7622c1a"
+    }
+  ]
+}

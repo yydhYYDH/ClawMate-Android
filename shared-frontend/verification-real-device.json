@@ -1,0 +1,246 @@
+{
+  "phase": "SH-18",
+  "date": "2026-10-28",
+  "baseCommit": "5553b9c",
+  "device": {
+    "model": "OPPO PKB110",
+    "android": "16",
+    "api": 36,
+    "architecture": "arm64-v8a",
+    "pageSize": 4096,
+    "physical": true
+  },
+  "apk": {
+    "sha256": "f1847e9e656d4ab1db36e5f07236d565b9befafc74aa0350ca6e98c535585f2c",
+    "bytes": 312627930,
+    "testSha256": "097c2a8480331e1d4fb3b69ffeae68c67a2ad3e1c4cebe2a82676224d0eaf084"
+  },
+  "testTimeoutMultiplier": 1,
+  "deviceChecksPassed": 16,
+  "deviceChecksFailed": 0,
+  "groups": [
+    {
+      "name": "native-meeting",
+      "passed": 7,
+      "durationSeconds": 20.624,
+      "log": ".arkui-x-validation/application/sh18-phone-regression/native-meeting.log"
+    },
+    {
+      "name": "chat",
+      "passed": 1,
+      "durationSeconds": 7.845,
+      "log": ".arkui-x-validation/application/sh18-phone-regression/chat.log"
+    },
+    {
+      "name": "workflow-ui",
+      "passed": 1,
+      "durationSeconds": 4.822,
+      "log": ".arkui-x-validation/application/sh18-phone-regression/workflow.log"
+    },
+    {
+      "name": "model-and-digest",
+      "passed": 3,
+      "durationSeconds": 2.662,
+      "log": ".arkui-x-validation/application/sh18-phone-extra/model-and-digest.log"
+    },
+    {
+      "name": "gallery-pause",
+      "passed": 1,
+      "durationSeconds": 2.773,
+      "log": ".arkui-x-validation/application/sh18-phone-extra/gallery-pause.log"
+    },
+    {
+      "name": "gallery-restart",
+      "passed": 1,
+      "durationSeconds": 5.124,
+      "log": ".arkui-x-validation/application/sh18-phone-extra/gallery-restart.log"
+    },
+    {
+      "name": "reminder",
+      "passed": 2,
+      "durationSeconds": 4.777,
+      "log": ".arkui-x-validation/application/sh18-phone-extra/reminder.log"
+    }
+  ],
+  "numericalExportsPassed": 22,
+  "tts": "REAL_START_AND_STOP",
+  "meeting": "Real public Chinese audio transcript, shared-page immutable import, duplicate suppression and SDK lifecycle checks passed; microphone never started",
+  "commands": [
+    "scripts/test-shared-device.ps1 -Adb <adb.exe> -Serial <phone> -EvidenceName sh18-phone-regression",
+    "scripts/test-meeting-native.ps1 -AndroidSdk <SDK> -Serial <phone> -EvidenceName sh18-phone-native",
+    "adb -s <phone> shell am instrument -w -r -e class <listed additional classes/methods> com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner"
+  ],
+  "manualChecks": [
+    "Launch/home",
+    "Summary page",
+    "Main chat page; bottom tab confirmed separately after an initial subcategory selection",
+    "Tasks",
+    "My page",
+    "Personal/privacy settings entry; no settings edited"
+  ],
+  "cleanup": {
+    "fixtureBackupsAbsent": true,
+    "syntheticGalleryDateAbsent": true,
+    "temporaryNativeExecutableAbsent": true,
+    "temporaryInputScreenshotRemoved": true,
+    "notificationPermissionAlreadyGrantedAndRetained": true,
+    "publicMeetingCopyRetained": true,
+    "publicSourceMeetingMovedToReversibleTrash": true,
+    "leftOnHome": true
+  },
+  "scope": {
+    "productSourceChanged": false,
+    "productApkChanged": false,
+    "buildsOrJvmTestsRerun": false,
+    "composeBaselineDeviceTestsRun": false
+  },
+  "boundaries": [
+    "4KB physical phone does not certify ARM64 16KB runtime or resolve the two SH-17 failures",
+    "Cloud/vision model error tests used reserved .invalid endpoints and synthetic inputs; no real provider quality claim",
+    "Notification receiver used a controlled trigger, not a vendor background-delivery timing test",
+    "Notification-denied case skipped because existing permission was granted; no permission revocation",
+    "Fresh onboarding, live microphone ASR, real camera capture and actual avatar generation not exercised"
+  ],
+  "evidence": [
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-regression/chat.log",
+      "bytes": 1173,
+      "sha256": "12cc04e1780a2215addaa95f6895a6915a07965e9b2c797e021287ff1d6ee8ea"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-regression/environment.json",
+      "bytes": 168,
+      "sha256": "963b501f51bbd4af9a2a31cb845586bd11a4b27783aee288ca5d1b9f40775b82"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-regression/install.log",
+      "bytes": 76,
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-regression/native-meeting.log",
+      "bytes": 6594,
+      "sha256": "fdb7374e93bd6e3a6423f2cccf3d0c23e4032fa68a0ec7ef64829b65096bd444"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-regression/workflow.log",
+      "bytes": 1750,
+      "sha256": "6f7041a60fc3e852c5814bf4a1ab7ef11366f87a6c10eeb421c0ea8a96be8e8a"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-extra/gallery-pause.log",
+      "bytes": 1535,
+      "sha256": "d856940949bee0b0b3e4a58b2e5025db26d04b7151007efd47001073bb061d90"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-extra/gallery-restart.log",
+      "bytes": 1523,
+      "sha256": "c8592b29e2d40d067f287909b669288fa37baa5c20c1b97f72dc5ffa5b5b9976"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-extra/model-and-digest.log",
+      "bytes": 2738,
+      "sha256": "d704a24a2b587f34c4c795e0065c14c829da384b27caa0d6232f895e14d41d30"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-extra/reminder.log",
+      "bytes": 1946,
+      "sha256": "f3eace691472b1fb5408b9601e726f9df916b1e93f19fc7c0924cd4592a6a6f9"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-native/compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-native/complex-math-smoke",
+      "bytes": 20416,
+      "sha256": "b92249265478eb67387c863c96a37e9f7f0258297a08ab530c8e9866d20df9b2"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-native/environment.json",
+      "bytes": 141,
+      "sha256": "1ea9b3fcb42319e069afd85c4099356d706c1fc2121f45fb9f00619a86e1cc1a"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-native/installed-library-sha256.log",
+      "bytes": 186,
+      "sha256": "3950d79eca170a94b2f252ae96807360b686aea46b226521a79a635b1ef84799"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-native/numerical.log",
+      "bytes": 52,
+      "sha256": "a9adb45f88814eabdd462a20f4048d93052a9578bf1588599a831ef3ad1db8c7"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-native/page-size.log",
+      "bytes": 6,
+      "sha256": "30f236f92d107cedc1eab7b3d6dafa316df3657ac88e59ece8df2944b6c995ca"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-native/push.log",
+      "bytes": 184,
+      "sha256": "9829229933f0fe4cb3cb8f5b0d0d595eb20efa65ff647ab8dbea9ac8f5aa7e43"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/home.png",
+      "bytes": 1095367,
+      "sha256": "caae64434662d74353b9f3c84ad2fb7e6f57d2d2c6cd4bbdc2a1ab11b5ce9178"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/汇总.png",
+      "bytes": 576769,
+      "sha256": "09d20cc64d9325be8b612faee20ed5b644c300c33696466dbcc4bf585b26c395"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/chat-main.png",
+      "bytes": 348099,
+      "sha256": "a56d5f5581a75074e91413b2c38508d821c5e414f84a3b371b5dd290ad8f6c0b"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/任务.png",
+      "bytes": 266116,
+      "sha256": "0df2c0b540611c04219ca0e5f0ce0ef82e19e4e27f11143da92335db453c829c"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/我的.png",
+      "bytes": 239820,
+      "sha256": "c618e032a0cd0b36c5f9191101f95117a8c8f2b1815474b51a0dd6ce69d8a9b4"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/privacy-settings.png",
+      "bytes": 317304,
+      "sha256": "bcff0930d6cc91d6f55519c5b44d74f42bc176d19685aef4b3b2bd56c8051873"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/launch.log",
+      "bytes": 181,
+      "sha256": "1f555fb9498ed01a5fcc6ba3d7bc31d0bd971e0d202930e77ebd067eae0d274a"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/chat-main.xml",
+      "bytes": 33267,
+      "sha256": "175f89cf820efa6737b575c58b1215c9d549d96d3c362c053f3336e58987274d"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/privacy-settings.xml",
+      "bytes": 34294,
+      "sha256": "3f7357b67c529a697ff847cc637433b69461ea1524b00a23194cefc48ba67373"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/cleanup.log",
+      "bytes": 123,
+      "sha256": "1edac5d56a93f4c0ad5e41e63fd9b2a3b8ed3a9d6cccbed591086a2e90d268fd"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/notification-permission-after.log",
+      "bytes": 135,
+      "sha256": "6b6ea62f4d9f463bfea585a82f2cd8deebb984be46b3db21e4690aab00069248"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh18-phone-ui/final-home.xml",
+      "bytes": 46196,
+      "sha256": "eaf1abe8c071b94ea4480c49735a688ae5b86cf3f36f754f08245109be19318a"
+    }
+  ]
+}

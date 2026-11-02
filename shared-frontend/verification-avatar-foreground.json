@@ -1,0 +1,242 @@
+{
+  "phase": "SH-21",
+  "date": "2026-10-28",
+  "baseCommit": "a8b7074",
+  "feature": "F12/P05 second subphase: local person foreground segmentation",
+  "implementation": [
+    "Reusable android-capabilities adapter with bundled ML Kit segmentation-selfie 16.0.0-beta6; local person mask, no image upload",
+    "Shared ArkTS retains original alpha bounds crop, PNG encoder, 168x216 contain thumbnail and AvatarStorage paths",
+    "Generated avatars use original best-effort cache hook; startup backfills existing current avatar and incomplete thumbnails",
+    "Private local input, bounded decode and 512px output; serialized work, timeout/late-result discard, failure feedback and original image/version preserved"
+  ],
+  "references": [
+    "https://developers.google.com/ml-kit/vision/selfie-segmentation/android",
+    "https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.astronaut"
+  ],
+  "commands": [
+    "node shared-frontend/prepare.mjs",
+    "shared-frontend/build.ps1 -JavaHome <local-jdk17> -AndroidSdk <local-sdk> -MeetingSdkRoot <read-only-meeting-sdk> -Offline",
+    "node shared-frontend/verify-avatar-foreground.mjs; existing shared host contracts, exporter/audit and upstream contracts",
+    "gradlew.bat :android-capabilities:testDebugUnitTest :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+    "scripts/test-shared-device.ps1 -Adb <adb> -Serial <phone> -EvidenceName sh21-phone-regression",
+    "adb shell am instrument -w -r -e class com.clawmate.shared.AvatarForegroundDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+    "adb shell am instrument -w -r -e class com.clawmate.shared.AvatarReferenceDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+    "scripts/test-meeting-native.ps1 -AndroidSdk <sdk> -Serial <phone> -EvidenceName sh21-phone-native",
+    "node shared-frontend/build-state.mjs verify"
+  ],
+  "host": {
+    "exporter": 8,
+    "provenance": 1,
+    "nativeIntegrity": 5,
+    "contractAndSourcePassLines": 152,
+    "total": 170,
+    "newForegroundChecks": 9,
+    "apkAudit": 4
+  },
+  "jvm": {
+    "newMaskTests": 4,
+    "skipped": 0,
+    "tests": 127,
+    "module": "android-capabilities",
+    "errors": 0,
+    "composeBaselineTestsRerun": false,
+    "failures": 0
+  },
+  "builds": {
+    "android": "21s; 93 tasks, 10 executed, 83 up-to-date",
+    "unitAndAndroidTest": "66s; 106 tasks, 18 executed, 88 up-to-date",
+    "elfLibraries": 326,
+    "elf16kbFailures": [],
+    "hapSeconds": 12.502,
+    "zip16kbPassed": true,
+    "runtimeFiles": 398
+  },
+  "device": {
+    "numericalExports": 22,
+    "visualInspection": "Actual alpha samples and white-background/alpha diagnostic plot reviewed; person retained and background transparent, with some soft/uncertain edge pixels",
+    "assertions": [
+      "Actual shared startup -> original AvatarService -> native ML Kit -> original crop/PNG/thumbnail -> original private cache files",
+      "Real model rejects a synthetic blank blue image rather than saving invented foreground",
+      "Remote, external and ungranted content paths refused",
+      "Original source and version bytes preserved during cache creation",
+      "Prior photo-upload confirmation/cancel flow preserves state and versions"
+    ],
+    "pageSize": 4096,
+    "coreChecks": 9,
+    "foregroundSeconds": 1.894,
+    "photoConsentChecks": 1,
+    "android": 16,
+    "actualForeground": {
+      "messageWidth": 168,
+      "transparentPixels": 106470,
+      "messageHeight": 216,
+      "height": 499,
+      "width": 512,
+      "opaquePixels": 138005
+    },
+    "photoConsentSeconds": 3.564,
+    "foregroundChecks": 3,
+    "totalChecks": 13,
+    "model": "OPPO PKB110",
+    "input": "NASA public-domain astronaut photograph, bundled test-only fixture; no private photo"
+  },
+  "apk": {
+    "sha256": "9605210451ed3a426d2db225848e273d805df7254428a8ed85e923145730a2e3",
+    "testSha256": "56c1b49a115b2755a1b0a53ee1d190511c41e66d6ebabe49b69c984774eca2f7",
+    "bytes": 312628469
+  },
+  "earlierFailure": "First ArkTS build rejected constructor parameter-property syntax; explicit fields fixed it and final pinned HAP/Android build passed. No device assertion failure in this phase.",
+  "cleanup": {
+    "phoneEvidenceCopiesRemoved": true,
+    "originalStateAndSettingsRestored": true,
+    "ownPublicFixtureAssetsAndVersionRemoved": true,
+    "appRelaunched": true,
+    "backupDirectoriesAbsent": true
+  },
+  "boundaries": [
+    "Human segmentation only; animal/object segmentation is not substituted for original CoreVision subject semantics",
+    "One public real portrait verified; generated/cartoon avatars, complex backgrounds, hair/prop edge quality and other vendors remain unvalidated",
+    "Host masks are controlled fixtures; device segmentation test uses the real bundled model",
+    "Real cloud image generation and full system photo-picker flow remain pending from SH-20",
+    "Chat custom avatar is the next unported F12/P05 subphase; F12/P05 overall remains incomplete",
+    "No new 16KB kernel runtime result; previous 16KB stability and cold-boot blockers remain recorded",
+    "Harmony reference, Compose sources, meeting SDK sources and user README edits untouched; no production package/data switch or PR"
+  ],
+  "evidence": [
+    {
+      "sha256": "21b52756ecf48e3093be263590981e169cfdf71786007564c5fadd32effd2e67",
+      "file": ".arkui-x-validation/application/sh21-phone-native/environment.json",
+      "bytes": 141
+    },
+    {
+      "sha256": "306b2ecdee0aa1aaa1ef20bf10cd2aeea3c3cd2c10bc0202c9eee1ebe0f3927a",
+      "file": ".arkui-x-validation/application/sh21-phone-native/installed-library-sha256.log",
+      "bytes": 186
+    },
+    {
+      "sha256": "a9adb45f88814eabdd462a20f4048d93052a9578bf1588599a831ef3ad1db8c7",
+      "file": ".arkui-x-validation/application/sh21-phone-native/numerical.log",
+      "bytes": 52
+    },
+    {
+      "sha256": "78b862052f2b4f18645243b18199be318af712258f1908db5beb3db07c7f2025",
+      "file": ".arkui-x-validation/application/sh21-phone-regression/chat.log",
+      "bytes": 1173
+    },
+    {
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb",
+      "file": ".arkui-x-validation/application/sh21-phone-regression/install.log",
+      "bytes": 76
+    },
+    {
+      "sha256": "12e960eead00702fd328c9b45613fe2b4f70cf96bb1e3a33bd7f01747e9260b7",
+      "file": ".arkui-x-validation/application/sh21-phone-regression/native-meeting.log",
+      "bytes": 6594
+    },
+    {
+      "sha256": "574df7e4bce74d5d66291f78673154f03a0f297a2f2d9439b520fbdd7cc40f4c",
+      "file": ".arkui-x-validation/application/sh21-phone-regression/workflow.log",
+      "bytes": 2013
+    },
+    {
+      "sha256": "6c331ff33215b5f350151c66ca31e3c514ae51492c188b47b914d34845c9fb62",
+      "file": ".arkui-x-validation/sh21/alpha-inspection.png",
+      "bytes": 202052
+    },
+    {
+      "sha256": "d0ebae6c31824b4c250d8bcdaf353c8bb47a291a754a5c6312b48de680e40e8e",
+      "file": ".arkui-x-validation/sh21/cleanup.log",
+      "bytes": 173
+    },
+    {
+      "sha256": "7c91af7ee76bd24d9154cbba7b12a2886758e927d15d76c5c8173a831f56057c",
+      "file": ".arkui-x-validation/sh21/foreground-device.log",
+      "bytes": 2347
+    },
+    {
+      "sha256": "f6b68f1b2994f5239ad2059533c6a9fe37fd3e9a46b776ad6f451c63362dbb38",
+      "file": ".arkui-x-validation/sh21/foreground-host.log",
+      "bytes": 970
+    },
+    {
+      "sha256": "0c76ae4cc618f37225dd603c76b6ba6e6f516aba41dd3a7df4bcec5627c4cafe",
+      "file": ".arkui-x-validation/sh21/ForegroundPixelsTest.xml",
+      "bytes": 882
+    },
+    {
+      "sha256": "948273b9fba38197d7f18360093d042fc1ec0b1f1df44477ca554b1ea37d1398",
+      "file": ".arkui-x-validation/sh21/host-checks.log",
+      "bytes": 16667
+    },
+    {
+      "sha256": "90a991b9eb53d9fd281e301de7265d8ae9d5689a11a3e38c3298dc65f91b9f77",
+      "file": ".arkui-x-validation/sh21/message.png",
+      "bytes": 145446
+    },
+    {
+      "sha256": "84e468c32d2ca2af658e8db6e5153bf3f5f5c3b854797e4ccaf29584150a31d4",
+      "file": ".arkui-x-validation/sh21/native-compile.log",
+      "bytes": 1914
+    },
+    {
+      "sha256": "6b368736a82bd404aab09d79d35ea27e28a0d2a45527472d797899c57a96e82b",
+      "file": ".arkui-x-validation/sh21/native-driver.log",
+      "bytes": 75
+    },
+    {
+      "sha256": "eade639a629c93591fe8915f269a5e94fb2678da545146e1c84ace2d6e48c6d5",
+      "file": ".arkui-x-validation/sh21/person.png",
+      "bytes": 1022594
+    },
+    {
+      "sha256": "b8fdb936c4b7f7113646f02e9cc4902ffe1190180795fe446ce9029b64cdbbf2",
+      "file": ".arkui-x-validation/sh21/phone-driver.log",
+      "bytes": 151
+    },
+    {
+      "sha256": "032557f126de42758b38acfc9ed065e8e1d7fc72adb73a647682f7ec291e3001",
+      "file": ".arkui-x-validation/sh21/photo-consent-device.log",
+      "bytes": 1259
+    },
+    {
+      "sha256": "17f35fe34f2d772f26d2b5e5a0f414089de62cd600acc7b3d177a5400dc1f1c8",
+      "file": ".arkui-x-validation/sh21/prepare-final.log",
+      "bytes": 1580
+    },
+    {
+      "sha256": "17f35fe34f2d772f26d2b5e5a0f414089de62cd600acc7b3d177a5400dc1f1c8",
+      "file": ".arkui-x-validation/sh21/prepare.log",
+      "bytes": 1580
+    },
+    {
+      "sha256": "a09284053907db1b7396f8e7d244e0362cb63c8d48712437909b12de7a0fbf70",
+      "file": ".arkui-x-validation/sh21/product-build-confirmed.log",
+      "bytes": 56124
+    },
+    {
+      "sha256": "4241cd6dec81f159233f08b540ec222c185066224ea3ce05789f5f44742b44dc",
+      "file": ".arkui-x-validation/sh21/product-build-final.log",
+      "bytes": 58967
+    },
+    {
+      "sha256": "ef073454430aebe2bc20bf25805c0b35b73529a46b1cae3a0dd93da1402d4380",
+      "file": ".arkui-x-validation/sh21/product-build.log",
+      "bytes": 47175
+    },
+    {
+      "sha256": "a89726ea7c58e55e2954fa6c8802c10ea72860daf8e0b141c7b5d0753a943bb2",
+      "file": ".arkui-x-validation/sh21/provenance.log",
+      "bytes": 117
+    },
+    {
+      "sha256": "3e29eb7466a729b778e09f67e9877540cbbe8f8667f0e4f1ee0ff70c4ca600a9",
+      "file": ".arkui-x-validation/sh21/unit-summary.json",
+      "bytes": 73
+    },
+    {
+      "sha256": "a4f22704c494424f08187a31f507966e9a3f1d6835a68bb40ae753a33e0bd78d",
+      "file": ".arkui-x-validation/sh21/unit-test-build.log",
+      "bytes": 10614
+    }
+  ]
+}

@@ -1,0 +1,237 @@
+{
+  "phase": "SH-24",
+  "date": "2026-10-29",
+  "verificationDate": "2026-10-28",
+  "baseCommit": "e630250",
+  "feature": "F13: MiMO shared chat speech and Android PCM/private WAV playback",
+  "implementation": [
+    "Pinned upstream six MiMO request/parser/URL methods extracted unchanged; original presets, PCM WAV encoder, voice metadata and session asset naming reused",
+    "New shared CloudSpeech orchestrates HTTPS streaming/nonstreaming, authorization/config rechecks, generation/session cancellation, one-shot pre-audio WAV fallback, atomic cache and local replay",
+    "Reusable android-capabilities owns bounded HTTPS/SSE, AudioTrack PCM16LE mono 24kHz and private WAV MediaPlayer; no app dependency or chat storage writes",
+    "Original system ASR/TTS retained; empty cloud speech configuration uses system TTS, incomplete configuration reports an actionable error",
+    "Foreground/unlocked starts, lifecycle disposal, scoped operation IDs, bounded buffers/timeouts, no redirect or remote file replay",
+    "Handbook voice configuration, upload destination, completion/recovery/cache and remaining acceptance updated; unrelated viewer edits preserved"
+  ],
+  "commands": [
+    "shared-frontend/build.ps1 -JavaHome <jdk17> -AndroidSdk <sdk> -MeetingSdkRoot <read-only-sdk> -Offline",
+    "node shared-frontend/verify-speech.mjs; existing shared verify*.mjs and experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+    "python runtime exporter and APK audit test suites; node shared-frontend/build-state.mjs verify",
+    "gradlew.bat :android-capabilities:testDebugUnitTest --offline --no-daemon --console=plain",
+    "gradlew.bat :shared-app:assembleDebug :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+    "python -B shared-frontend/audit-apk.py <apk> --runtime-root <exported-runtime> --output <audit-json> --require-16kb",
+    "zipalign -c -v -P 16 4 <apk>",
+    "python -B shared-frontend/verify-meeting-native.py --sdk-root <read-only-sdk> --ndk <ndk25> --apk <apk> (existing packaging integrity only)",
+    "scripts/test-shared-device.ps1 -Adb <adb> -Serial <phone> -EvidenceName sh24-non-meeting-final",
+    "adb shell am instrument -w -r -e class com.clawmate.shared.CloudSpeechDeviceTest#<method> com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner (each of three methods, isolated processes)",
+    "python docs/user-manual/build.py; python docs/user-manual/build.py --check; git diff --check"
+  ],
+  "host": {
+    "contractAndSourcePassLines": 174,
+    "newSpeechChecks": 12,
+    "exporter": 8,
+    "apkAudit": 4,
+    "nativeIntegrity": 5,
+    "provenance": 1,
+    "total": 192,
+    "jvm": {
+      "tests": 134,
+      "failuresAndErrors": 0,
+      "newTransportTests": 7
+    },
+    "manual": "15 chapters, 7 reviewed screenshots, offline references and generated HTML consistency"
+  },
+  "builds": {
+    "hapSeconds": 17.701,
+    "finalAndroidAndTest": "90s; 120 tasks, 16 executed, 104 up-to-date",
+    "runtimeFiles": 398,
+    "stagedArkts": {
+      "total": 151,
+      "unchanged": 77,
+      "adapted": 39,
+      "new": 35
+    },
+    "elfLibraries": 326,
+    "elf16kbFailures": [],
+    "zip16kbPassed": true
+  },
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "pageSize": 4096,
+    "coreNonMeetingChecks": 8,
+    "speechChecks": 3,
+    "totalFunctionalChecks": 11,
+    "pcmSeconds": 3.229,
+    "fileBoundarySeconds": 0.017,
+    "sharedPageSeconds": 7.752,
+    "assertions": [
+      "Real AudioTrack drains 48000 frames, pause/resume, cancelled ID rejected, actual Home key prevents background request starts",
+      "Remote HTTPS, system file and content URI cache sources rejected",
+      "Actual shared chat page builds original request, authenticates synthetic loopback TLS, starts PCM before DONE and before cache",
+      "Original WAV payload bytes match, metadata becomes ready, MediaPlayer replays locally, total server request count stays one",
+      "Synthetic preference/privacy/session fixture restored; backup/session/cache/evidence copies removed; app relaunched"
+    ],
+    "realMimoServiceUsed": false,
+    "syntheticTone": true,
+    "meetingRuntimeOrNumericalChecks": false
+  },
+  "failuresAndCorrections": [
+    "Initial Kotlin compile stopped on stale frontend provenance; full source preparation/build rerun",
+    "Default constructor exposed OkHttpClient type to host; explicit no-arg constructor fixes classpath; test Kotlin spacing corrected",
+    "Windows localhost resolved to an unrelated domain; test certificate SAN and URL now use 127.0.0.1 with NO_PROXY, no hostname/TLS validation bypass",
+    "Initial unbounded takeRequest hung on TLS failure; only verified repository test worker terminated, all waits bounded afterward",
+    "Early ActivityScenario CREATED transition waited 213.787s and needed app stack diagnostics before finishing; cause remains unproven. Final actual Home fixture passes in 3.229s, not a claim to have fixed the old fixture",
+    "Two early page runs saw only ready cache and missed pre-DONE playing; first SSE event padded to an Okio segment boundary before delayed DONE, unchanged streaming-before-cache assertions then pass"
+  ],
+  "remaining": [
+    "Real MiMO availability and human speech quality",
+    "Human system ASR accuracy and vendor/interruptions compatibility",
+    "Speech/avatar animation and existing TalkBack dynamic label gap",
+    "Original lifecycle fixture delay root cause unproven",
+    "No new 16KB kernel execution; existing acceptance gaps retained",
+    "Next P01/P04 bounded GUI screenshot/planning; meeting integration and dedicated tests last"
+  ],
+  "apk": {
+    "sha256": "2c6a8ce71bf9ca5359cde83cc61b594af1ee3c6bf4dc9ca230c371e06befb5a5",
+    "bytes": 312628469,
+    "androidTestSha256": "e973e645ad7cc4c44c630b76c6a2b36d313e4b4bd0fe313675c0b654906d4eac"
+  },
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/sh24/final-host-test-build.log",
+      "sha256": "5a20c093cca516b476b0263ff726c85328152642f94ebdf65979441b84bb52e3"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/final-native-integrity.log",
+      "sha256": "fec8be5a22c44dcb5daf95c344e2d608eebe5d04b3da1eaac9e482387127276d"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/final-apk-audit.json",
+      "sha256": "64429b02486e7f479f39a385e2f4c607461c95479b20bc1e4ddaaad19f923c23"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/final-apk-audit.log",
+      "sha256": "10471491c8ed221684fab42e34b459dd5fa77f4bb15bdfe773cc78679249a3de"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/final-zipalign.log",
+      "sha256": "41945929248eab40fd9831a3451b3f5011a5be816de2031ca158d33a703bb3c1"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/host-checks.log",
+      "sha256": "4bc4e671525fc1cbbf1653aa1bdd70cfc7d41a52c2d876f5e052e676caf30e1c"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/speech-host-final.log",
+      "sha256": "505317df00b29213c50a00002af26e133a5b7614c5491adbabff9f72b9502632"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/native-tests-loopback.log",
+      "sha256": "fb53c1c226e85ab280f8b19672a1e376b235d74baf27358007f26f1468492bef"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/prepare-final.log",
+      "sha256": "1c29c7ac8db91629a294b168106fe7aa492448c1bd6e0d8fd30e2e461427b3f7"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/product-build-final.log",
+      "sha256": "8eda933229ecb4f1e001bd0a09faea0c90eee9ef186fff40b76b54736fd9ced6"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/provenance.log",
+      "sha256": "1a67aba386d27d5c4a538d324d00d7d39623997496cfcb4dcf7b5f6fefacd1f4"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-driver-final.log",
+      "sha256": "e4f0b608d2005121115ead4c857214f479fc2ad02f5ee0b1180d2c7a7794c5db"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-pcm-final.log",
+      "sha256": "65d7ef007f99cd95ae793a973c75853863692e1841acf5b87481707c4fbc73db"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-cache-final.log",
+      "sha256": "205551b57ba20bd4396cb552f12f4c7a805624a07855ebf66cb0752f10f11a89"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-page-final.log",
+      "sha256": "f0da6292e1ddf38e88929371702cf877fb23acd86387d2b1afc3228bb85364f0"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-cleanup.log",
+      "sha256": "e737a9bbdb25bc791b9b6fb074753ed4341e81e5e58ad25b7c1775c0413d5b6c"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/manual-check.log",
+      "sha256": "134da768c1fcb8fdc1665cdd284f0070c22f915c3f74ab80a5e01c72e8fe0c73"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh24-non-meeting-final/chat.log",
+      "sha256": "950d39df48303e74cf4f5e96fcc66323852e8e443b912ea2419fce73a55900bf"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh24-non-meeting-final/environment.json",
+      "sha256": "ace743036a2b7b55eeb246940c961f41c5fb3db9de9a11eaeeea26c3059dd9c4"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh24-non-meeting-final/install.log",
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh24-non-meeting-final/native.log",
+      "sha256": "5b2fdcc4e59b8e655950839068cf53bc4c780e1abc3e4f63670c402b7d1fb60e"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh24-non-meeting-final/workflow.log",
+      "sha256": "6b8b839b871b642499c83dff2b5a636039b2af8caef85b0a14154a902380e60e"
+    }
+  ],
+  "earlierEvidence": [
+    {
+      "path": ".arkui-x-validation/sh24/native-compile.log",
+      "sha256": "8040681ed9586bd78e185c7338b9904eac17b9dbc670af22c74615b57a1f0b41"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/product-build.log",
+      "sha256": "8791ba68e649e7847c1c2da0eee402dd2f2d4edbe21cedd4f527aa213ecfcae4"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/native-tests.log",
+      "sha256": "c59c8f5aec4e2048b63a932973b7a2cac032d33668315275752bd3b79cb035b4"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/http-tests-bounded.log",
+      "sha256": "d40f9e94fc9ca47b22b5e1c0e8c551655175388e8203a588ac8be94b259ef977"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/http-tests-diagnostic.log",
+      "sha256": "81a7948f8b11852e8168156253dca76799335475ffaa52246a08fa6e53be9ce4"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/interrupted-test-worker.log",
+      "sha256": "11300a88a22137a6a9fcdd4ef984e7f01f817dda59e631670ddb80b7cc54bde9"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-pcm.log",
+      "sha256": "6a0eddbbfb0eee5f933e5a7bc359e2b6d77cee0a0a5fd536f8992b29be91add0"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/background-stacks.log",
+      "sha256": "225f5bda34a371a97fafef3273139523a6c27a8c0c79c203348efc31692777be"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-page.log",
+      "sha256": "f1b58421d7af4c38eebdedaabe5772f140113fc73573560ebffc71cb4d87aced"
+    },
+    {
+      "path": ".arkui-x-validation/sh24/device-page-diagnostic.log",
+      "sha256": "3a13e2a1c936af62fb8ec4388d2485f4090e6396efc0262ba8b126362ac30e92"
+    }
+  ],
+  "sources": [
+    "https://github.com/doulujiyao12/mobiinfra-oh/tree/cd69b68bf16b9ed352be5073939eb24d042de583",
+    "https://developer.android.com/reference/android/media/AudioTrack",
+    "https://developer.android.com/reference/android/media/MediaPlayer",
+    "https://developer.android.com/reference/android/media/AudioFocusRequest"
+  ]
+}

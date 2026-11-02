@@ -11,11 +11,26 @@ The target must be a real Android application, not a screenshot mock or a
 minimal demo. Preserve the user-visible product flows and data contracts where
 the Android platform can support them.
 
+The objective is the full HarmonyOS ClawMate feature migration. Meeting/audio-note
+integration and its dedicated runtime tests are the final phase, after the other
+ClawMate features have been adapted. Preserve existing meeting code, but defer new
+meeting feature work and exclude meeting tests from ordinary migration regression
+until that final phase (unless the user reprioritizes). General chat ASR/TTS and
+streaming voice remain part of the main migration. Disabled adapters are tracked
+as pending, not counted as completed functionality.
+
 ## Working rules
 
-- Work only under /home/yydh/ClawMate-Android.
-- Use Kotlin and a current Android Gradle project. Prefer Jetpack Compose for new
-  UI unless an existing Android dependency makes Views the better choice.
+- Approved workspaces are /home/yydh/ClawMate-Android and the current Windows
+  repository C:\Users\Askeladd\Documents\ChatGPT\ClawMate_Android. The user
+  authorized Windows work while the remote host was unavailable.
+- Follow the user's accepted shared-frontend strategy: reuse ArkTS/ArkUI with
+  ArkUI-X, and keep Android-specific adapters in Kotlin. The shared Android host
+  is shared-app/ and the source preparation/overlays are shared-frontend/.
+  Root Gradle settings manage both hosts. Put reusable Android system capability
+  implementations in android-capabilities/, with no dependency on either app.
+  Preserve app/ (the existing Compose product) as a regression baseline until a
+  production switch and data migration have been separately verified.
 - Keep commits small and reviewable. Every meaningful phase must end with a
   commit and a short note in MIGRATION_STATUS.md.
 - Never claim a build, test, or runtime check passed unless the command actually
@@ -131,7 +146,7 @@ roots are machine-specific and intentionally not recorded.
 | CMake | `3.22.1` |
 | Gradle | 8.9 (wrapper) |
 | ArkUI-X SDK | `6.0.0.103` (API 20) |
-| OpenHarmony SDK | `6.0.0.48` (API 20, Release) |
+| OpenHarmony SDK | `6.0.0.47` (API 20, Release; source of truth: experiments/arkui-x/toolchain-lock.json) |
 | hvigor | `6.22.7` + arkui-x plugin `4.22.7` |
 
 ## Verification
@@ -151,6 +166,20 @@ Before asking for review, report:
 - the commit hash for the phase.
 
 ## Collaboration protocol
+
+- After each completed feature phase, update MIGRATION_BACKLOG.md and include
+  the current completed/pending checklist in the reply to the user. Distinguish
+  code integration from runtime/service acceptance and retain pending gaps.
+
+### User manual maintenance
+
+- Maintain the Chinese illustrated handbook at `docs/user-manual/` when changing
+  user-visible flows, button labels, settings, permissions, or capability limits.
+- Edit `content.json`, regenerate with `python docs/user-manual/build.py`, and run
+  `python docs/user-manual/build.py --check`. Keep screenshot provenance and
+  version differences current; use only reviewed, non-private UI captures.
+- Document entry points, prerequisites, steps, completion indicators, recovery,
+  and data destinations. Do not describe unavailable Android features as working.
 
 The migration is reviewed in phases. Do not start a large unrelated refactor
 while a previous phase has failing checks. Prefer an explicit TODO or adapter

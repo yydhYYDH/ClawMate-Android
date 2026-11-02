@@ -1,0 +1,35 @@
+{
+  "repository": "doulujiyao12/mobiinfra-oh",
+  "ref": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "scope": "Host contracts; original .ets files are read-only inputs, not reimplemented in Kotlin",
+  "files": [
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatStreamDisplayPacer.ets",
+      "gitBlob": "d76e4ada970fe97863262f90aef2988617381907"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatStreamUpdatePolicy.ets",
+      "gitBlob": "469923895560bc4a6927a665a606c3a803d3103f"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeRecommendationLayout.ets",
+      "gitBlob": "9c38149a7cae546ba3cf8923a9ba1692c48019d9"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowCancellation.ets",
+      "gitBlob": "8b2848110874d024001c070a499bb8f949b81882"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowSceneConfig.ets",
+      "gitBlob": "39751908a9e06b711ceb2babb4082f61b34a0366"
+    },
+    {
+      "path": "entry/src/main/ets/pages/onboarding/OnboardingTypes.ets",
+      "gitBlob": "839a3cc72386c06ee5f5242492d150f806321443"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowJsonRepair.ets",
+      "gitBlob": "e89ebb1f4ef60dfe4590dd41279f9abbb3f7a835"
+    }
+  ]
+}

@@ -77,6 +77,7 @@ ksp {
 }
 
 dependencies {
+    implementation(project(":android-capabilities"))
     // AndroidX / lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -112,10 +113,7 @@ dependencies {
     implementation(libs.markwon.core)
     implementation(libs.markwon.tables)
 
-    // Phase 11 — on-device Chinese text recognition (ML Kit). Bundled standalone
-    // SDK; the recognizer may download the Chinese model via Play services on
-    // first use (see OcrEngine model-download state).
-    implementation(libs.mlkit.text.recognition.chinese)
+    // On-device OCR and TTS live in :android-capabilities, shared with ArkTS.
 
     // Test
     testImplementation(libs.junit)

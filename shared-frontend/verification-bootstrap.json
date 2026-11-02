@@ -1,0 +1,383 @@
+{
+  "phase": "SH-15",
+  "date": "2026-10-27",
+  "branch": "codex/shared-frontend",
+  "baseCommit": "2c6d4e3587e5c1588987819837f8b77d70cb3b15",
+  "policy": {
+    "upstreamPullRequest": "https://github.com/yydhYYDH/ClawMate-Android/pull/5",
+    "state": "closed",
+    "reason": "User will discuss whether to submit only after the shared frontend route is validated.",
+    "newOrReopenedPullRequests": false,
+    "forkPushOnly": true
+  },
+  "source": {
+    "repository": "doulujiyao12/mobiinfra-oh",
+    "ref": "cd69b68bf16b9ed352be5073939eb24d042de583",
+    "lockedArktsInputs": 120,
+    "lockedResources": 59,
+    "totalStagedInputs": 179,
+    "defaultWorkflowResources": 11,
+    "templateFiles": 9,
+    "pageAndBusinessFiles": 144,
+    "unchanged": 76,
+    "adapted": 37,
+    "newPlatform": 31,
+    "additionalStartupAbility": 1,
+    "sourceProjectModified": false,
+    "privateDefaultsSigningModelsDatabasesImported": false
+  },
+  "toolchain": {
+    "hostNode": "v24.22.1",
+    "buildNode": "20.19.5",
+    "api": 20,
+    "openHarmony": "6.0.0.47 Release",
+    "arkuiX": "6.0.0.103 Release",
+    "hvigor": "6.22.7",
+    "arkuiXPlugin": "4.22.7",
+    "meetingSdkRevision": "93b58adc901268a7eed052ce6b849e9be870060f"
+  },
+  "host": {
+    "passed": 144,
+    "newBootstrapChecks": 14,
+    "newExportChecks": 8,
+    "commands": [
+      {
+        "command": "node shared-frontend/verify.mjs",
+        "passed": 6,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-native.mjs",
+        "passed": 7,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-integration.mjs",
+        "passed": 12,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-meeting.mjs",
+        "passed": 5,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-context.mjs",
+        "passed": 16,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-reminders.mjs",
+        "passed": 14,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-workflow-vlm.mjs",
+        "passed": 17,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-gallery-scan.mjs",
+        "passed": 24,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-bootstrap.mjs",
+        "passed": 14,
+        "exitCode": 0
+      },
+      {
+        "command": "python -B shared-frontend/verify-runtime-export.py",
+        "passed": 8,
+        "exitCode": 0
+      },
+      {
+        "command": "node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+        "passed": 8,
+        "exitCode": 0
+      },
+      {
+        "command": "node shared-frontend/verify-maintenance.mjs --prepare-twice",
+        "passed": 9,
+        "exitCode": 0
+      },
+      {
+        "command": "python -B shared-frontend/verify-apk-audit.py",
+        "passed": 4,
+        "exitCode": 0
+      }
+    ]
+  },
+  "builds": [
+    {
+      "name": "Initial clean authored source directory",
+      "log": "sh15-clean-build.log",
+      "copiedOldGeneratedProjectOrRuntime": false,
+      "hap": "BUILD SUCCESSFUL in 1 min 42 s 450 ms",
+      "gradle": "BUILD SUCCESSFUL in 5m 27s",
+      "tasks": 90,
+      "executed": 90,
+      "upToDate": 0
+    },
+    {
+      "name": "Final current directory",
+      "log": "sh15-main-complete-build.log",
+      "result": "BUILD SUCCESSFUL",
+      "gradleDuration": "32s",
+      "tasks": 90,
+      "executed": 8,
+      "upToDate": 82
+    },
+    {
+      "name": "Final isolated directory",
+      "log": "sh15-clean-release-check-build.log",
+      "result": "BUILD SUCCESSFUL",
+      "gradleDuration": "2m51s",
+      "tasks": 90,
+      "executed": 18,
+      "upToDate": 72
+    },
+    {
+      "name": "Final instrumentation APK after driver correction",
+      "log": "sh15-verified-test-apk-build.log",
+      "result": "BUILD SUCCESSFUL",
+      "gradleDuration": "33s",
+      "tasks": 98,
+      "executed": 9,
+      "upToDate": 89
+    }
+  ],
+  "runtime": {
+    "preparedDigest": "3a901a2ad1b032c81dec2492033613c7ae86b20d7c1ba33f171eb2dabc6ebf92",
+    "currentFiles": 398,
+    "cleanFiles": 398,
+    "samePreparedInputAndOutputDigest": true,
+    "sameRuntimeFileSet": true,
+    "oldIconAndWrapperRemoved": true,
+    "bitIdenticalApkClaim": false
+  },
+  "apks": {
+    "current": {
+      "sha256": "38a9816a39e3f0f119055c09db719a78d10fcfe52cbe0e6d5e3da07b9961568a",
+      "bytes": 312627942
+    },
+    "clean": {
+      "sha256": "c7e41a431bd7764a90db17ee4b64abe05dfa7e6bde3fddc4694b1742991491a9",
+      "bytes": 313793626
+    },
+    "defaultWorkflowsByteVerifiedInBoth": 11,
+    "zip16kbAlignmentPassed": true,
+    "elfAuditExitCode": 1,
+    "nativeLibraries": 325,
+    "elf16kbFailures": [
+      "lib/arm64-v8a/libandroid-complex-math.so"
+    ],
+    "arkui16kbFailures": []
+  },
+  "jvm": {
+    "capabilities": {
+      "tests": 123,
+      "task": "UP-TO-DATE",
+      "freshExecutionClaim": false
+    },
+    "compose": {
+      "tests": 1243,
+      "rerunThisPhase": false
+    },
+    "meeting": {
+      "tests": 15,
+      "rerunThisPhase": false
+    }
+  },
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "passed": 9,
+    "nativeAndMeeting": 7,
+    "chat": 1,
+    "workflow": 1,
+    "processIsolation": true,
+    "finalDriver": "scripts/test-shared-device.ps1",
+    "evidenceDirectory": "sh15-device-final-cleanup",
+    "realCloudQualityClaim": false,
+    "galleryProcessRecoveryRerunThisPhase": false,
+    "reminderRerunThisPhase": false,
+    "cleanup": "Original preferences and fixture indexes restored by fixture finally blocks; migration-context-backup and migration-workflow-model-backup confirmed absent. Own failure screenshot removed after saving local evidence; target stopped to discard cached fixture preferences. Public meeting sample follows existing regression retention policy."
+  },
+  "initialIssues": [
+    {
+      "issue": "Copy/update and clean verification build overlapped; provenance rejected changed inputs",
+      "log": "sh15-clean-final-build.log",
+      "resolution": "Waited for copy completion, checked matching authored inputs, rebuilt sequentially."
+    },
+    {
+      "issue": "Old generated hvigor wrapper and exported icon survived merge-style copies",
+      "observedIn": "Tool output comparison of current/clean directories",
+      "resolution": "Reset owned generated configuration/ArkTS/resources and replace staged assets/libs; final input digests and 398-entry runtime file sets match."
+    },
+    {
+      "issue": "API20 component/lib incorrectly assumed mandatory",
+      "log": "sh15-final-main-build.log",
+      "resolution": "Actual SDK has component/apiConfig.json without component/lib; optional folder supported, engine/API libraries remain required; unit fixtures use this actual layout."
+    },
+    {
+      "issue": "Over-specific link-error message assertion failed after stronger output-bound check",
+      "observedIn": "Tool output, not a retained failing log",
+      "resolution": "Assert ValueError plus preservation of external sentinel files; all 8 exporter tests pass."
+    },
+    {
+      "issue": "Combined same-process group ran 9 tests with 2 failures",
+      "log": "sh15-device-regression.log",
+      "resolution": "Fixtures write preferences directly and need cold target processes; chat passed after isolation."
+    },
+    {
+      "issue": "Workflow isolated fixture missed visible send-image control",
+      "log": "sh15-workflow-diagnostic-device.log",
+      "observedOcr": "发迭图片",
+      "resolution": "Driver supports exact consecutive word elements and only the observed 发送图片/发迭图片 fixture alias. Final grouped driver passed all 9 checks twice, including actual cancellation/unavailable-model receipts and absence of successful summaries. Product UI/model behavior was not relaxed."
+    }
+  ],
+  "limitations": [
+    "Preinstalled SDKs, source input cache and existing Gradle/pip/wheel caches were used; not clean-machine installation or wholly offline certification.",
+    "Linux shell syntax checked, no Linux end-to-end build.",
+    "No real upstream revision or SDK version upgrade drill in this phase.",
+    "libandroid-complex-math.so remains 4KB-aligned; static ELF release gate fails and no physical 16KB device was tested.",
+    "OCR fixture alias and process isolation do not fix product TalkBack/conditional accessibility node issues.",
+    "Real provider quality, broader vendor/background behavior, release signing and old production data migration remain separate."
+  ],
+  "evidence": [
+    {
+      "file": ".arkui-x-validation/application/sh15-final-host-checks.log",
+      "sha256": "3561af3e68591312711ddc7f2ee6333777099204b9a14ea78b3cd918fbdfdaec"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-clean-build.log",
+      "sha256": "e86418a786d9caecec944c30f291945a5d2656acd55d8b46bc1e0205ec7e13ea"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-main-complete-build.log",
+      "sha256": "280e9395141d411a3a591dca2eec7f135399145b93380a6a414d21ef463026c9"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-clean-release-check-build.log",
+      "sha256": "e933b65c7596a97f6d55fce06cc26c3f2f4f5bf237ef14d44fe04ef34ef9ef9b"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-test-apk-build.log",
+      "sha256": "062d420d00a8941785f6e175376d7258e531dfea2604751eedac3e035aab80b4"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-verified-test-apk-build.log",
+      "sha256": "9d911a6e29066cdf203abb4cafb74263d76d8e9515763786eca2a7e1291771ed"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-final-zipalign.log",
+      "sha256": "ef1464cea63f0509a3755650067d823827979637a7b082f90a4d0ca8e1dcae3e"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-final-resource-integrity.json",
+      "sha256": "6220ddc90eaeee242fe9359508f86fc22b2d7b4913542aa80bc900041585010f"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-final-main-apk-audit.json",
+      "sha256": "e59857ad4fd5f8bfb9c1f0c24d00bc5663e370846bc3efcfa625cbdcda474849"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-final-clean-apk-audit.json",
+      "sha256": "82530e0da84ee3372d2093da81e9cc76a2bb94a13442c11df298d2f6b492e88a"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-cleanup.log",
+      "sha256": "0dc08b15a4e471841853b54f0d796d40ef998860a736d487667bb784fc09b3d4"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-clean-final-build.log",
+      "sha256": "069ad779f2c592401a242a797dc0910a9933c3be975fd7ef051d188341063e4a"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-final-main-build.log",
+      "sha256": "9d629ae9b1108aee66c600260d9fbca4942455898f7da25a42dd70105dc4f91c"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-regression.log",
+      "sha256": "c88067681a97487e0abeb0446cfde091f1f3e51e470ebe92d7e87608c4ecc8bd"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-isolated/workflow.log",
+      "sha256": "2f2a9d428e0821a297c396bcf4a819d28d807ada9530935b5b505edd5e14d01b"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-workflow-diagnostic-device.log",
+      "sha256": "8b15aa963e5057b17d99e5233da3fd101ff07e75c70e649d0af7f4f55f4b1a6c"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-workflow-failure.png",
+      "sha256": "8a101bf32bd899d75c644512f550aeda8aeaaf0b3a7aba3e49c794313674d35c"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-final-cleanup/install.log",
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-final-cleanup/native-meeting.log",
+      "sha256": "aa588ddf3f45dc223f5eb38e3c6097d038cd45bbea6519808748f0ce81b3aded"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-final-cleanup/chat.log",
+      "sha256": "6a09bbd92a315bc97c11a0d57f7cb0b39abfcb1565205c68e6c9ba51c712f47a"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-final-cleanup/workflow.log",
+      "sha256": "b9c1c5eb2e67f2338ee6371b07bdf9bd7f27f67d3a6e4729831206a49e7537a0"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-final/native-meeting.log",
+      "sha256": "9b17c6a396b151166c5c3e6d2dceb4c21b6b5fda9de7d68561e6efbb1bec99d9"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-final/chat.log",
+      "sha256": "4480a8f55cd40a465280d0634dbf47bb10db52e99e94c473bdaf12fa61b1ecb1"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh15-device-final/workflow.log",
+      "sha256": "ad6efdc9e46fd545207d64293b4cb1bd76ad0a706d8b189ed5330e3840d67efd"
+    }
+  ],
+  "commands": [
+    {
+      "command": "shared-frontend/build.ps1 -JavaHome <local JDK17> -AndroidSdk <local Android SDK> -MeetingSdkRoot <local meeting checkout> -SourceRoot <pinned read-only input bundle> -ArkuiXSdk <API20 SDK root> -OpenHarmonySdk <API20 SDK root> -BuildTools <Hvigor root> -BuildNode <Node20 executable> -Offline",
+      "scope": "Initial clean directory; preinstalled tools and caches. Absolute local paths excluded from version control.",
+      "exitCode": 0
+    },
+    {
+      "command": "shared-frontend/build.ps1 -JavaHome <local JDK17> -AndroidSdk <local Android SDK> -MeetingSdkRoot <local meeting checkout> -Offline",
+      "scope": "Final current and isolated directories using ignored toolchain.local.json",
+      "exitCode": 0
+    },
+    {
+      "command": "gradlew.bat :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+      "scope": "Final corrected fixture driver APK",
+      "exitCode": 0
+    },
+    {
+      "command": "scripts/test-shared-device.ps1 -Adb <local adb> -EvidenceName sh15-device-final-cleanup",
+      "exitCode": 0,
+      "passed": 9
+    },
+    {
+      "command": "python -B shared-frontend/audit-apk.py <APK> --runtime-root <matching exported runtime> --output <ignored report> --require-16kb",
+      "scope": "Both final APKs",
+      "exitCode": 1,
+      "reason": "Known external 4KB-aligned ELF library; no release pass claim"
+    },
+    {
+      "command": "zipalign -c -P 16 -v 4 shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "exitCode": 0
+    },
+    {
+      "command": "bash -n scripts/build-shared.sh",
+      "exitCode": 0,
+      "scope": "Syntax only; no Linux end-to-end execution"
+    }
+  ]
+}

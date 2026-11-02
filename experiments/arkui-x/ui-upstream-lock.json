@@ -1,0 +1,314 @@
+{
+  "repository": "doulujiyao12/mobiinfra-oh",
+  "ref": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "files": [
+    {
+      "path": "entry/src/main/ets/pages/home/HomePage.ets",
+      "gitBlob": "0b912894170cdfd9499c630ae6e178c8388bc03d"
+    },
+    {
+      "path": "entry/src/main/ets/utils/AppTheme.ets",
+      "gitBlob": "31f2ca1cae00a947e5a2eb8089fa4b883bf73956"
+    },
+    {
+      "path": "entry/src/main/ets/components/FrostedPage.ets",
+      "gitBlob": "c7b81ac88faa79e73d6734816ca9ea75028da9d9"
+    },
+    {
+      "path": "entry/src/main/ets/components/AppHeader.ets",
+      "gitBlob": "ade5d1fbbad6337a878742606c96815cbbf79c31"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerTypes.ets",
+      "gitBlob": "bde6e636382d6ff1e96e336a1cc6ff816a2adc09"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/AvatarTypes.ets",
+      "gitBlob": "b34b0d4f08a93ccf0fa497e0366c2faf3f6b017a"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerFacade.ets",
+      "gitBlob": "c8848398377448def0f9eb211a3dc584b158367b"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerPaths.ets",
+      "gitBlob": "7a720edfa95992a4915179a0459db7069c52c0f9"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerStorage.ets",
+      "gitBlob": "87f5522576d3a5b34cd56d8398e747ce30b3581b"
+    },
+    {
+      "path": "entry/src/main/ets/utils/JsonCompat.ets",
+      "gitBlob": "cffc927b49ffcb7aad10eb5246fc6f598d5caf23"
+    },
+    {
+      "path": "entry/src/main/ets/utils/TextEncodingCompat.ets",
+      "gitBlob": "af677c0c31ef02a2cd46ab2fb9d422934a65d354"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataPipelineModelClient.ets",
+      "gitBlob": "827ee6ed8669f88ed82b8253be226ddc1b81ddd6"
+    },
+    {
+      "path": "entry/src/main/ets/utils/CloudModelClient.ets",
+      "gitBlob": "50b7ee451066b553b9fe35e8397c844ca5c41084"
+    },
+    {
+      "path": "entry/src/main/ets/utils/PrivacyConsent.ets",
+      "gitBlob": "e0c70659f1da772b80e9437ecaceea9b9f0ca8c3"
+    },
+    {
+      "path": "entry/src/main/ets/utils/AiServiceAccess.ets",
+      "gitBlob": "be0bdbe6e41bb133376c74ede9d6b436f6784202"
+    },
+    {
+      "path": "entry/src/main/ets/config/AiAccessConfig.ets",
+      "gitBlob": "3d17c7df8757e9e8279d0b680a65fc227888d3d4"
+    },
+    {
+      "path": "entry/src/main/ets/utils/CloudDeciderPrompt.ets",
+      "gitBlob": "e5948bd83169db203763c2c3e19ad6912efe92d8"
+    },
+    {
+      "path": "entry/src/main/ets/utils/AppLogger.ets",
+      "gitBlob": "4e5fdde4f93a164434b19ec7f300fba414306a7f"
+    },
+    {
+      "path": "entry/src/main/ets/utils/DebugSettings.ets",
+      "gitBlob": "a032318b52dbb4515076c209037194ae9f9c7178"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowJsonRepair.ets",
+      "gitBlob": "e89ebb1f4ef60dfe4590dd41279f9abbb3f7a835"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryTypes.ets",
+      "gitBlob": "82588f33456141f546055c8b4bb37796a015e2a6"
+    },
+    {
+      "path": "entry/src/main/ets/utils/selfhdc/PhoneAgentPolicy.ets",
+      "gitBlob": "923c883804a971bb38f831446bffb5bcb4b662ec"
+    },
+    {
+      "path": "entry/src/main/ets/utils/AgentActionParser.ets",
+      "gitBlob": "e4d49141f42b6ba001e61dcc4bb4b2998f9f4f40"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowTypes.ets",
+      "gitBlob": "041f9e0ddcbc041c7c73423389e13f2e82460102"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerUtils.ets",
+      "gitBlob": "8e7db282d1ba1f850ecca0c2ac94ab926a778c7e"
+    },
+    {
+      "path": "entry/src/main/ets/utils/DateUtils.ets",
+      "gitBlob": "4b8d628203fb0fc6c60f5ac10da1315a3c8e1f29"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerLog.ets",
+      "gitBlob": "1b702ee3664358aaa4120d39cb8693e15fc3d3e2"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowSceneConfig.ets",
+      "gitBlob": "39751908a9e06b711ceb2babb4082f61b34a0366"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/ChatMemoryExtraction.ets",
+      "gitBlob": "8748b0d6c0ced8acb6772fcd1bbde7041dd54528"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatSessionTypes.ets",
+      "gitBlob": "607b30cd0711f657f24ce6c27e7cbf567fe705e2"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatPageTypes.ets",
+      "gitBlob": "eddee9aa98d12d2ca61fac714fdcec72d98b4b03"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/VoiceInteractionTypes.ets",
+      "gitBlob": "d3bb1711e655430df0b7881fe9a909b623b16372"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/ConsolidationService.ets",
+      "gitBlob": "9f1af2797db394d8d680a8e6f937e0ea1983da2a"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryMemorySync.ets",
+      "gitBlob": "9d92359c1f507494b5c7f64bc16239172c08ab9d"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryExifUtils.ets",
+      "gitBlob": "9dc82fb1ecad8c5b62ed89d6411de4ae84d733d7"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/ChatMemorySync.ets",
+      "gitBlob": "b9c5d7c80c1c77c816c9a183e0e065cfda75b751"
+    },
+    {
+      "path": "entry/src/main/ets/utils/ChatSessionStorage.ets",
+      "gitBlob": "eb95ed56869961031f7e9d51700333f2fe2be450"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/IndexService.ets",
+      "gitBlob": "723aa401da7257ff4b694521e17f33a3ba014371"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/CollectionGroupingService.ets",
+      "gitBlob": "b0b9bbaf3c2dc19f4e3bb60bab58736bc7113b77"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/HomeRecommendationService.ets",
+      "gitBlob": "dca8db206001199648a5f04940934ea52c3002ae"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerImageResolver.ets",
+      "gitBlob": "7be0eff736768904ba12eeed5b96fe9aa868083e"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/AvatarService.ets",
+      "gitBlob": "fa2d6ec0dcbf84a6d03cd55c2c30466bdf7f8924"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/AvatarPromptBuilder.ets",
+      "gitBlob": "4cb49dea449bc3618074c591e3086153bab96c9a"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/AvatarForegroundService.ets",
+      "gitBlob": "a6f8e3ea60644f997bf3f7a8b938207118836e57"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/AvatarStorage.ets",
+      "gitBlob": "bd0f7a022aac406c66e8b82c6ac570fc3a15e3c4"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/AvatarForegroundCrop.ets",
+      "gitBlob": "fd409ae58a8a154ed4622418a845fdb38409b193"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/AvatarForegroundThumbnail.ets",
+      "gitBlob": "fb7197094057c0333a00c17c2bbb854291302db4"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/avatar/SeedreamAvatarProvider.ets",
+      "gitBlob": "4c49c86e66fb4f7e850607e37401959e8f000dee"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/DataManagerSyncReminder.ets",
+      "gitBlob": "fa61bcf06955e9e9403e3d2e7a2cef249495b28e"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryPhotoPicker.ets",
+      "gitBlob": "2d1101a1651c58e3903816b4b898bc5f239f677c"
+    },
+    {
+      "path": "entry/src/main/ets/utils/PromptSafe.ets",
+      "gitBlob": "f320971fa0454a20ec329091db68c364b35805cd"
+    },
+    {
+      "path": "entry/src/main/ets/components/AiGeneratedBadge.ets",
+      "gitBlob": "c9737adefacc53f4b96b5d36b51c4018be7506de"
+    },
+    {
+      "path": "entry/src/main/ets/utils/AiGeneratedContent.ets",
+      "gitBlob": "bfdd1bb860cb1214cc9a28ad478fc97efafbf89b"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeTaskSuggestion.ets",
+      "gitBlob": "1fe66d88f5953e9cb5ab07205ca5cac988b44f5a"
+    },
+    {
+      "path": "entry/src/main/ets/components/HomeTaskExecutionSheet.ets",
+      "gitBlob": "1a1bcf9731b2443420079a05af0eb11883aa426d"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeEmotionalSupport.ets",
+      "gitBlob": "0cbe497e21948cb1a9a48fb0ceba268d04e1b13e"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeComfortSection.ets",
+      "gitBlob": "03512ed6d1078d4836997ed37d3431e42e52b723"
+    },
+    {
+      "path": "entry/src/main/ets/components/AiLoginGuard.ets",
+      "gitBlob": "592a9faca8fdf9f710d4807c056f03059c25a019"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeComfortChatStore.ets",
+      "gitBlob": "878dffe43d00459f96688477a1bd03f1e6b3dc9f"
+    },
+    {
+      "path": "entry/src/main/ets/components/HomeCategoryIcon.ets",
+      "gitBlob": "be9cd2f3b4b78b8d03ffc51ff97afade74246462"
+    },
+    {
+      "path": "entry/src/main/ets/components/HomeEmptyHint.ets",
+      "gitBlob": "3b2bcc4dd07ab68f6afeb7c925d943a9d47e4c32"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatPage.ets",
+      "gitBlob": "08dd7c727e94344dfcf177407c0f3cedfd4d57f3"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatAttachmentPolicy.ets",
+      "gitBlob": "9287f55c66c7701a9f26af38d85cb412afefd235"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatMessageList.ets",
+      "gitBlob": "5593723b830548dc51b191e7c8fed97209c77b17"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatMessageDataSource.ets",
+      "gitBlob": "7c1e89828ef962b3c94c78aa14c0792dd3205c04"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatMessageUiModel.ets",
+      "gitBlob": "bca2a092029bda83c07468ee8b5c3c75faae4abf"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/DigitalAvatarView.ets",
+      "gitBlob": "7c828c6c9629e4efca351332fc91c17572ee8a5a"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/DigitalAvatarTypes.ets",
+      "gitBlob": "c10d7ddf4d6fc4300ac6ebd0fb1513cf696506d3"
+    },
+    {
+      "path": "entry/src/main/ets/components/MarkdownView.ets",
+      "gitBlob": "b7083089b1ad46a4e472b5a167d72f2d2cb63af3"
+    },
+    {
+      "path": "entry/src/main/ets/utils/markdown/MarkdownParser.ets",
+      "gitBlob": "ca92b14e4d34fdcb07242813b996afd04676e955"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatMessageScrollPolicy.ets",
+      "gitBlob": "13f860e0248879e22351b316af9daf9e97a5793b"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatSessionDrawer.ets",
+      "gitBlob": "d5466925f09424e8ab0d5c1bcba02bd07a091ba5"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatStreamDisplayPacer.ets",
+      "gitBlob": "d76e4ada970fe97863262f90aef2988617381907"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatStreamUpdatePolicy.ets",
+      "gitBlob": "469923895560bc4a6927a665a606c3a803d3103f"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeRecommendationLayout.ets",
+      "gitBlob": "9c38149a7cae546ba3cf8923a9ba1692c48019d9"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowCancellation.ets",
+      "gitBlob": "8b2848110874d024001c070a499bb8f949b81882"
+    },
+    {
+      "path": "entry/src/main/ets/pages/onboarding/OnboardingTypes.ets",
+      "gitBlob": "839a3cc72386c06ee5f5242492d150f806321443"
+    }
+  ]
+}

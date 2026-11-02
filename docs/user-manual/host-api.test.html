@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>手册宿主接口检查（开发用）</title>
+<style>body{font:16px/1.8 system-ui;max-width:1100px;margin:24px auto;padding:0 20px}button{font:inherit;padding:8px 16px}iframe{width:100%;height:420px;border:1px solid #bbc9dc}pre{white-space:pre-wrap}h1{font-size:24px}</style></head>
+<body><h1>手册宿主接口检查（开发用）</h1><p>用本地 HTTP 服务打开本页。只操作下方独立的手册实例，不调用 Android 能力。此文件不打包到 App。</p>
+<button id="run" disabled>运行宿主接口检查</button><pre id="result" role="status">等待手册加载…</pre>
+<iframe id="reader" src="index.html#/chapter/start" title="被测离线手册"></iframe>
+<script>
+const reader = document.querySelector('#reader');
+const button = document.querySelector('#run');
+const result = document.querySelector('#result');
+reader.addEventListener('load', () => {
+  button.disabled = false;
+  result.textContent = '手册已加载，可以检查。';
+});
+button.addEventListener('click', async () => {
+  button.disabled = true;
+  const lines = [];
+  const win = reader.contentWindow;
+  const api = win.ClawMateManual;
+  function check(condition, label) {
+    if (!condition) throw new Error(label);
+    lines.push('PASS ' + label);
+    result.textContent = lines.join('\n');
+  }
+  try {
+    check(api.version === 1 && api.getState().route.id === 'start' && !api.getState().canGoBack,
+      'direct chapter entry has no internal back history');
+    const initialHash = win.location.hash;
+    check(api.openChapter('__proto__') === false && win.location.hash === initialHash,
+      'unknown host chapter rejected without navigation');
+    let notified = null;
+    win.addEventListener('clawmate-manual:routechange', event => { notified = event.detail; });
+    check(api.openChapter('gallery') === true && api.getState().route.id === 'gallery',
+      'host opens known chapter');
+    const shown = [...win.document.querySelectorAll('#chapters>section')].filter(section => !section.hidden);
+    check(shown.length === 1 && shown[0].id === 'gallery' && notified.route.id === 'gallery' && notified.canGoBack,
+      'single chapter view and versioned host notification');
+    win.document.querySelector('#gallery .zoom').click();
+    check(win.document.querySelector('dialog').open, 'image viewer opens');
+    check(api.back() === true && !win.document.querySelector('dialog').open && api.getState().route.id === 'gallery',
+      'host back closes image before leaving chapter');
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('back route event timed out')), 3000);
+      const listener = event => {
+        if (event.detail.route.id !== 'start') return;
+        clearTimeout(timeout);
+        win.removeEventListener('clawmate-manual:routechange', listener);
+        resolve();
+      };
+      win.addEventListener('clawmate-manual:routechange', listener);
+      if (!api.back()) {
+        clearTimeout(timeout);
+        win.removeEventListener('clawmate-manual:routechange', listener);
+        reject(new Error('internal back was not consumed'));
+      }
+    });
+    check(api.getState().route.id === 'start' && api.back() === false,
+      'history returns to entry and hands next back to host');
+    api.openHome();
+    check(api.getState().route.page === 'home' && !win.document.querySelector('#home-page').hidden,
+      'host opens handbook home');
+    result.textContent += '\n8 checks passed. Reload this test page to run again.';
+  } catch (error) {
+    result.textContent += '\nFAIL ' + error.message;
+  }
+});
+</script></body></html>

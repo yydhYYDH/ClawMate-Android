@@ -1,181 +1,82 @@
 # ClawMate Android
 
-ClawMate Android 是 [ClawMate HarmonyOS](https://github.com/doulujiyao12/mobiinfra-oh)
-的 Android 迁移版本。HarmonyOS 工程位于 `/home/yydh/mobiinfra-oh`，仅作为只读的
-产品、数据契约和交互参考；Android 实现只修改本仓库。
+[ClawMate HarmonyOS](https://github.com/doulujiyao12/mobiinfra-oh) 的 Android 迁移项目。
+当前主前端采用 **ArkTS/ArkUI + ArkUI-X**，跟随鸿蒙页面与业务源码；Android 系统能力使用 Kotlin。
 
-项目目标不是复刻截图，而是在 Android 平台保留真实的数据流、用户入口和能力边界。
-不支持或未配置的能力会显示 `NOT_CONFIGURED`、`DISABLED` 或 `BLOCKED`，不会用假数据
-冒充成功。
+普通用户请从[图文用户手册](docs/user-manual/index.html)开始：首次配置、聊天与图片、图库与记忆、任务提醒、会议和数字分身均有操作说明。手册支持离线阅读、搜索、图片放大与打印；下载时保留整个 `docs/user-manual/` 目录。维护方法见[手册说明](docs/user-manual/README.md)。
 
-## 当前入口
+## 当前版本
 
-应用使用 Compose 五 Tab 外壳：
+分支与历史PR见[分支和PR导航](docs/BRANCHES_AND_PRS.md)。当前完整共享版在
+`codex/shared-frontend`；`main`跟随上游。先完成技术路线闭环，再由用户与 fellow 讨论是否递交 PR。
 
-| Tab | 当前内容 |
+共享版为 `com.clawmate.shared`，名称“ClawMate 共享前端”，版本 `0.3-integrated`。
+包含引导、五入口、首页建议/陪伴、会话与流式聊天、图片聊天、query_events、长期记忆管理、
+图库/汇总、工作流编辑与有界运行、设置和系统 OCR/ASR/TTS。
+云端能力需用户自行配置和授权；真实模型质量与平台待办不能视为已验收。
+
+| 模块 | 职责 |
 | --- | --- |
-| 首页 | 首次启动引导、头像/资料、资料完整度、推荐和本地状态 |
-| 汇总 | 图库导入、图库分析、集合、月度洞察、照片详情和本地 OCR |
-| 聊天 | 会话持久化、云端流式回复、附件、工具状态、语音输入输出和错误状态 |
-| 任务 | Workflow 浏览、场景分组、启停状态、批量执行和结果状态 |
-| 设置 | 模型与智能体、隐私、数据采集、任务自动化、存储、日志和可选集成 |
+| `shared-frontend/` | 上游锁、共享 ArkTS 组装、平台接口与可审查的源码适配 |
+| `shared-app/` | ArkUI-X Android 宿主、生命周期、系统 API 和桥接 |
+| `android-capabilities/` | 两版共用的 OCR/ASR/TTS、图片准备、有界工作流执行与受限协议 |
+| `app/` | 保留的 Compose 回归基线；原正式包及其数据不被共享版覆盖 |
 
-## 能力边界
+根 Gradle 管理所有 Android 模块。共享包的配置/会话/图片/索引由 ArkTS 管理，
+旧 Room/DataStore 不双写，也不自动继承旧授权或密钥。
 
-已接入 Android 的能力：
+## 构建与检查
 
-- Room：图库、集合、聊天会话和任务状态持久化。
-- DataStore：设置、首次启动状态和本地资料持久化。
-- OpenAI-compatible HTTP/SSE：云端聊天和部分图库云端能力。
-- Android Photo Picker、MediaStore、EXIF、Geocoder 和 ML Kit 中文 OCR。
-- Android SpeechRecognizer 和 TextToSpeech，权限和不可用状态会显式呈现。
-- Workflow JSON 解析、状态机、取消、超时和受控执行器。
-- JNI/CMake 本地模型适配层。当前只提供诚实的能力边界，未内置 MNN 推理运行时。
+Windows 工具链和只读源输入的准备步骤见 [共享前端说明](shared-frontend/README.md)。
+使用锁定的 OpenHarmony API20 `6.0.0.47` 与 ArkUI-X API20 `6.0.0.103`，JDK17；
+SDK、运行库和生成工程留在忽略目录，本机路径只作参数：
 
-当前不会伪装成已支持的能力：
-
-- HarmonyOS HiAI/N-API 和 MNN 本地推理。
-- PC 侧 HDC、GUI 自动化和 Python 服务，除非显式配置并通过健康检查。
-- 跨应用无障碍操作、任意 shell/adb/hdc 命令执行。
-- 鸿蒙专属的数字人生成、云端 MiMO 语音和部分 WeChat 自动采集流程。
-
-详细的源代码映射、阶段记录和剩余差异见 [MIGRATION_STATUS.md](MIGRATION_STATUS.md)。
-
-## 构建环境
-
-| 工具 | 版本或路径 |
-| --- | --- |
-| Java | OpenJDK 17 |
-| Android SDK | `/home/yydh/Android/Sdk`，platform 34 |
-| Android NDK | `25.2.9519653` |
-| CMake | `3.22.1` |
-| Gradle | Wrapper，Gradle 8.9 |
-| Gradle 缓存 | `/home/yydh/.gradle` |
-
-首次构建前确认 Android SDK、NDK 和 CMake 已安装。Gradle wrapper/daemon 和缓存会写入
-仓库外目录，必要时使用有权限的 shell 执行构建。
-
-## 构建与测试
-
-在仓库根目录执行：
-
-```bash
-GRADLE_USER_HOME=/home/yydh/.gradle \
-ANDROID_HOME=/home/yydh/Android/Sdk \
-ANDROID_SDK_ROOT=/home/yydh/Android/Sdk \
-ANDROID_SDK_HOME=/tmp/clawmate-android-home \
-./gradlew :app:assembleDebug --console=plain
+```powershell
+./shared-frontend/build.ps1 -JavaHome '<JDK 17>' -AndroidSdk '<Android SDK>' -MeetingSdkRoot '<on-device-meeting-notes>' -Offline
+node shared-frontend/verify.mjs
+node shared-frontend/verify-native.mjs
+node shared-frontend/verify-integration.mjs
+node shared-frontend/verify-meeting.mjs
+node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference
+./gradlew.bat :android-capabilities:testDebugUnitTest :app:testDebugUnitTest
 ```
 
-运行 JVM 单元测试：
+脚本按输入哈希验证、ArkTS 编译、运行库导出、Android 打包执行，失败即停止。
+共享 APK：`shared-app/build/outputs/apk/debug/shared-app-debug.apk`。
+当前调试包为 arm64、最低 API26；发布签名、包体裁剪与发布等级尚未验收。
 
-```bash
-GRADLE_USER_HOME=/home/yydh/.gradle \
-ANDROID_HOME=/home/yydh/Android/Sdk \
-ANDROID_SDK_ROOT=/home/yydh/Android/Sdk \
-ANDROID_SDK_HOME=/tmp/clawmate-android-home \
-./gradlew :app:testDebugUnitTest --console=plain
+共享版新增“汇总 → 本机会议 · 录音与纪要”，包含离线转写、会议管理和主动保存到本机记录。
+源码依赖、模型准备及数据归属见[会议集成说明](docs/MEETING_INTEGRATION.md)。
+
+```powershell
+adb install -r shared-app/build/outputs/apk/debug/shared-app-debug.apk
+adb shell am start -n com.clawmate.shared/.SharedActivity
 ```
 
-Debug APK 输出位置：
+Compose 基线仍可运行 `./gradlew.bat :app:assembleDebug`；不要用日常测试覆盖原包及其用户数据。
+历史验证与阶段索引统一见 [迁移日志](MIGRATION_STATUS.md)，构建约定见 `AGENTS.md`。
 
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
+## 配置和能力边界
 
-连接 Android 设备后安装：
+共享版在“我的”填写 HTTPS 模型地址、模型名和密钥，再主动授权云服务；
+图片发送及聊天记忆另有数据范围确认。拒绝/撤回授权会阻断新请求并取消已注册请求。
+系统 ASR 使用用户选择的识别服务，其是否联网由该服务决定。
+旧 Compose 的可选配置模板为 `app/src/main/res/raw/config_example.properties`。
+凭据、签名、私有数据库、SDK路径和设备状态禁止提交。
 
-```bash
-adb devices
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell monkey -p com.clawmate.app 1
-```
+本机工作流支持有界等待、条件、循环、echo/summary 和取消；共享版另接本机图片`vlm_qa`，
+使用配置的Decider视觉模型并逐次确认；GUI和其他模型工具仍明确受限。
+每日采集提醒与聊天自动摘要已接通，实际后台送达与模型质量仍需验收。
+HDC/Python、微信采集、MiMO、MNN/HiAI、照片参考分身等仍有待办。
+当前证据来自一台 OPPO 手机，不能推断小米等厂商或 iOS 已通过。
 
-真机检查可以使用：
+## 开发与验证记录
 
-```bash
-android screen capture -o /tmp/clawmate-screen.png
-android layout -o /tmp/clawmate-layout.json
-adb logcat
-```
+- [当前状态与实际检查](MIGRATION_STATUS.md)
+- [共享架构与数据归属](docs/SHARED_ARCHITECTURE.md)
+- [共享页面对齐边界](docs/FRONTEND_PARITY.md)
+- [待办](MIGRATION_BACKLOG.md)
 
-安装、截图和运行检查必须以实际命令输出为准，不要仅根据构建成功推断运行时正常。
-
-## 云端模型配置
-
-应用默认不携带 endpoint、API key 或本地数据库。配置模板在：
-
-```text
-app/src/main/res/raw/config_example.properties
-```
-
-本地调试时复制为被 Git 忽略的文件并填写实际值：
-
-```bash
-cp app/src/main/res/raw/config_example.properties \
-   app/src/main/res/raw/local_config.properties
-```
-
-至少需要配置：
-
-```properties
-cloudPlannerBaseUrl=
-cloudPlannerApiKey=
-cloudPlannerModel=
-```
-
-API key、token、数据库、签名文件和设备状态禁止提交。没有配置云端模型时，聊天页会显示
-未配置状态，不会发送请求或生成假的回复。也可以直接在应用的“设置中心 > 模型与智能体”
-中编辑配置；敏感字段会掩码显示。
-
-## Android 主题约定
-
-共享视觉 token 位于：
-
-```text
-app/src/main/java/com/clawmate/app/ui/theme/DesignTokens.kt
-```
-
-主要页面统一使用浅色背景、白色卡片和蓝紫色强调色。设置页与 HarmonyOS 源实现保持以下
-关键尺寸：
-
-- 页面背景：`#F4F8FF`
-- 设置主操作色：`#4F68FF`
-- 紫色强调色：`#765BFF`
-- 主文字：`#11182F`
-- 卡片圆角：`18dp`
-- 控件圆角：`12dp`
-- 设置输入框高度：`42dp`
-- 设置按钮高度：`40dp`
-
-新增页面应优先复用 `ClawMateDesign` 和现有 Compose 组件，不要在页面中重新定义一套
-颜色、圆角或间距。
-
-## 目录结构
-
-```text
-app/src/main/java/com/clawmate/app/
-├── chat/          会话、流式客户端、Agent、语音
-├── gallery/       图库、集合、OCR、月度洞察、云端适配器
-├── home/          首页、推荐、引导和资料
-├── localmodel/    本地模型扫描与 JNI 能力边界
-├── profile/       资料、头像和分享
-├── settings/      设置仓库、配置和设置页面
-├── task/          Workflow、HDC 适配器和执行器
-├── log/           应用内日志查看器
-└── ui/            Tab 外壳、公共页头、主题和导航
-```
-
-## 开发约定
-
-- 使用 Kotlin 和 Jetpack Compose；新页面优先复用现有主题与组件。
-- 网络请求必须有超时、取消、错误映射和显式配置入口。
-- 外部输入、模型输出和导入数据都按不可信数据处理。
-- 每个有意义的阶段保持小提交，并在 `MIGRATION_STATUS.md` 增加简短记录。
-- 不修改 `/home/yydh/mobiinfra-oh`，不提交生成目录、IDE 状态或本地凭据。
-
-## 许可证与上游参考
-
-本仓库是 ClawMate Android 迁移目标。HarmonyOS 上游项目仅用于参考：
-
-<https://github.com/doulujiyao12/mobiinfra-oh>
+鸿蒙上游只读；更新时审查锁与适配并重新编译/回归。通用 UI/业务留在 ArkTS，
+Android 差异集中到适配层与共用能力库。每个有意义的阶段提交并记录真实验证结果；
+不使用演示数据冒充模型回复、采集或执行成功。

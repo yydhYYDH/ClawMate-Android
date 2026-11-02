@@ -1,0 +1,178 @@
+{
+  "phase": "SH-20",
+  "date": "2026-10-28",
+  "feature": "F12/P05 first subphase: photo-reference avatar generation",
+  "baseCommit": "b4646f8",
+  "implementation": [
+    "Original Seedream image-to-image provider and original avatar version/state/provenance storage reused",
+    "Reference caching uses bounded metadata-free JPEG preparation shared with chat/gallery Android capabilities",
+    "Per-request photo/profile/endpoint/model confirmation; config and authorization rechecked before upload",
+    "Mode-specific model selection; separate local photo provenance from transmitted data URL",
+    "Failure feedback, concurrent-request exclusion, cancellation before upload and retry after failure"
+  ],
+  "host": {
+    "total": 161,
+    "newAvatarChecks": 10,
+    "contractAndSourcePassLines": 143,
+    "exporter": 8,
+    "apkAudit": 4,
+    "nativeIntegrity": 5,
+    "provenance": 1
+  },
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "pageSize": 4096,
+    "coreChecks": [
+      {
+        "name": "native-meeting",
+        "passed": 7,
+        "duration": 19.906,
+        "log": ".arkui-x-validation/application/sh20-phone-regression/native-meeting.log"
+      },
+      {
+        "name": "chat",
+        "passed": 1,
+        "duration": 7.403,
+        "log": ".arkui-x-validation/application/sh20-phone-regression/chat.log"
+      },
+      {
+        "name": "workflow",
+        "passed": 1,
+        "duration": 4.767,
+        "log": ".arkui-x-validation/application/sh20-phone-regression/workflow.log"
+      }
+    ],
+    "avatarConsentPassed": true,
+    "avatarConsentSeconds": 3.721,
+    "totalChecksPassed": 10,
+    "numericalExportsPassed": 22
+  },
+  "apk": {
+    "sha256": "fa196eef724b3e1446e4e2d0735a40d07ec10c830736b628c84a232b1aa3498d",
+    "bytes": 312627930,
+    "testSha256": "050f9f10e5bbbb40c98d9238842f335dab596281d20583e6ae0c94aa58476897"
+  },
+  "builds": {
+    "hapRecompiled": true,
+    "android": "20s; 93 tasks, 10 executed, 83 up-to-date",
+    "androidTest": "36s; 101 tasks, 11 executed, 90 up-to-date",
+    "elfLibraries": 325,
+    "elf16kbFailures": [],
+    "zip16kbPassed": true,
+    "jvmTestsRerun": false
+  },
+  "earlierFailure": "First new avatar device fixture could not locate Cancel via virtual nodes; actual rendered-label OCR locator passed without changing product assertions",
+  "cleanup": {
+    "avatarStateAndSettingsRestored": true,
+    "ownSyntheticPhotoRemoved": true,
+    "backupAbsent": true,
+    "originalVersionsPreserved": true,
+    "appRelaunched": true
+  },
+  "boundaries": [
+    "Real remote generation quality not validated; host provider/storage ports were controlled fixtures",
+    "Photo selection/persistence contract checked through actual generated service with controlled ports; physical consent test starts from a synthetic saved reference and does not browse private photos",
+    "Foreground segmentation and custom avatar in chat remain next, in that order; no fake transparent foreground",
+    "F13 then P01/P04, P02/P03 and P06 follow the existing unported-feature backlog order",
+    "16KB UI/stability issues remain recorded separately",
+    "No Compose baseline, Harmony source or meeting SDK source changes; no production package/data switch"
+  ],
+  "evidence": [
+    {
+      "file": ".arkui-x-validation/sh20/avatar-device-final.log",
+      "bytes": 1259,
+      "sha256": "f3a1a562b0b32f271f6ed84f5a524e0d949a02b62e52c228d5e1ece9fe140efa"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/avatar-device.log",
+      "bytes": 2184,
+      "sha256": "f5c6e3e311dbed22d1ce60789b63f3663cefc7fb597c13995fc54975631d0b41"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/avatar-host.log",
+      "bytes": 1135,
+      "sha256": "cb6dd9aef6d67ca9632c7b2a336ac7ab8422cb47fefab4603e63e192ae0cfc66"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/cleanup.log",
+      "bytes": 181,
+      "sha256": "901d508d8365ff3f84260ec2c4bca46ffabde7cc05fbacd3555529ee04d0ee96"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/host-checks.log",
+      "bytes": 15696,
+      "sha256": "bdcbcb26ab08234376e9c1ac384d7acfcbebabcbdb5138b6beef9c1176b3d8e6"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/install-avatar-test.log",
+      "bytes": 38,
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/native-driver.log",
+      "bytes": 75,
+      "sha256": "6b368736a82bd404aab09d79d35ea27e28a0d2a45527472d797899c57a96e82b"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/phone-driver.log",
+      "bytes": 151,
+      "sha256": "b8fdb936c4b7f7113646f02e9cc4902ffe1190180795fe446ce9029b64cdbbf2"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/product-build.log",
+      "bytes": 55869,
+      "sha256": "59bf6d9a93182fc4d05223fd5996cda3f0656b11a04a409b17c1bbbaee792636"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/provenance.log",
+      "bytes": 117,
+      "sha256": "15bdf26df1bf11e4bc82d8fe92e416d36606f703dacabd64ea8c51318b9e49e3"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/test-build.log",
+      "bytes": 9757,
+      "sha256": "cc604c42c139552db39c5cc7a7783af801d58a971a78ef9560e2049f92367d06"
+    },
+    {
+      "file": ".arkui-x-validation/sh20/test-ocr-build.log",
+      "bytes": 9757,
+      "sha256": "88467b1d1fdb86a98255be961cfa395e98f12310e7a6b3253db4f208c2c4dfa4"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh20-phone-regression/chat.log",
+      "bytes": 1173,
+      "sha256": "675a9d60d237f3f034068e05d8d5f61dbe6b7de5130b896a208e3a4a990c1c42"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh20-phone-regression/install.log",
+      "bytes": 76,
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh20-phone-regression/native-meeting.log",
+      "bytes": 6594,
+      "sha256": "c8075ff7fc2b7c2688b9d877ca876d547bbd25978fb7eb1236a091b693e9bd0f"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh20-phone-regression/workflow.log",
+      "bytes": 2013,
+      "sha256": "7f295dd58b51f7fd37f6b570cc5567c3cc4391bef0efa464ef19f32042053308"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh20-phone-native/environment.json",
+      "bytes": 141,
+      "sha256": "b9a65b8ac1a409488d50bf1e8982136b31651d573449e025e9c7b5a634be651f"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh20-phone-native/numerical.log",
+      "bytes": 52,
+      "sha256": "a9adb45f88814eabdd462a20f4048d93052a9578bf1588599a831ef3ad1db8c7"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh20-phone-native/installed-library-sha256.log",
+      "bytes": 186,
+      "sha256": "1cadeff27881ceb9ad85a919a225bd14489ff6755ffcdcb4450bfcf6a287866f"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <instrumentation android:name="com.clawmate.shared.GuiControlExternalRunner"
+        android:targetPackage="com.clawmate.gui.fixture" android:functionalTest="true" />
+    <application android:label="ClawMate GUI Fixture" android:testOnly="true" android:allowBackup="false">
+        <activity android:name="com.clawmate.shared.GuiControlFixtureActivity" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+    </application>
+</manifest>

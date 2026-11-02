@@ -25,6 +25,10 @@ output-metadata.json
 # Kotlin
 .kotlin/
 
+# Local Python verification caches
+__pycache__/
+*.py[cod]
+
 # Local endpoint/credential config (see app/src/main/res/raw/config.example.properties).
 **/res/raw/local_config.properties
 
@@ -41,6 +45,9 @@ signing/
 # Phase-22 local backup of the delivery worktree gitdir pointer (target .git is untouched).
 .git-target-pointer
 
-# Local ArkUI-X / hvigor build scratch (SDKs, generated project, runtime).
+# Isolated ArkUI-X verification: SDKs, downloaded references, generated packages and evidence.
 .arkui-x-validation/
 .hvigor/
+experiments/arkui-x/**/oh_modules/
+experiments/arkui-x/**/.hvigor/
+experiments/arkui-x/**/local.properties

@@ -1,0 +1,252 @@
+{
+  "phase": "SH-19",
+  "date": "2026-10-28",
+  "baseCommit": "17bdb9e",
+  "outcome": "Expired native model mailbox no longer masks the original user refusal; normal core regression and a 70-second delayed-refusal scenario pass on the 4KB phone. Chat diagnostics added; full 16KB acceptance still incomplete.",
+  "implementation": {
+    "executionDeadlineExtended": false,
+    "lateModelResultsAccepted": false,
+    "writesReplayed": false,
+    "lateFailureInventsRunResultOrSummary": false,
+    "errorContextPreserved": true
+  },
+  "regression": {
+    "hostChecks": 151,
+    "hostBreakdown": {
+      "ArkTSAndBootstrapIncludingUpstream": 133,
+      "exporter": 8,
+      "apkAudit": 4,
+      "nativeIntegrity": 5,
+      "provenance": 1
+    },
+    "newHostCases": 2,
+    "phone": {
+      "model": "OPPO PKB110",
+      "android": 16,
+      "pageSize": 4096,
+      "defaultTimeoutMultiplier": 1,
+      "corePassed": 9,
+      "groups": [
+        {
+          "name": "native-meeting",
+          "passed": 7,
+          "seconds": 19.891,
+          "log": ".arkui-x-validation/application/sh19-final-phone-regression/native-meeting.log"
+        },
+        {
+          "name": "chat",
+          "passed": 1,
+          "seconds": 7.872,
+          "log": ".arkui-x-validation/application/sh19-final-phone-regression/chat.log"
+        },
+        {
+          "name": "workflow",
+          "passed": 1,
+          "seconds": 4.863,
+          "log": ".arkui-x-validation/application/sh19-final-phone-regression/workflow.log"
+        }
+      ],
+      "delayedRefusalPassed": true,
+      "delayedRefusalMs": 70000,
+      "beforeSeconds": 73.779,
+      "afterSeconds": 73.771,
+      "numericalExportsPassed": 22,
+      "delayedTestApkSha256": "071535c96689f7abdbc635fa98d59c679e72773dbb3e0c4b2629c223fec2981a"
+    }
+  },
+  "builds": {
+    "hap": "BUILD SUCCESSFUL in 1 min 246 ms",
+    "android": "BUILD SUCCESSFUL in 33s; 93 tasks, 10 executed, 83 up-to-date",
+    "androidTest": "BUILD SUCCESSFUL in 1m 1s; 101 tasks, 11 executed, 90 up-to-date",
+    "staticElfFailures": [],
+    "zip16kbPassed": true,
+    "jvmTestsRerun": false,
+    "diagnosticGuardAndroidTest": "BUILD SUCCESSFUL in 53s; 101 tasks, 11 executed, 90 up-to-date"
+  },
+  "apk": {
+    "sha256": "41b7b152682785027d79edcbfad34d506d8f03e791a8b9d276757fa43c47cbf6",
+    "bytes": 312627930,
+    "testSha256": "8ba280aa4ca67cb7f44b3113ea921eea9b5ec79d34490981fb09a28d00ca9fd6"
+  },
+  "diagnostics": {
+    "workflowOwnFixtureFailureMessageLogged": true,
+    "chatOcrAndLifecycleFailureHooksCompiled": true,
+    "newChatFailureThreadDumpCaptured": false,
+    "preferencesOrMessageFilesDumped": false
+  },
+  "runtime16kb": {
+    "coldBootEnteredRecovery": true,
+    "reason": "init_user0_failed",
+    "dataWipePerformed": false,
+    "rebootAttempted": true,
+    "normalBootCompletionConfirmed": false,
+    "newApkTested": false,
+    "stoppedViaOfficialTool": true,
+    "note": "Recovery/read failures preserved; this run does not establish a persistent boot root cause."
+  },
+  "boundaries": [
+    "The delayed-phone and host repro proves a product error-masking race; original SH-17 lastMessage was not captured, so its identical cause is not established",
+    "SH-17 chat failure and test-helper ART crashes remain unresolved",
+    "4KB phone results do not substitute for full 16KB runtime acceptance",
+    "No live cloud-provider quality claim, no production package/data switch, no PR created or reopened"
+  ],
+  "evidence": [
+    {
+      "file": ".arkui-x-validation/sh19/cleanup.log",
+      "bytes": 76,
+      "sha256": "7e07fa373f0bfedfb2a67c2c0284aff9186d01f6642a7eed2cc7782408350eff"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/delay-build.log",
+      "bytes": 9756,
+      "sha256": "78bdfd0f5278baf5874fc7b963604a15b2c59d18d6d9bf43697e6746039b73cc"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/diagnostic-build.log",
+      "bytes": 9760,
+      "sha256": "bfbb744a15c2feff6f73d5f1dd823871f653194d87ff28b1d6991f1c402283e0"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/diagnostic-guard-build.log",
+      "bytes": 9757,
+      "sha256": "4df0ce79aa052e8b0cd85202ea14b1aeb339fcaaa5d0b7ef5b4af0eb90bc70b3"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/final-phone-driver.log",
+      "bytes": 151,
+      "sha256": "b8fdb936c4b7f7113646f02e9cc4902ffe1190180795fe446ce9029b64cdbbf2"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/final-test-build.log",
+      "bytes": 9759,
+      "sha256": "15c42dbbb4dbada82f3bda9b5fbc9fee071cd658fed0aad58d35b4ade263305d"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/host-checks.log",
+      "bytes": 14559,
+      "sha256": "e2e71fbcb9bd14ebc73e9137de8ff1b4723927dd440ad2e79bd966880eaea794"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/install-phone-diagnostics.log",
+      "bytes": 38,
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/late-mailbox-after.log",
+      "bytes": 1885,
+      "sha256": "02ff22c7a65306ccf5aa336419ad3dac041e094020ea3e3dfe00bf6a08f6edcf"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/late-mailbox-before.log",
+      "bytes": 3017,
+      "sha256": "4d216a434d8f6a9ceb4b8cd91c9a64499c819da0046aec586ea757db39a64893"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/leave-home.log",
+      "bytes": 181,
+      "sha256": "7792ca21263e2e0a216f5af00e56ac48b4979488f2e7aac856109f77b4781208"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/native-driver.log",
+      "bytes": 75,
+      "sha256": "6b368736a82bd404aab09d79d35ea27e28a0d2a45527472d797899c57a96e82b"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/phone-delayed-after.log",
+      "bytes": 1683,
+      "sha256": "617eeb0630658c0512801becd52acb7f61e8a78ea53a8f2d50d830d917168546"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/phone-delayed-before.log",
+      "bytes": 2816,
+      "sha256": "50501354393cd60f1951a212503d0123b8589e2b97504d2fc027ecebfb857938"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/phone-driver.log",
+      "bytes": 151,
+      "sha256": "b8fdb936c4b7f7113646f02e9cc4902ffe1190180795fe446ce9029b64cdbbf2"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/product-build.log",
+      "bytes": 55149,
+      "sha256": "26ff9fa57ae2c9466f53e73fc450769eb3f1f6fe7df4c1c750e897b7fb424e37"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/provenance.log",
+      "bytes": 117,
+      "sha256": "173116930814d90dc3220d3dccccf28c5856bbd03f5f9682e53d761ff5b54ab2"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/recovery-after-reboot.log",
+      "bytes": 25,
+      "sha256": "a788f5abadbd52445df2e6927ca7a32a1bde55d2873bf644420d808c767aa97e"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/recovery-final.log",
+      "bytes": 43,
+      "sha256": "68e631de6c61da5a032a733607a6f6d9ddd875b013f50b64953fe935ef48e826"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/recovery.log",
+      "bytes": 25573,
+      "sha256": "6da8f50d545f950ab3edbbda99f30d3e62e7c4ed4b9d199bffee1967f920f1bf"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/repro-repeat.log",
+      "bytes": 1885,
+      "sha256": "a46e72f2e48923be78ca6afc35512d5e6c7d72b03a1c6515fed11dabce8943e2"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/start-runtime.log",
+      "bytes": 5699,
+      "sha256": "43b962bd2c20462709142e06d24f2d326b069f77e9215026e6b64e3899c1d0d0"
+    },
+    {
+      "file": ".arkui-x-validation/sh19/stop-runtime.log",
+      "bytes": 327,
+      "sha256": "ceac8b58b6af56e64b7f29af05cfa5ea45e5e1d9ee39cdc7fe793de5318a4377"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh19-final-phone-regression/chat.log",
+      "bytes": 1173,
+      "sha256": "1ba3eb804a82e3cd40226401199c5e192dd1ba0f553bff2347f7f9353305b53b"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh19-final-phone-regression/install.log",
+      "bytes": 76,
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh19-final-phone-regression/native-meeting.log",
+      "bytes": 6594,
+      "sha256": "dc9c2a378d9eb417bd7256fb081ef1b2628439e65aa392cb88bfe0ccac883764"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh19-final-phone-regression/workflow.log",
+      "bytes": 2013,
+      "sha256": "18b1e3e36920316ccb55672d1373fbd3a0c022ce6d3ceaa3dfd0fdec9e822188"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh19-phone-native/environment.json",
+      "bytes": 141,
+      "sha256": "a60cb17460c5d83ff5e54a5b0b8b1728892029bb4409683607bc83bda701d0af"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh19-phone-native/numerical.log",
+      "bytes": 52,
+      "sha256": "a9adb45f88814eabdd462a20f4048d93052a9578bf1588599a831ef3ad1db8c7"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh19-phone-native/installed-library-sha256.log",
+      "bytes": 186,
+      "sha256": "bf39a8cbec4d4a30568841b7ae00ef0df39e3f4b0f797816624932a61b55dde5"
+    }
+  ],
+  "cleanup": {
+    "fixtureBackupsAbsent": true,
+    "temporaryInputScreenshotRemoved": true,
+    "appRelaunched": true,
+    "emulatorStopped": true,
+    "guestDataWipePerformed": false
+  }
+}

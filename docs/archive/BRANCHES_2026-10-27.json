@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-27",
+  "upstream": "yydhYYDH/ClawMate-Android",
+  "upstreamMain": "13708b42dace7ddf53708447890fff14ab3c1bd1",
+  "fork": "JKSOBBING/ClawMate-Android",
+  "activeBranches": [
+    "main",
+    "codex/shared-frontend"
+  ],
+  "archiveTags": {
+    "archive/shared-before-consolidation-20261027": "0108ca961fe2873df14f35ea25874047c43d7d9d",
+    "archive/compose-review-20261027": "31e96b3656bc6577894874000c072068c87aa29e"
+  },
+  "retiredBranches": [
+    {
+      "branch": "codex/android-migration",
+      "sha": "198c8ce58d528351ce24715f2cd01d573de40716"
+    },
+    {
+      "branch": "codex/arkui-x-hybrid",
+      "sha": "198c8ce58d528351ce24715f2cd01d573de40716"
+    },
+    {
+      "branch": "codex/compose-only",
+      "sha": "cc2307821fb7f53406a09a157575348b765e4d43"
+    },
+    {
+      "branch": "codex/gallery-scan-recovery",
+      "sha": "0108ca961fe2873df14f35ea25874047c43d7d9d"
+    },
+    {
+      "branch": "codex/meeting-sdk-integration",
+      "sha": "245a3a9b177fd6886432bdc697fbee9b9284f75e"
+    },
+    {
+      "branch": "codex/pr-01-compose-memory-workflow",
+      "sha": "346f02ae3551cc0ad9252b7061387babe273426b"
+    },
+    {
+      "branch": "codex/pr-02-compose-images-cloud",
+      "sha": "e21430d43f54c89369d6dff5e67921093bffaeaf"
+    },
+    {
+      "branch": "codex/pr-03-compose-ui-upstream",
+      "sha": "31e96b3656bc6577894874000c072068c87aa29e"
+    },
+    {
+      "branch": "codex/pr-03-compose-ui-workflows",
+      "sha": "cc2307821fb7f53406a09a157575348b765e4d43"
+    },
+    {
+      "branch": "codex/pr-04-shared-frontend-host",
+      "sha": "0678fdf86d33fc55e080b9b7f5c2916eba058ec2"
+    },
+    {
+      "branch": "codex/pr-05-shared-android-engines",
+      "sha": "7cb292aacdfcb22a91c32dddc29c2d96dfd8c7f8"
+    },
+    {
+      "branch": "codex/pr-06-shared-feature-integration",
+      "sha": "198c8ce58d528351ce24715f2cd01d573de40716"
+    },
+    {
+      "branch": "codex/workflow-vlm-qa",
+      "sha": "7d34468b95eada64afbe3add76388bba31b4193d"
+    }
+  ],
+  "retiredForkPullRequests": [
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "policy": "Only delete retired refs after verified remote archive tags, replacement PR and closure of superseded Draft PRs. No force-push; original commits remain reachable via tags or active branch history.",
+  "replacementPullRequest": "https://github.com/yydhYYDH/ClawMate-Android/pull/5",
+  "consolidationCommit": "d387b4d9ea45d7c1ab6818e86ccb9e1caecbd3d7",
+  "result": {
+    "retiredRemoteBranchesDeleted": 13,
+    "retiredLocalBranchesDeleted": 12,
+    "supersededDraftsClosed": 5,
+    "remoteArchivesVerified": true,
+    "mergeable": true,
+    "mergeableState": "clean",
+    "autoMergeEnabled": false,
+    "autoMergeRejection": "JKSOBBING does not have the correct permissions to execute EnablePullRequestAutoMerge"
+  }
+}

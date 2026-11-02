@@ -1,0 +1,497 @@
+{
+  "phase": "SH-26",
+  "date": "2026-10-29",
+  "baseCommit": "d4f0584",
+  "feature": "P01/P04 scoped manual cross-app Android adapter; model/action loop remains pending",
+  "status": "pending_human_oem_confirmation_expired",
+  "subphaseRuntimeAccepted": false,
+  "implementation": [
+    "Reusable Kotlin accessibility adapter: explicit single launcher-app selection, separate session confirmation, 120-second/20-action in-memory grant, visible stop overlay, no persisted allowlist",
+    "Window-only screenshot API34, private in-memory preview, fit-center coordinate mapping, per-action confirmation and fresh exact-pixel hash before taps/vertical swipes/back",
+    "Exact package, one application window, main display, unlocked state, window geometry, system bars/cutout/other overlays and own panel checked; stale callbacks discarded by epoch",
+    "No model dispatch endpoint, arbitrary command bridge, screenshot filesystem writer/network uploader, text input, horizontal swipe or workflow success log",
+    "Shared ArkTS entry uses native permission/application picker; native system-accessibility settings activity accepts no target/action extras",
+    "Service and native settings activity declared only in shared host, not capability library/Compose baseline",
+    "Disposable test-only SDK Java actor has no network/library/Kotlin dependency, instruments itself to keep real service host alive, selects only exact fixture package",
+    "AGENTS/backlog now require user-visible checklist updates after each feature phase; manual entry/permissions/limits and older screenshot differences updated"
+  ],
+  "commands": [
+    "shared-frontend/build.ps1 -JavaHome <jdk17> -AndroidSdk <sdk> -MeetingSdkRoot <read-only-sdk> -Offline",
+    "gradlew.bat :shared-app:assembleDebug :shared-app:assembleDebugAndroidTest :android-capabilities:testDebugUnitTest --offline --no-daemon --console=plain",
+    "gradlew.bat :shared-app:assembleDebug :shared-app:assembleDebugAndroidTest :app:processDebugMainManifest --offline --no-daemon --console=plain",
+    "gradlew.bat :gui-control-fixture:assembleDebug :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+    "All shared-frontend verify*.mjs except verify-meeting.mjs; experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+    "scripts/test-shared-device.ps1 default non-meeting groups; GuiScreenshotDeviceTest and two GuiControlDeviceTest declaration/unavailable methods",
+    "After human temporary-permission consent only: bounded external SDK scenario, with snapshot/restore of prior accessibility configuration in finally",
+    "python docs/user-manual/build.py; python docs/user-manual/build.py --check; source provenance, APK/ZIP audits; git diff --check"
+  ],
+  "host": {
+    "nonMeetingChecks": 182,
+    "jvmTests": 139,
+    "jvmFailuresAndErrors": 0,
+    "manualRoutingChecks": 8,
+    "newPolicyTests": 5,
+    "sharedGuiContractChecks": 13
+  },
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "pageSize": 4096,
+    "foundationJUnitChecks": 13,
+    "foundationScope": "8 default non-meeting + 3 own-app screenshot + 1 binding/capability declaration + 1 unavailable/disclosure cancellation; before native setup/external actor completion",
+    "finalNormalJUnitChecks": 13,
+    "externalSdkScenariosPassed": 0,
+    "externalSdkIsJUnit": false,
+    "realModelServiceUsed": false,
+    "screenshotsExported": false,
+    "liveScope": "Host controls and separate synthetic fixture only; real window image, mapped tap/count, cancelled/completed swipe and Home-stop assertions required",
+    "fixtureUninstalledAfterChecks": true,
+    "finalPermissionCheck": "PASS final permission: own service absent, master0; original live configuration restored; helper uninstalled",
+    "permission": {
+      "humanTemporaryConsentReceived": true,
+      "scope": "Temporary ClawMate accessibility grant, synthetic fixture only, no private app/no image upload, restore afterward",
+      "restorationLog": "Original accessibility configuration restored exactly; values not logged"
+    },
+    "installerBlocker": null,
+    "runtimeBlocker": "Installation CAPTCHA completed by human; OEM accessibility keep-enabled confirmation remains pending. Ten-minute human wait expired, permission restored exactly; current scenario not started."
+  },
+  "builds": {
+    "hapAndAndroid": [
+      "38 s 364 ms ",
+      "2m 34s"
+    ],
+    "unitAndTest": [
+      "2m 14s"
+    ],
+    "nativeSettings": [
+      "3m 44s"
+    ],
+    "standaloneActor": [
+      "2m 8s"
+    ],
+    "runtimeFiles": 398,
+    "stagedArkts": {
+      "total": 153,
+      "unchanged": 77,
+      "adapted": 39,
+      "new": 37
+    },
+    "finalActorBuild": [
+      "42s"
+    ],
+    "new16kbKernelExecution": false
+  },
+  "apk": {
+    "sha256": "0d539dd57a64c615f20e2c7dac824446d8991e204e9abeceb2230452c45a2a56",
+    "bytes": 312628553,
+    "fixtureSha256": "edc8aee46780d63e2f79b51a51476402bf818bc2a4170692283c707d1e98106a",
+    "fixtureBytes": 23188
+  },
+  "failuresAndCorrections": [
+    "Hidden ACTION_ACCESSIBILITY_DETAILS_SETTINGS unavailable in public SDK; use public accessibility settings screen",
+    "Initial unavailable permission fixture captured global flag before UiAutomation initialization, so harness itself changed state. Initialize automation before snapshot; subsequent guard passes without changing app permission",
+    "Three in-process live attempts failed service connection; own-service dumpsys showed system bound before instrumentation but connection disappeared after host instrumentation startup. Own grant restored/removed after every attempt, last direct check service absent/master0",
+    "Human accessibility takeover wait expired after 10 minutes without a completion reply. Temporary component removed and master0 independently verified; no actual scenario pass counted",
+    "Additional instrumentation in androidTest manifest was overridden by AGP; separate SDK-only self-targeted application actor preserves host process and actual compiled target-package verified",
+    "Test APK DEX excludes Kotlin runtime; actor/fixture written in SDK-only Java and moved to independent test-only module",
+    "Standalone attempts 4-7 exceeded the 120-second cap; actual service connection was observed in attempts 5-7, but no gesture success. Delayed OPPO accessibility security prompt interrupted the picker; each attempt restored the exact initial permission values",
+    "Attempt 8 OEM accessibility ACTION_CLICK returned false; actor did not proceed. Removed automated OEM handling and paused a new scoped grant for human physical keep-enabled confirmation, with 10-minute restoration deadline",
+    "OPPO new test APK installer first requested identified Continue Install (confirmed only fixture/no credential field), then installation CAPTCHA. Human completed it; no automated solving or security bypass"
+  ],
+  "remaining": [
+    "Complete live native scenario and final normal device regression before marking this subphase accepted",
+    "Model-driven bounded action/screenshot loop, chat/workflow/result extraction integration",
+    "Text input, horizontal gestures, controlled transitions to additional explicitly allowed apps",
+    "API33 and older cross-app window screenshot alternative; own-app capture remains available",
+    "Exact-pixel freshness can reject dynamic screens; global gesture submission cannot atomically lock the target window, platform switching race remains a limitation",
+    "Already submitted 80/400ms gesture may complete after stop; no new action admitted after stop",
+    "Meeting integration/dedicated runtime/numerical tests remain final phase; no new meeting test executed"
+  ],
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/sh26/accessibility-restore-attempt1.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/accessibility-restore-attempt2.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/accessibility-restore-attempt3.log",
+      "sha256": "c7a9b1c748b00590e0c7ccc0ecba182d7dc1c65a6bce1f37ed92b5f57c381daf"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/accessibility-restore.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/android-build-tests.log",
+      "sha256": "200e3a2197772739f0719d82ca3de1eccdd20274f5ec3b7eeb0be36437a9a874"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/apk-audit-current.json",
+      "sha256": "ab1fa66fc2a4fd1f01260b2e97405f4049e4b0db4c936232131bd3120db71270"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/apk-audit-current.log",
+      "sha256": "486f3583fdae2fe8ec0ea42fbe636baf8fa7ceb49854734c80b82fdcf85b1614"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/apk-audit.json",
+      "sha256": "9c183004a0a20f3d627fa66e2375c7065be030e8d471cb5d2a7d062b5b8d59a3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/build-actor-diagnostic.log",
+      "sha256": "1d9075c6749c09a90af6b4acf3f69b265648e1376be1837fba7e46e71ff3998f"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/build-actor-human-oem.log",
+      "sha256": "1d9075c6749c09a90af6b4acf3f69b265648e1376be1837fba7e46e71ff3998f"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/build-actor-progress.log",
+      "sha256": "20c14d766cdd51356b2c1c76055c6f3e1d6f1732a89e232769c55d89c8bba0ff"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/build-external-driver.log",
+      "sha256": "ee743158a562c1d8298a6c217571113d4ea404bd3b7566faf5934074ee437823"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/build-host-manifests.log",
+      "sha256": "0ce9b1682b2291e3154ead28368e33a82ffab9fdfa607e0eaa2e8162ab370d6e"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/build-standalone-fixture.log",
+      "sha256": "b1c6ec8c42c74ba3c1a08cedc8f0b27abe05c7a7a542df60de09cf99b3c1f191"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-cleanup.log",
+      "sha256": "f76271162517c0abe39dedb67ac6b9458a57113fb09345388312d9462f9fcbbc"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt1.log",
+      "sha256": "4b3914f8bed50ce614cb628384e0b113f82068889b2d2f55406a6ba3baac1706"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt2.log",
+      "sha256": "d19a76c004e50c395730042a952b4b0291e24a01c00725047dd8d93696d37b17"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt3.log",
+      "sha256": "0d94500041ff1e9d02736c272225e489d4c16ce0565dc228079ad7bec986b5a8"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt4.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt5.log",
+      "sha256": "e36113809ca6b13d8fcb8bb1bb133935ea4c6ae8d456d7b3b7a584bbad2a7047"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt6.log",
+      "sha256": "781d0e15a1b7816bd27a43a062c36d49f4a29e0a5f9a75250e42a8d6c143212f"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt7.log",
+      "sha256": "781d0e15a1b7816bd27a43a062c36d49f4a29e0a5f9a75250e42a8d6c143212f"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-attempt8.log",
+      "sha256": "e8e9c60466f6066476857b3f10c97ac04bc06521eaee3bbc4068008035b6e354"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-live-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-live.log",
+      "sha256": "e8e9c60466f6066476857b3f10c97ac04bc06521eaee3bbc4068008035b6e354"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-control-oem-prewarm.log",
+      "sha256": "1052628a34d2d95e07e3dc938d901f470bbde283eb5e1bf5e4c2f70399b998f7"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-core-accepted.log",
+      "sha256": "e4f0b608d2005121115ead4c857214f479fc2ad02f5ee0b1180d2c7a7794c5db"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-core-final.log",
+      "sha256": "e4f0b608d2005121115ead4c857214f479fc2ad02f5ee0b1180d2c7a7794c5db"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-core.log",
+      "sha256": "e4f0b608d2005121115ead4c857214f479fc2ad02f5ee0b1180d2c7a7794c5db"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-declaration-accepted.log",
+      "sha256": "8d8e8d11e198ad84c82bcfb39dad38d599524d58934a4d93221eda3e9b319f96"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-declaration-final.log",
+      "sha256": "8d8e8d11e198ad84c82bcfb39dad38d599524d58934a4d93221eda3e9b319f96"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-declaration.log",
+      "sha256": "7db923f8ea62b337bd7718c41d03e7f896944b665713515eb598b675637570ed"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-disabled-accepted.log",
+      "sha256": "05994485d7729be3461d8df5b31dc3b6c72f217210050ff4d3d3305f584c73b5"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-disabled-final.log",
+      "sha256": "5d7d49b0d1df538f5c4d8cf04440f6c3848d85c831826e395fdeb25eb0047bd5"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-disabled-fixed.log",
+      "sha256": "976559592907c53398c16b121cf6ff3974c140a9d028fe4b39ca4f20c61074b4"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-disabled.log",
+      "sha256": "b3c46a7bb6f71a7657fb7ccc22a311dab537d4e9cfd1d11e0b5fb2df7d5609e4"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-gui-screenshot-accepted.log",
+      "sha256": "2cdd440a7732f7a1bdba9482c660d5e8264ba371dfbe7b4dda5406f1698a0e8c"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-gui-screenshot-final.log",
+      "sha256": "fe8adb03bfd306acc874644ba13ed348baa5c59fdbb6019476566734fce8b451"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-gui-screenshot.log",
+      "sha256": "ac55f0c2ef0fd62c54c5d3ddbbf3e2f18f64343b75bb399beb6edc092658a31a"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-oem-warm-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/device-oem-warm.log",
+      "sha256": "190d1d1c64cf4148551d89b92224ad38e80327dd9482094ac6def823da038b2a"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/final-normal-run.log",
+      "sha256": "5aa421efe01bfe082bb78ec2231097c9e1acbd8050814531f18b6900db5edf23"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/host-checks.log",
+      "sha256": "8c0f5133288c69753292d5b248518dabdba5697013258f02eb112e170bf295fb"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/human-oem-timeout.log",
+      "sha256": "5ac82d3a073f784ace538996bafe43be218cf2a5739cb2e05039eebb992ed099"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-actor-diagnostic.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-actor-human-oem.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-actor-progress.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-connection-test.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-guard-test.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-live-product.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-live-test.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-native-settings-product.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-refresh-test.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-standalone-fixture.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/install-test-fixture.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/installer-confirm-command.log",
+      "sha256": "c5c2a9b084a382323a569bf0ee0247118b6b803df165acfe2b54b0c6fad012eb"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/installer-dump-command.log",
+      "sha256": "c5c2a9b084a382323a569bf0ee0247118b6b803df165acfe2b54b0c6fad012eb"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/live-run.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/manifest-ownership-current.log",
+      "sha256": "338abfad19371c4b41e6e8556ec3f6af2716be6cbe36ffb3a3fe1df6cd749663"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/manifest-ownership.log",
+      "sha256": "964cad756c4288d183560d6f965289e393781d40c6601dcb1d8c9498010e56cf"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/manual-check-final.log",
+      "sha256": "134da768c1fcb8fdc1665cdd284f0070c22f915c3f74ab80a5e01c72e8fe0c73"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/manual-check.log",
+      "sha256": "134da768c1fcb8fdc1665cdd284f0070c22f915c3f74ab80a5e01c72e8fe0c73"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/manual-routing-final.log",
+      "sha256": "3c2a496b59a123954ec8cf44d7c615dc20dbfdae02d52364b23063d1bc5415c4"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/native-preflight.log",
+      "sha256": "22626606e4f9c386d38abca9e29760a5cfcfa93acbd536dd7429de7c1467656d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/oem-keep-enabled.log",
+      "sha256": "805ebe0b7572c4ba2df1dbb971369d115f5d2458cb63f8d5d8fce2868d5c9121"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/oem-window-dump.log",
+      "sha256": "32a5c8dbd6d6c051b041f375ddc4cba613142aff1724af1967925cb58f13adaa"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/oem-window-pull.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/product-build.log",
+      "sha256": "d45b9db1454697a7d9c4bac23f548bdb81f26064c4efec23a72ca1249dd4da1b"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/product-current.log",
+      "sha256": "2b970989ebec16b9dd39a14d1f2a02dde194dbe912054a8f1a957e20a8f93fef"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/provenance-current.log",
+      "sha256": "a1a36e25faec67fc6ceb97b19d4e8a42284be783d5eb79f32372b35bd2e93e8d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/provenance.log",
+      "sha256": "a1a36e25faec67fc6ceb97b19d4e8a42284be783d5eb79f32372b35bd2e93e8d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/relaunch-after-live.log",
+      "sha256": "9f4406d0f04b088223350bf414712342413dd141331e7f91f8bd3edd73db7890"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/relaunch-before-permission.log",
+      "sha256": "2c8185ba5398c6195d421b208baad45c9d9a7a04aa18e70f5a356121fc64760f"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/relaunch-final.log",
+      "sha256": "f061fa05ef8194f74c6bcba1952a411a53358d941aa5887ac9152bbb284e263d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/restore-attempt4.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/restore-attempt5.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/restore-attempt6.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/restore-attempt7.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/restore-attempt8.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/restricted-settings-readonly.log",
+      "sha256": "91ef98f28d90ef2311841aa5b358a565174efa00c94df2648c2a9c3bd351daf2"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/service-binding-before-attempt2.log",
+      "sha256": "e8e7d249cf26e70bf0e474f553ef285d71390d2ca89aa2a111dfedab975bf3d7"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/service-binding-before.log",
+      "sha256": "b74641d079a41c469a7c7c021d71167cf8c3c096f5fadea104997dad04b2fd47"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/service-binding-during-refresh.log",
+      "sha256": "45bd22555e00405bdb2d93b61b075c46ef6489e83cb61fa1801cc5e2ca1eac17"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/service-binding-during.log",
+      "sha256": "69ed97f9afb870bb5033fd6383a4a39f87cf978c56e4ce3ff6fba95186016cd8"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/setup-dump.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/setup-pull.log",
+      "sha256": "0e512e91f43350950dd55f5d8ceda257130c3dba3ff0455d5d67a66d8511a3d7"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/test-connection.log",
+      "sha256": "32398fd9f73a2b46641468e7023ff7bbca92e06bd83f68bed80410d9dcd18aad"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/test-exact-fixture.log",
+      "sha256": "e45958f1f125d4ce4cd6fdde59f4c7f129a4ca5fd651f8f17fe342857240693a"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/test-permission-fixture.log",
+      "sha256": "dc9824c14c8520475ecf6f03542563505915001308117bf92dbe216a13ee3f48"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/test-refresh-binding.log",
+      "sha256": "980db5cf1cb78650e51107ec8dccfbbeeb15bb3c5fed920740224bd848fd9340"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/test-scope-fixture.log",
+      "sha256": "cccdc44451e612a3cef9ef21fcba0f263005f37400be980dede63475a2065007"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/tests-current.log",
+      "sha256": "78aeb5795d0c6693b163201be30a09021717bb9690f8a34e521deb7f1c5693ad"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/uninstall-fixture.log",
+      "sha256": "df5f678c3e897e8db27b8c5de5ae1938a25aa084aeee89a1a44958f104316b3d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/zipalign-current.log",
+      "sha256": "989d518a7262366082a4fc880bbe7ea1e4ad5515b8fe55092534b34e820f42ad"
+    },
+    {
+      "path": ".arkui-x-validation/sh26/zipalign.log",
+      "sha256": "a411cef473c79bd76a3a86f07464da148d75692fff979cfb01106229cd20bf7c"
+    }
+  ],
+  "references": [
+    "https://developer.android.com/reference/android/accessibilityservice/AccessibilityService",
+    "https://developer.android.com/guide/topics/ui/accessibility/service",
+    "https://developer.android.com/reference/android/app/UiAutomation"
+  ]
+}

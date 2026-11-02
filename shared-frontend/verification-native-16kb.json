@@ -1,0 +1,254 @@
+{
+  "phase": "SH-16",
+  "date": "2026-10-27",
+  "branch": "codex/shared-frontend",
+  "baseCommit": "21d8c26ff7cbba68daf7b7cde8d99ade08172b64",
+  "outcome": "Legacy meeting complex-math library rebuilt; full static 16 KB gates pass. Native ARM64 16 KB runtime acceptance remains pending.",
+  "source": {
+    "repository": "https://github.com/termux/termux-packages",
+    "revision": "706caf5e5ec39084ec19dc4c4fb99282fca85434",
+    "package": "packages/libandroid-complex-math",
+    "version": "0.2",
+    "pinnedInputs": 24,
+    "unchangedCFiles": 20,
+    "licenseAndPerSourceNoticesPackaged": true,
+    "meetingCheckoutSourceOrOriginalBinaryModified": false,
+    "harmonySourceModified": false
+  },
+  "implementation": {
+    "ndk": "25.2.9519653",
+    "cmake": "3.22.1",
+    "abi": "arm64-v8a",
+    "maxPageSize": 16384,
+    "commonPageSize": 16384,
+    "originalSha256": "e5c352aee1123bbb2a77d7bf6b16e8d675a1b275804fa55e9770989e929b9a12",
+    "packagedReplacementSha256": "d2338dce5a72159e556ad1f94482216ec87cdb20532504aa41f815a37c1a3257",
+    "exportsPreserved": 22,
+    "addedExports": 0,
+    "needed": [
+      "libc.so",
+      "libm.so"
+    ],
+    "termuxRunpath": false,
+    "otherMeetingJniInputsByteIdentical": 28,
+    "dependencyOutputsRelocatedToIgnoredHostWorkspace": true
+  },
+  "host": {
+    "existingChecksPassed": 144,
+    "newSourceAbiPackageChecksPassed": 5,
+    "sourceDriftNegativeCheckPassed": 1,
+    "maintenancePrepareTwice": "passed; prepared/runtime digest remains bound",
+    "preparedDigest": "0feb1f3de96d3cdeeff2bd4ad4fdbc2ebd2194a5d8800e8710e878b6efb1ad04",
+    "runtimeFiles": 398
+  },
+  "builds": [
+    {
+      "command": "shared-frontend/build.ps1 -JavaHome <JDK17> -AndroidSdk <SDK> -MeetingSdkRoot <checkout> -Offline",
+      "result": "HAP, runtime export/seal, APK, native integrity, full ELF audit and ZIP checks passed",
+      "hap": "> hvigor BUILD SUCCESSFUL in 17 s 119 ms",
+      "gradle": "BUILD SUCCESSFUL in 27s; 93 tasks, 7 executed, 86 up-to-date",
+      "log": ".arkui-x-validation/sh16/final-build.log"
+    },
+    {
+      "command": "gradlew.bat :shared-app:assembleDebugAndroidTest :android-capabilities:testDebugUnitTest --rerun :app:testDebugUnitTest --rerun :meeting-sdk:testDebugUnitTest --rerun --offline --no-daemon --console=plain",
+      "result": "BUILD SUCCESSFUL in 1m 14s; 137 tasks, 15 executed, 122 up-to-date",
+      "log": ".arkui-x-validation/sh16/regression-build.log"
+    },
+    {
+      "command": "gradlew.bat :app:assembleDebug --offline --no-daemon --console=plain",
+      "meetingSdkRootConfigured": false,
+      "result": "BUILD SUCCESSFUL in 30s; 65 tasks, 8 executed, 57 up-to-date; baseline APK packaging was UP-TO-DATE",
+      "log": ".arkui-x-validation/sh16/baseline-no-sdk.log"
+    }
+  ],
+  "jvm": {
+    "freshExecution": true,
+    "compose": 1243,
+    "capabilities": 123,
+    "meeting": 15,
+    "total": 1381,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "meetingResultsRoot": "build/meeting-sdk/test-results/testDebugUnitTest"
+  },
+  "apk": {
+    "sha256": "f1847e9e656d4ab1db36e5f07236d565b9befafc74aa0350ca6e98c535585f2c",
+    "bytes": 312627930,
+    "nativeLibraries": 325,
+    "elf16kbFailures": [],
+    "arkui16kbFailures": [],
+    "elfAuditExitCode": 0,
+    "zipalignVersion": "36.0.0",
+    "zip16kbExitCode": 0
+  },
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "abi": "arm64-v8a",
+    "pageSize": 4096,
+    "numericalExportChecks": 22,
+    "installedLibraryHashMatchesApk": true,
+    "nativeAndMeetingRegression": 7,
+    "chatRegression": 1,
+    "workflowRegression": 1,
+    "sharedRegressionTotal": 9,
+    "publicAudioTranscribed": true,
+    "microphoneStarted": false,
+    "realCloudQualityClaim": false,
+    "cleanup": "Numerical executable removed; shared fixture finally blocks restore settings/indexes and stop the target. Imported public meeting sample retained per existing policy; source moved to reversible trash."
+  },
+  "negativeAndInitialIssues": [
+    {
+      "issue": "First Kotlin apply block applied the script to the wrong scope; build succeeded without a new CMake task",
+      "resolution": "Explicit meetingProject.apply; later builds show the SDK CMake and filtered JNI staging tasks.",
+      "log": "first-build.log"
+    },
+    {
+      "issue": "Ninja could not enter a non-ASCII dependency output directory",
+      "resolution": "SDK build directory and CMake staging relocated to the ignored host workspace.",
+      "log": "native-build.log"
+    },
+    {
+      "issue": "Initial native-integrity gate found NDK-added unused libdl dependency",
+      "resolution": "--as-needed removes libdl; final packaged dependencies exactly libc/libm.",
+      "log": "gated-build.log"
+    },
+    {
+      "issue": "build-tools 34 zipalign does not accept -P",
+      "resolution": "Shared ZIP gate uses already-required build-tools 36.0.0.",
+      "log": "final-gated-build.log"
+    },
+    {
+      "issue": "Intentional tampering of a copied source fixture",
+      "resolution": "CMake rejected changed cpow.c before compiling; expected exit 1.",
+      "log": "source-drift-negative.log"
+    }
+  ],
+  "limitations": [
+    "No native ARM64 16 KB kernel test. Connected phone is 4096-byte pages.",
+    "No emulator/system image/AVD installed; Windows x86-64 host reports firmware virtualization unavailable. No translated x86 result claimed.",
+    "Must run startup, numerical smoke, actual meeting transcription and core flows on PAGE_SIZE=16384 with compatibility mode disabled.",
+    "Linux entry was checked with bash -n only; Linux full build is still unverified.",
+    "Preinstalled SDKs and dependency caches were used; not a clean-machine, wholly offline or reproducible-APK certification.",
+    "No release signing, formal package/data switch, cloud-model quality, broader vendor/background or TalkBack acceptance."
+  ],
+  "evidence": [
+    {
+      "file": ".arkui-x-validation/application/sh16-device-regression/chat.log",
+      "sha256": "9aeeea12c79dc89f0ae7e858057756636beeb9ccae3ab9ba8f33c263715861f4"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-device-regression/install.log",
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-device-regression/native-meeting.log",
+      "sha256": "cc8ee685e71d42663fa070ebe9b3c1a0bded9a62b17938adff5e91505313ae96"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-device-regression/workflow.log",
+      "sha256": "846f236f25b3373e7f5dea4811decac96d4c4ac4a10a8007b2e2fd0ffac67440"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-native-verified/compile.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-native-verified/installed-library-sha256.log",
+      "sha256": "77569497fedba5561aa84eb5194d115427742df54a3cf9d168e50cd46a6caf8e"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-native-verified/numerical.log",
+      "sha256": "a9adb45f88814eabdd462a20f4048d93052a9578bf1588599a831ef3ad1db8c7"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-native-verified/page-size.log",
+      "sha256": "30f236f92d107cedc1eab7b3d6dafa316df3657ac88e59ece8df2944b6c995ca"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh16-native-verified/push.log",
+      "sha256": "4cf1b9e41b2a2bcb6f489b8dc677582b6af531b443fff71bab3e099400beae54"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/baseline-no-sdk.log",
+      "sha256": "70f53e1632732aa013ebcc36b0cc485e967dadc24d8d465aa54a0b06b43c47aa"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/device-driver.log",
+      "sha256": "b8fdb936c4b7f7113646f02e9cc4902ffe1190180795fe446ce9029b64cdbbf2"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/environment.json",
+      "sha256": "24077288ba8159e7ee4a63bd4abcd786529ff5b32cbe481715cef34b7b5c7751"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/final-build.log",
+      "sha256": "717e43dec20d5c721f3b474218147f3a313a1f24f328151065c3316cccc39397"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/final-gated-build.log",
+      "sha256": "84ec0e3f5b4d7749390a399ae3ca4be64cb2e01c959bc2c686dadaf19007585c"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/final-provenance.log",
+      "sha256": "26756af44c443122fb4a88e019b20eadcd8701e8c0d800388f3817351452ef83"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/first-aligned-apk.json",
+      "sha256": "e807a1f1697f86f1580604596a3cb4d3b82293cb15f89c61f04d049b3676d77e"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/first-build.log",
+      "sha256": "55e17f8807ecd8cc7f88fac49e49cc5c0adc9561e4a98fde6851257fe0e08715"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/gated-build.log",
+      "sha256": "9b7d1ecc5175b8773669e4c7ac28a93d089036bc887b280a428864e8657fba6c"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/host-contracts.log",
+      "sha256": "64ad081347ad93035323a36018aac28d7da8e923659916af5ca02190dd05f294"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/install-native.log",
+      "sha256": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/linux-syntax.log",
+      "sha256": "e816706cd44ce0c6c65a7a7938be8103514f7c899694c8240d844f74319b7f98"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/maintenance.log",
+      "sha256": "a2673b740e7e1cb617002f052c4f87c6554caaee57503441efc3c4ae28c9b71d"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/native-build-ascii.log",
+      "sha256": "6b6dc92cd23530e037cbb7681bdd1d20b566feb34b5536b6b1058e5a6e1cdebc"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/native-build.log",
+      "sha256": "9bae54ecf386ebedd22c48e463cda74e8216b0cb03ba735b2de995cff1b4e03f"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/normalized-lock-build.log",
+      "sha256": "193d7cea362bfb46c8168ebb109ed2d9f24328e6158becd5eb55c049bfb862f3"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/numerical-driver.log",
+      "sha256": "6b368736a82bd404aab09d79d35ea27e28a0d2a45527472d797899c57a96e82b"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/numerical-verified-driver.log",
+      "sha256": "6b368736a82bd404aab09d79d35ea27e28a0d2a45527472d797899c57a96e82b"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/regression-build.log",
+      "sha256": "30ef3522ad880db130e758ddac6a6efe403aa4894300ae6508689ec99d78fcd9"
+    },
+    {
+      "file": ".arkui-x-validation/sh16/source-drift-negative.log",
+      "sha256": "65c888801db1f85f7ed0a732a9121b59d66569606dbe0b03300c64599bfe2091"
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+{
+  "phase": "SH-06/SH-07",
+  "date": "2026-10-26",
+  "upstreamCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "capabilityExtractionCommit": "7cb292a",
+  "sharedIntegrationCommit": "53816d8",
+  "status": "shared_capabilities_connected_with_documented_acceptance_limits",
+  "application": {
+    "id": "com.clawmate.shared",
+    "versionCode": 2,
+    "versionName": "0.3-integrated",
+    "apk": "shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+    "sha256": "ee7fdeb7e3d9a97882ccc5069e71bbc6ecdea7aeb5b7d18bdfba1ffd234349a7",
+    "bytes": 108922370
+  },
+  "scope": {
+    "previousChatRange": "7f76afb..cc23078",
+    "sourceCounts": {
+      "compiledArkTS": 135,
+      "unchanged": 78,
+      "adapted": 35,
+      "authored": 22,
+      "scope": "Compilation input set only, not product-wide reuse percentage."
+    },
+    "routes": 10,
+    "addedSharedFlows": [
+      "current-turn image chat with consent and private history",
+      "bounded read-only query_events agent loop",
+      "explicit chat-memory sync/progress/cancel/checkpoints/local-index entry",
+      "existing bounded Android workflow runner and persisted results",
+      "system ASR and camera adapter wiring"
+    ],
+    "dataOwnership": "Shared ArkTS owns shared package files/preferences. No original package replacement, private data import or cross-package dual writes."
+  },
+  "checks": {
+    "junit": {
+      "app": {
+        "tests": 1243,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "android-capabilities": {
+        "tests": 104,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "junitCommand": ":android-capabilities:testDebugUnitTest :app:testDebugUnitTest :shared-app:assembleDebug --offline --no-daemon --console=plain",
+    "host": [
+      {
+        "command": "node shared-frontend/verify.mjs",
+        "passed": 6
+      },
+      {
+        "command": "node shared-frontend/verify-native.mjs",
+        "passed": 7
+      },
+      {
+        "command": "node shared-frontend/verify-integration.mjs",
+        "passed": 12
+      },
+      {
+        "command": "node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+        "passed": 8
+      }
+    ],
+    "buildCommand": "./shared-frontend/build.ps1 -JavaHome '<JDK17>' -AndroidSdk '<AndroidSDK>' -Offline",
+    "finalBuildLog": "reconciliation-provenance-build.log",
+    "finalAndroidBuild": "BUILD SUCCESSFUL in 22s",
+    "device": {
+      "model": "OPPO PKB110",
+      "android": 16,
+      "sharedNative": {
+        "passed": 6,
+        "durationSeconds": 5.356,
+        "runner": "com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+        "ocr": "ClawMate 2026 / 共享前端本地识别",
+        "tts": "REAL_START_AND_STOP",
+        "image": "REAL_JPEG_REENCODE_33013_BYTES",
+        "workflow": "REAL_LOCAL_SUMMARY_AND_GUI_BLOCKED"
+      },
+      "compose": {
+        "passed": 34,
+        "durationSeconds": 30.514,
+        "runner": "com.clawmate.app.dev.test/androidx.test.runner.AndroidJUnitRunner",
+        "scope": "Retained Compose feature/component regression, not shared UI acceptance."
+      }
+    },
+    "currentProcessRuntimeErrors": 0,
+    "sharedUi": [
+      "task button -> actual bounded runner -> success summary and daily log",
+      "30-second wait -> visible Stop button -> persisted cancelled state",
+      "run_summary.json list and raw viewer",
+      "local deterministic output is not labelled AI-generated",
+      "memory page route and empty consolidated-index guidance",
+      "final shared Home visible"
+    ]
+  },
+  "cleanup": {
+    "remainingTaskCount": 12,
+    "removedRunFixtures": 6,
+    "defaultStatusRestoredFromUiEvidence": true
+  },
+  "verificationIncidents": [
+    "Some coordinate taps hit the default Alipay workflow. The bounded runner returned blocked with no external GUI action; its pre-run 未运行/尚未执行 state was restored from saved UI evidence. Only test run records were removed.",
+    "Initial isolated-library builds lacked cached transitive versions; versions aligned with the existing host graph.",
+    "ArkTS throw/status/explicit-object errors and Windows CRLF import stripping were corrected and checks rerun.",
+    "The initial run record name was not listed by the viewer; corrected to run_summary.json and verified on device."
+  ],
+  "notAccepted": [
+    "real provider chat/image/memory/companion/avatar quality",
+    "real-person ASR and actual camera capture",
+    "GUI planning/HDC/Python/WeChat automation",
+    "notifications/MiMO/MNN/HiAI",
+    "photo-reference avatar/automatic context summary",
+    "other Android vendors/iOS/TalkBack/pixel-identical Harmony materials",
+    "production package switch and legacy data import"
+  ],
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/application/reconciliation-native-build.log",
+      "sha256": "ecd213fb8fd1ca22b89a421a907cf9764e3289b755df027673ee1d4241ecad45"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-device-build.log",
+      "sha256": "b1df28d1d5be1370b76a8c2d252656d4fb4507c00aeb28ff48c1447179edcd2b"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-provenance-build.log",
+      "sha256": "51392787a3226a51ccaef18f7352697b859d27cce3a39595c96db77718949bc4"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-host.log",
+      "sha256": "01af8cbb04fcee2deeae8497cb2600b84ce52cd1fbdf98557395ff6f69a2c334"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-native-device-final.log",
+      "sha256": "26b1c85a9b169330356504037c1e2b18592ae8c5d42eee4e8beefef9ca38e2d9"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-legacy-device.log",
+      "sha256": "b4806694d767ec9c58e12584022a6c12cd6f714d1f532eaa61671a211462b8c7"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-cancel-running.xml",
+      "sha256": "e2914837e55cd668309e1ee858696e9c4190738276f9b1bda624fb43906c93ed"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-cancel-result.xml",
+      "sha256": "d6a9d27c1192fed6d4a70e805cef869da28f355c3b889830e1fd5074bb28d741"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-memory-local.xml",
+      "sha256": "516a2782fab155b138b2d783fa215300c8ec4de021405860b4b26a9d16d17f08"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-memory-final.xml",
+      "sha256": "7af1d10fe812a23feaa6cb639910c7bf35dbb40e2ff0238d6f2a768a1435366c"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-memory-final.png",
+      "sha256": "a57d2f9b07ea07b49171c91ef9912974f0999eff31c358bdcde8ad9a2aca1984"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-provenance-list.xml",
+      "sha256": "2b6404903f8549d5c5bea0454f5c3a0c4a5a1710a5a58f4c0159a20e75e0d63b"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-provenance-viewer.xml",
+      "sha256": "00b20aba9e5bbd2ce6db9e314e60f50ff4af6cfc23ab8d7c82ec2becc81580fb"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-provenance-viewer.png",
+      "sha256": "af8cc07bdd23e64b21ddaa9766451d75f20863836ba68ed355860454b0b04bc3"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-home-clean.xml",
+      "sha256": "f7ef4429648a8dce6c79679b68823de29691e952ab1fd940bf0488bc30b2fe32"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-home-clean.png",
+      "sha256": "f562ae461b11124d27c688b67de742188ef0a37cb63558cb1b2b4719bc19fe76"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-cleanup.json",
+      "sha256": "8e369fc9eefc62b6d1b6e599ca53b233d584f754016c7a220bac6e080b486de3"
+    },
+    {
+      "path": ".arkui-x-validation/application/reconciliation-runtime-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

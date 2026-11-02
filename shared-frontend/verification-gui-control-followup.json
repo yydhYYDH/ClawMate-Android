@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-02",
+  "device": "OPPO PKB110",
+  "pageSize": 4096,
+  "normalDeviceTestsPassed": 13,
+  "guiSessionUnitTestsPassed": 5,
+  "crossAppScenarioPassed": false,
+  "attempts": [
+    "Launch-window validation revoked grant; fixed target-only launch readiness guard",
+    "Control panel visible; fixture button lookup failed; added stable content description",
+    "OEM keep-enabled interruption; actor stopped explicitly",
+    "Actor stalled at picker; stopped explicitly; not an independent crash claim"
+  ],
+  "permissionRestoration": "All four finally logs report exact restoration",
+  "apkSha256": "1ece9a47fc3de0bbaf4229cef25d31e25168998f8549764fa946916eb3483ffb",
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/sh26-nov02/accessibility-restore.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02/device-control-live-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02/device-control-live.log",
+      "sha256": "712d8ef8227df92eaa7a26ebe276b80e4288012f14ab03da3e4a25a777f7f518"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02/native-preflight.log",
+      "sha256": "22626606e4f9c386d38abca9e29760a5cfcfa93acbd536dd7429de7c1467656d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02/relaunch-after-live.log",
+      "sha256": "b8f07eea226d5ad87647bbd2f40d15d2ecdd61fe35fe729e3d57ad660fa9c3de"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02/restricted-settings-readonly.log",
+      "sha256": "8479e668302f6b009bb9aa3b728782e1c0725b4ea753f7a3f74b6ceb02fd7eb9"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02/service-binding-before.log",
+      "sha256": "6fba7f43decac7ce73d00411e74237997d84c1d7e31c253c88c24ec1a31fdeb3"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/accessibility-restore.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/device-control-live-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/device-control-live.log",
+      "sha256": "1052628a34d2d95e07e3dc938d901f470bbde283eb5e1bf5e4c2f70399b998f7"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/device-core-accepted.log",
+      "sha256": "e4f0b608d2005121115ead4c857214f479fc2ad02f5ee0b1180d2c7a7794c5db"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/device-declaration-accepted.log",
+      "sha256": "42a28d4f6b4cb141aa6d169d6952d5f7bc19c15e94199cfdb1721fe0e70bd920"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/device-disabled-accepted.log",
+      "sha256": "9573258ba2417f39ce48b8aa8edb2c6401e7934761ee39dffd2f1f3d8d496c1e"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/device-gui-screenshot-accepted.log",
+      "sha256": "b14d65e9191517330ce7b0ad04b66cea0d6371d72286bb355573efaaabf2a2ed"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/native-preflight.log",
+      "sha256": "22626606e4f9c386d38abca9e29760a5cfcfa93acbd536dd7429de7c1467656d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/relaunch-after-live.log",
+      "sha256": "41373ae7d156672c7c19b510bbc11222ec19f8785c52e9d23125c79d2045fc65"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/restricted-settings-readonly.log",
+      "sha256": "dcb8bb0913f473fb5801aea6e0f30d4624e2749eb26acbdcf0b14c11d652836d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-fourth/service-binding-before.log",
+      "sha256": "ac069a326d589dece457822b262081f76204dc2c26979d02b0e9c10b46847137"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-retry/accessibility-restore.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-retry/device-control-live-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-retry/device-control-live.log",
+      "sha256": "bffc0718e1b982cccb93f9868e6abf20e1bbb5b1b9d1d9f5b9077ae9b3d5dceb"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-retry/native-preflight.log",
+      "sha256": "22626606e4f9c386d38abca9e29760a5cfcfa93acbd536dd7429de7c1467656d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-retry/relaunch-after-live.log",
+      "sha256": "60c11e40ad1c56f638abbdef6b5c63d5f9d0d8e8e614dddeca68d38d980a20d7"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-retry/restricted-settings-readonly.log",
+      "sha256": "947cb6de582ba58c98ac1b358c9e73c61bbbacedc844e975a3b0213bde4f6fa1"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-retry/service-binding-before.log",
+      "sha256": "f1c87521c30954e6364b4f7b351765fefd6a59254aa5164b9acf815a19cdd2ba"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-third/accessibility-restore.log",
+      "sha256": "cf7acd866e9da888ec2c4c4884199cc045d7c5f1847d06174374d92c8568b934"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-third/device-control-live-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-third/device-control-live.log",
+      "sha256": "1052628a34d2d95e07e3dc938d901f470bbde283eb5e1bf5e4c2f70399b998f7"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-third/native-preflight.log",
+      "sha256": "22626606e4f9c386d38abca9e29760a5cfcfa93acbd536dd7429de7c1467656d"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-third/relaunch-after-live.log",
+      "sha256": "9f4406d0f04b088223350bf414712342413dd141331e7f91f8bd3edd73db7890"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-third/restricted-settings-readonly.log",
+      "sha256": "50721e90b66167da3aa753664bcfa70757c39bfc141c5c8a1b919b0ff3bc5eba"
+    },
+    {
+      "path": ".arkui-x-validation/sh26-nov02-third/service-binding-before.log",
+      "sha256": "3dd2388b5debbc0efc684ba01fc413e2b17d6d16ef97a470516312382f724eeb"
+    }
+  ]
+}

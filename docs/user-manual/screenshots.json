@@ -1,0 +1,65 @@
+[
+  {
+    "file": "assets/settings.png",
+    "source": ".arkui-x-validation/application/sh18-phone-ui/我的.png",
+    "reviewed": true,
+    "reviewedDate": "2026-10-28",
+    "capturePhase": "SH-18",
+    "sha256": "c618e032a0cd0b36c5f9191101f95117a8c8f2b1815474b51a0dd6ce69d8a9b4",
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+  },
+  {
+    "file": "assets/home.png",
+    "source": ".arkui-x-validation/application/sh18-phone-ui/home.png",
+    "reviewed": true,
+    "reviewedDate": "2026-10-28",
+    "capturePhase": "SH-18",
+    "sha256": "caae64434662d74353b9f3c84ad2fb7e6f57d2d2c6cd4bbdc2a1ab11b5ce9178",
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+  },
+  {
+    "file": "assets/chat.png",
+    "source": ".arkui-x-validation/application/sh18-phone-ui/chat-main.png",
+    "reviewed": true,
+    "reviewedDate": "2026-10-28",
+    "capturePhase": "SH-18",
+    "sha256": "a56d5f5581a75074e91413b2c38508d821c5e414f84a3b371b5dd290ad8f6c0b",
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+  },
+  {
+    "file": "assets/gallery.png",
+    "source": ".arkui-x-validation/application/gallery.png",
+    "reviewed": true,
+    "reviewedDate": "2026-10-28",
+    "capturePhase": "early-shared",
+    "sha256": "442ba9b4b37328d1024ee9b077d24db81b868d66630a1e328037975cb2fe4d26",
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+  },
+  {
+    "file": "assets/collection.png",
+    "source": ".arkui-x-validation/application/sh18-phone-ui/汇总.png",
+    "reviewed": true,
+    "reviewedDate": "2026-10-28",
+    "capturePhase": "SH-18",
+    "sha256": "09d20cc64d9325be8b612faee20ed5b644c300c33696466dbcc4bf585b26c395",
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+  },
+  {
+    "file": "assets/tasks.png",
+    "source": ".arkui-x-validation/application/sh18-phone-ui/任务.png",
+    "reviewed": true,
+    "reviewedDate": "2026-10-28",
+    "capturePhase": "SH-18",
+    "sha256": "0df2c0b540611c04219ca0e5f0ce0ef82e19e4e27f11143da92335db453c829c",
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 SH-25 adds an own-app screenshot/one-step planning entry absent from this older capture; caption and text identify this difference. SH-26 independent manual-control screen/overlay is not represented; no cross-app runtime screenshot acceptance is claimed."
+  },
+  {
+    "file": "assets/privacy.png",
+    "source": ".arkui-x-validation/application/sh18-phone-ui/privacy-settings.png",
+    "reviewed": true,
+    "reviewedDate": "2026-10-28",
+    "capturePhase": "SH-18",
+    "sha256": "bcff0930d6cc91d6f55519c5b44d74f42bc176d19685aef4b3b2bd56c8051873",
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+  }
+]

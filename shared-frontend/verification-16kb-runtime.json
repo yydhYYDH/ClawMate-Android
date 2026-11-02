@@ -1,0 +1,399 @@
+{
+  "phase": "SH-17",
+  "started": "2026-10-27",
+  "date": "2026-10-28",
+  "baseCommit": "b7bd4611832360a5f88f0843aad682e510a7691f",
+  "outcome": "ARM64 16KB numerical smoke and real shared-page meeting chain passed. Seven distinct device checks passed and two failed; full UI/stability acceptance remains incomplete.",
+  "productApkChanged": false,
+  "harmonyOrMeetingSdkSourceChanged": false,
+  "composeProductChanged": false,
+  "productionPackageOrDataSwitched": false,
+  "runtime": {
+    "inputLock": "experiments/android-16kb/runtime-lock.json",
+    "android": "17",
+    "api": 37,
+    "guestArchitecture": "aarch64",
+    "pageSize": 16384,
+    "execution": "Full-system ARM64 QEMU TCG on x86-64 WSL2",
+    "compatibilityDisabled": true,
+    "evidence": {
+      "pageSize": "16384",
+      "machine": "aarch64",
+      "linkerCompat": "false",
+      "packageCompatDisabled": "true",
+      "timeoutMultiplier": 5
+    },
+    "kernelWorkaround": "initcall_blacklist=gunyah_init,gunyah_rm_init",
+    "externalNetwork": false,
+    "cpus": 4,
+    "memoryMB": 4096
+  },
+  "apk": {
+    "main": "f1847e9e656d4ab1db36e5f07236d565b9befafc74aa0350ca6e98c535585f2c",
+    "test": "097c2a8480331e1d4fb3b69ffeae68c67a2ad3e1c4cebe2a82676224d0eaf084"
+  },
+  "host": {
+    "breakdown": {
+      "arktsAndBootstrapContracts": 123,
+      "runtimeExporterUnitTests": 8,
+      "pinnedUpstreamContracts": 8,
+      "apkAuditUnitTests": 4,
+      "meetingNativeIntegrity": 5,
+      "compiledSourceProvenance": 1
+    },
+    "total": 149
+  },
+  "builds": [
+    {
+      "command": "gradlew.bat :shared-app:assembleDebug --offline --no-daemon --console=plain",
+      "result": "BUILD SUCCESSFUL in 22s; 93 tasks, 7 executed, 86 up-to-date; shared APK assembly was up-to-date",
+      "log": ".arkui-x-validation/sh17/unchanged-app-build.log"
+    },
+    {
+      "command": "gradlew.bat :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+      "result": "BUILD SUCCESSFUL in 51s; 101 tasks, 11 executed, 90 up-to-date",
+      "log": ".arkui-x-validation/sh17/final-navigation-build.log"
+    }
+  ],
+  "hapRecompiledThisPhase": false,
+  "jvmTestsRerunThisPhase": false,
+  "numerical": {
+    "passedExports": 22,
+    "strict16kbFlag": true,
+    "installedLibrarySha256": "d2338dce5a72159e556ad1f94482216ec87cdb20532504aa41f815a37c1a3257",
+    "log": ".arkui-x-validation/application/sh17-native-16kb/numerical.log"
+  },
+  "device": {
+    "nativeCapabilities": {
+      "passed": 6,
+      "methods": [
+        "actualChineseOcrThroughNativeBridge",
+        "workflowAndImageCancellationConsumeNoLateResults",
+        "cancelDropsResultsAndRemoteInputsAreRefused",
+        "speechUsesRealCallbacksOrReportsUnavailable",
+        "imagesUseTheSameMetadataFreeBoundedPreparer",
+        "realWorkflowProducesSummaryAndBlocksUnsupportedGui"
+      ],
+      "log": ".arkui-x-validation/application/sh17-device-16kb-final/native-meeting.log",
+      "note": "The combined seven-test run failed its meeting test; only six method-level success results are counted here."
+    },
+    "finalTargetedChecks": {
+      "meeting": {
+        "status": "passed",
+        "durationSeconds": "313.094"
+      },
+      "chat": {
+        "status": "failed",
+        "durationSeconds": "430.76",
+        "failure": "OCR Tasks.await timed out in click/send; ActivityScenario.close also timed out waiting for DESTROYED after STOPPED."
+      },
+      "workflow": {
+        "status": "failed",
+        "durationSeconds": "429.758",
+        "failure": "After observed Configure/Run/Cancel clicks, failed-run lastMessage did not contain the expected cancellation reason. Actual message was not logged; subsequent send-image/no-success-summary assertions were not reached."
+      }
+    },
+    "distinctPassed": 7,
+    "fullNineTestDriverPassed": false,
+    "productApkSameAcrossRuns": true,
+    "finalTimeoutMultiplier": 5,
+    "nativeChecksTestApkSha256": "e92400aa322414e5b42bd676c6a6b78f8ccb16b0c67816d84dd7370f4445ad77",
+    "meetingReadRetriesObserved": 1
+  },
+  "publicTranscriptObserved": "[speaker_01] 开放时间早上9点至下午5点。",
+  "testOnlyChanges": [
+    "Explicit serial and strict kernel/compatibility preflight in both PowerShell drivers",
+    "Default multiplier 1; explicit 1-5 slow-device waits; invalid 6 rejected before operations",
+    "Only read-only meeting GET polling can retry in slow mode; writes never replay",
+    "Fresh accessibility nodes for slow-mode main navigation; meeting OCR coordinates checked against current pixels",
+    "Meeting receipt checked directly in the business storage tree with a real deadline"
+  ],
+  "earlierFailures": [
+    "Two default-budget meeting starts stayed starting at 90 seconds; first server became ready about two seconds later",
+    "Connection reset after successful audio upload; slow-mode read-only polling retried once before producing real transcript",
+    "First slow-mode real transcript passed but stale save-button coordinates did not dispatch the page handoff; receipt assertion failed",
+    "Chat first exceeded 15-second OCR wait, then passed initial local summary but could not locate the Chat tab after recreation",
+    "Workflow OCR could not locate Task tab although its failure screenshot showed the label",
+    "Separate com.clawmate.shared.test helper crashed in ART MarkCompact twice: SIGSEGV, then unexpected class flags for byte; root cause unresolved"
+  ],
+  "boundaries": [
+    "TCG execution is not a physical 16KB device or a latency/performance certification",
+    "Earlier test-helper ART crashes are preserved; no blanket stability claim",
+    "Real cloud/vision/avatar quality, microphone/camera capture, vendor background policies and TalkBack remain unaccepted",
+    "Release signing, production package switch and old data migration remain unaccepted",
+    "No pull request created or reopened"
+  ],
+  "cleanup": {
+    "targetStopped": true,
+    "fixtureBackupsAbsent": true,
+    "temporaryNativeExecutableAbsent": true,
+    "pageSize": "16384",
+    "machine": "aarch64",
+    "linkerCompat": "false",
+    "packageCompatDisabled": "true",
+    "cuttlefishStopped": true,
+    "onlyGuestAdbDisconnected": true,
+    "publicCachesRetainedIgnored": true
+  },
+  "evidence": [
+    {
+      "file": ".arkui-x-validation/sh17/host-checks.log",
+      "bytes": 13439,
+      "sha256": "f2419f6a461518b6982e58d400c13c512fea2fd11b6197d0b23c0b06c8e4fb65"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/source-contracts-final.log",
+      "bytes": 892,
+      "sha256": "ce4d5dded21aefc82779bd9987229cf1685eeabbfccc2252cf11bbe4d2a29147"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/apk-audit-host-checks.log",
+      "bytes": 107,
+      "sha256": "441ce318e0f3881ac386d2d1b8f7d04c2c5cac74a10f4d99a7ee6725db08760e"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/native-integrity.log",
+      "bytes": 532,
+      "sha256": "f24cb62312eea21da64a8660f997e82bb5ffb0f7d4b98ff734613f69c99f6b2e"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/provenance.log",
+      "bytes": 117,
+      "sha256": "26756af44c443122fb4a88e019b20eadcd8701e8c0d800388f3817351452ef83"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/runtime-lock-check.log",
+      "bytes": 299,
+      "sha256": "50969f26d38756a888da76389d53773a4337acb219ce63dd8f85c481a56cb9fa"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/runtime-proof.json",
+      "bytes": 282,
+      "sha256": "2e538b7ff5c08396ed8c9cc1b3c70bd94a318e15a49f98e56c9f94ceecb8cae1"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/resumed-runtime-proof.json",
+      "bytes": 118,
+      "sha256": "635d8e5286356ccb22a3644f06d641b61a5a23547c9688cb474077925da1a863"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/acceptance-environment.json",
+      "bytes": 145,
+      "sha256": "f91e3e29f9a27c9678f7d55accb4b3c2d13922f9c6daa8314aad70e61e1e4178"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/acceptance-apks.json",
+      "bytes": 163,
+      "sha256": "dc57c54dc8525a7b4b05de6fb4cdb59d28a03a71be439ef41d9f6a9cb9f97d65"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/unchanged-app-build.log",
+      "bytes": 8288,
+      "sha256": "49eab1aea8d54f09e1528cf00cd840cc7855c1bb2318a10dee307bc714cbba19"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/final-navigation-build.log",
+      "bytes": 9757,
+      "sha256": "9ee5fe7a07ff82d337bb65bc4762ca0de1699f1f7782c608504635dbc0024db3"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/acceptance-meeting-16kb.log",
+      "bytes": 2161,
+      "sha256": "9401d7106c94e4dbad9a3dc3dc70bf6c9b901fd4b23b2723837c82d1e409ac0e"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/acceptance-chat-16kb.log",
+      "bytes": 3254,
+      "sha256": "bd1319fffa5e538f37ecbe87798aa62255f3f37e63ba836a0fa4a66bb72d631e"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/acceptance-workflow-16kb.log",
+      "bytes": 2539,
+      "sha256": "29a1a3339e4d5a1793af5839d35fab28ab9576128f3eab844c827bd0d1709f17"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/meeting-retry.log",
+      "bytes": 2091,
+      "sha256": "02691621dc3c18d3531bcc5c7359f2b0b56cd3332c88b96fe298994949ff60cf"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/chat-16kb.log",
+      "bytes": 2647,
+      "sha256": "3a12def0b5196a2847aa1c9370b15d4bda4cde8fe2a36ddb8c660d6f169c2b32"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/resumed-meeting-16kb.log",
+      "bytes": 3137,
+      "sha256": "134ab625eb2e0159eef34213d041e0775a30b1cf705f2ed6bf36133f33bbe37d"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/resumed-chat-16kb.log",
+      "bytes": 2280,
+      "sha256": "67cba5d367210f5134b69f61f214de0654ef97ff6db4684a4b9d87ed73ec4ea0"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/resumed-workflow-16kb.log",
+      "bytes": 2679,
+      "sha256": "cdf85baa77abc97e1a4d9b2cce9d16c09575e3b21c97347ac7dfb3e068ec8666"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/crash-during-meeting.log",
+      "bytes": 9769,
+      "sha256": "b30ac2b5b618b4fc748ae9c4654a4c46b0038eabe0015ab392519e232beb5e9b"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/crash-final-run.log",
+      "bytes": 20419,
+      "sha256": "7b3d0b0717afb763f846c20db8e2344c79ff07b0d01bfc7235e1b0bb87e81683"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/test-process-tombstone.txt",
+      "bytes": 674301,
+      "sha256": "1c1aaee200ca73c834770d8358913121859a3eeb26d1c108846251082bf8c2f6"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/ui-reject-4k.log",
+      "bytes": 107,
+      "sha256": "ac63de956bb631c52a505a3e0a0cbc3511a450f6144b690907eae69628a81eaa"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/budget-negative.log",
+      "bytes": 58,
+      "sha256": "057e68858ee1aa59f6f36a2cbfa58b44a601fba3aa5a6f781cd0a7465a035dc1"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/kernel-cmdline.log",
+      "bytes": 437,
+      "sha256": "8255116825116801976958e34e3e3dc53ca29ce3f212e8922ae709cf5761e2c9"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/panic-backtrace.log",
+      "bytes": 3366,
+      "sha256": "2144a2fa5a16d63b1fa24de89b4bbdf8e0290bf79be3c0479ea6cea21abfc223"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/panic-after-gunyah.log",
+      "bytes": 3358,
+      "sha256": "5b0f5dfd9ec0de82a5de6b5df861533e63085379c6a42ce079e21608e778773a"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/first-launch.png",
+      "bytes": 710952,
+      "sha256": "279237c900966c974d184363e04f20fe203256153601a6e35e8655a0208e0008"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/home.png",
+      "bytes": 118479,
+      "sha256": "ee0a0fbc93c317e19492ee32ea6b57b9c66d1e455e5ca03a366ab8a25aba9831"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/meeting-real-transcript.png",
+      "bytes": 102609,
+      "sha256": "1039b7d849d252df85be5ba88257ab4a2df1dfad03079ae3dd3c0ccca28210e2"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh17-native-16kb/environment.json",
+      "bytes": 149,
+      "sha256": "9e4f967d6ce96e6f69ef052647ca95ed32137bf514a459e0e2b97cfdca9c8692"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh17-native-16kb/compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh17-native-16kb/installed-library-sha256.log",
+      "bytes": 186,
+      "sha256": "1dfe4943413f9ebda27de5d8f919b29eae6dbe28189152fa89b3840ca53a1117"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh17-native-16kb/numerical.log",
+      "bytes": 52,
+      "sha256": "a9adb45f88814eabdd462a20f4048d93052a9578bf1588599a831ef3ad1db8c7"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh17-native-16kb/page-size.log",
+      "bytes": 7,
+      "sha256": "0cf3b033a9e93a0bc41f772e408f46e947755926bd81e15a470ae9b14f697653"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh17-ui-reject-4k/environment.json",
+      "bytes": 141,
+      "sha256": "a1ffe746e7a85ac749362fe46b730b313aa2396706e70ce29e692811840f84af"
+    },
+    {
+      "file": ".arkui-x-validation/application/sh17-device-16kb-final/native-meeting.log",
+      "bytes": 12887,
+      "sha256": "a6753d0ff5ee37a9be5f23b65ce18dcb3e20c7512c1898fd25613ea3fb3f1aa1"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/final-environment-cleanup.json",
+      "bytes": 221,
+      "sha256": "48729f1aefde79da613c109b77b7a2529577b5add71c5c6966c0850adc16209c"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/stop-completed-runtime.log",
+      "bytes": 327,
+      "sha256": "a293eae11b49ee3d03a9d74575d28d469d47317b10cafc758545b32f27d7905a"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/cleanup-completed.log",
+      "bytes": 77,
+      "sha256": "93d1ed47836f106c77fcbce2f40b8ea6c7585cfef2a6a6b697bc1017a6c984ce"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/final-crash-buffer.log",
+      "bytes": 20419,
+      "sha256": "7b3d0b0717afb763f846c20db8e2344c79ff07b0d01bfc7235e1b0bb87e81683"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/workflow-final-reason.log",
+      "bytes": 2425,
+      "sha256": "424c04f4c77a38473a6dc4a54e0393598c4a93f8da69767c96a47cce7e779537"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/imported-public-records.log",
+      "bytes": 150,
+      "sha256": "918a411d2d05cae7b43a92c5904e2f73892c15451c1fc6aefa298fb239703e28"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/acceptance-chat-progress.png",
+      "bytes": 10985,
+      "sha256": "4f5283547f4a684dfcae7e3b1448c4af3e213718fa630aa44e238af22a31d0a7"
+    },
+    {
+      "file": ".arkui-x-validation/sh17/workflow-progress.png",
+      "bytes": 214235,
+      "sha256": "2888510b7cb5205bec2674b8768cedfff291acbb0cb4c06fb4589a60baad8e6c"
+    }
+  ],
+  "nextSteps": [
+    "Capture chat OCR and Activity destruction thread stacks; distinguish product, SDK, framework and TCG causes",
+    "Include actual workflow failed-run reason and timings before adjusting behavior",
+    "Repeat complete UI/stability acceptance in another supported environment or a physical ARM64 16KB device"
+  ],
+  "commands": [
+    {
+      "command": "scripts/test-meeting-native.ps1 -AndroidSdk <SDK> -Serial localhost:6520 -Require16Kb -EvidenceName sh17-native-16kb",
+      "result": "passed; SDK root parameter normalized"
+    },
+    {
+      "command": "scripts/test-shared-device.ps1 -Adb <adb.exe> -Serial localhost:6520 -Require16Kb -MeetingTimeoutMultiplier 5 -EvidenceName sh17-device-16kb-final",
+      "result": "earlier combined run failed; MeetingTimeoutMultiplier was the parameter name at that time and was later generalized to TimeoutMultiplier"
+    },
+    {
+      "command": "adb -s localhost:6520 shell am instrument -w -r -e deviceTimeoutMultiplier 5 -e class com.clawmate.shared.MeetingIntegrationDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "result": "passed"
+    },
+    {
+      "command": "adb -s localhost:6520 shell am instrument -w -r -e deviceTimeoutMultiplier 5 -e class com.clawmate.shared.ChatContextDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "result": "failed"
+    },
+    {
+      "command": "adb -s localhost:6520 shell am instrument -w -r -e deviceTimeoutMultiplier 5 -e class com.clawmate.shared.WorkflowModelDeviceTest#actualTaskConfirmationCancellationAndUnavailableModelNeverWriteSuccessfulSummary com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "result": "failed"
+    }
+  ],
+  "currentCombinedDriverCommand": "scripts/test-shared-device.ps1 -Adb <adb.exe> -Serial <serial> -Require16Kb -TimeoutMultiplier 5 -EvidenceName <new-name>",
+  "currentCombinedDriverExecutedAfterFinalFixtureChanges": false
+}

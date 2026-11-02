@@ -1,0 +1,202 @@
+{
+  "repository": "doulujiyao12/mobiinfra-oh",
+  "ref": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "files": [
+    {
+      "path": "entry/src/main/ets/pages/Index.ets",
+      "gitBlob": "e45bdd78156f8b54109c4b41ebbd378fbc1654da"
+    },
+    {
+      "path": "entry/src/main/ets/pages/settings/SettingsCenterPage.ets",
+      "gitBlob": "04f20dce1be48e783588e2e364be657a9a8467da"
+    },
+    {
+      "path": "entry/src/main/ets/pages/onboarding/FirstLaunchOnboarding.ets",
+      "gitBlob": "0ca46e7907d92d63b707a41546ef6e40cb8b1555"
+    },
+    {
+      "path": "entry/src/main/ets/pages/main/FloatingMainTabs.ets",
+      "gitBlob": "6d24794295ed8ae6aafc273eaa58dbc58d94b7b6"
+    },
+    {
+      "path": "entry/src/main/ets/pages/main/MainTabConfig.ets",
+      "gitBlob": "7c6b2118ab5462959d05c05ba9427845e58f9fc8"
+    },
+    {
+      "path": "entry/src/main/ets/pages/settings/SettingsCenterControls.ets",
+      "gitBlob": "339c6fa91c0a4016f958599b0bdb43f1fd85f03c"
+    },
+    {
+      "path": "entry/src/main/ets/pages/settings/SettingsCenterTypes.ets",
+      "gitBlob": "6d30871e7b3fe1418a452c806e8bf3396e33d9c5"
+    },
+    {
+      "path": "entry/src/main/ets/pages/settings/SettingsCenterTheme.ets",
+      "gitBlob": "dd5d8e9bdf68843b6de9e37932a7f732eef2c069"
+    },
+    {
+      "path": "entry/src/main/ets/pages/settings/HuaweiAccountCard.ets",
+      "gitBlob": "98725fad6591aa726e8519131ec0fe93f0a31743"
+    },
+    {
+      "path": "entry/src/main/ets/utils/DefaultSettingVisibility.ets",
+      "gitBlob": "6cf2e25f4a4947ab770e976a1ace7dff1fba9115"
+    },
+    {
+      "path": "entry/src/main/ets/utils/SensitiveValueUtils.ets",
+      "gitBlob": "bc6cf00e1618d1f6ebb1aa4e44682f8ab0783dd4"
+    },
+    {
+      "path": "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+      "gitBlob": "9d584321bfe5bae59dbe57f4d67bc2158f2639a0"
+    },
+    {
+      "path": "entry/src/main/ets/components/AiLoginGuard.ets",
+      "gitBlob": "592a9faca8fdf9f710d4807c056f03059c25a019"
+    },
+    {
+      "path": "entry/src/main/ets/utils/voice/VoiceTtsPresets.ets",
+      "gitBlob": "47c582cc53c92aeebc1bc2a7a59a4a0dcdadba09"
+    },
+    {
+      "path": "entry/src/main/ets/utils/wechat/WechatAutoSummaryTypes.ets",
+      "gitBlob": "e1c9ae7135493d3835cb5b8dd9b6e0f05a776bed"
+    },
+    {
+      "path": "entry/src/main/ets/utils/PageStatusBar.ets",
+      "gitBlob": "ffcd515e5b2b5438ad766f4761ae7b453a43a612"
+    },
+    {
+      "path": "entry/src/main/ets/pages/gallery/GalleryPage.ets",
+      "gitBlob": "b5ffdd9480f1d51c618dd3afd3ffbfdedbda86fa"
+    },
+    {
+      "path": "entry/src/main/ets/pages/collection/CollectionPage.ets",
+      "gitBlob": "18696516334515a50ec930a681b5a0c4bd4a1561"
+    },
+    {
+      "path": "entry/src/main/ets/pages/collection/CollectionGroupDetailPage.ets",
+      "gitBlob": "305d2236aa372e71cd3bebfea6e646ad6206d3ec"
+    },
+    {
+      "path": "entry/src/main/ets/pages/task/TaskPage.ets",
+      "gitBlob": "ca83fc0e6053e760d59e734d4013d81aec2bf974"
+    },
+    {
+      "path": "entry/src/main/ets/pages/task/WorkflowFileViewer.ets",
+      "gitBlob": "87e1e25abd642a9e426237617447deee5a9acaee"
+    },
+    {
+      "path": "entry/src/main/ets/agent/PersonalMemoryAccess.ets",
+      "gitBlob": "099c984844e2870ba1728352e7e924e898598430"
+    },
+    {
+      "path": "entry/src/main/ets/config/ModelDownloadConfig.ets",
+      "gitBlob": "76839e9da0afb906ad97fa1eb1872c1b260838a4"
+    },
+    {
+      "path": "entry/src/main/ets/utils/HuaweiAccountSession.ets",
+      "gitBlob": "f35f387851e64ccdc26453fbfa023d7a0d69427a"
+    },
+    {
+      "path": "entry/src/main/ets/components/CollectionReminderPanel.ets",
+      "gitBlob": "39bd955f8fda9eac8ddc80902b7be8f02dd43a8c"
+    },
+    {
+      "path": "entry/src/main/ets/components/TaskDeviceControlPanel.ets",
+      "gitBlob": "52158034f441ce671135364d529019fcc2c2b630"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowStorage.ets",
+      "gitBlob": "2c51ef355739c47904d86427b6feb5d79ff5ff1a"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowSceneConfig.ets",
+      "gitBlob": "39751908a9e06b711ceb2babb4082f61b34a0366"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowTypes.ets",
+      "gitBlob": "041f9e0ddcbc041c7c73423389e13f2e82460102"
+    },
+    {
+      "path": "entry/src/main/ets/utils/selfhdc/SelfHdcTaskSettings.ets",
+      "gitBlob": "f5278b188ad410c284a3bf63b9cf8fee3e060db8"
+    },
+    {
+      "path": "entry/src/main/ets/utils/CollectionReminderPolicy.ets",
+      "gitBlob": "49818b2a8c00178856cee2bbb7d1428eee0f9609"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryStorage.ets",
+      "gitBlob": "f18dfee713f04ce7c8ccf18156b3d8f135350608"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryExifUtils.ets",
+      "gitBlob": "9dc82fb1ecad8c5b62ed89d6411de4ae84d733d7"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryMonthlyInsights.ets",
+      "gitBlob": "75dd540d42e4790f600812724331842488568f99"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GallerySearchService.ets",
+      "gitBlob": "ff3092a6c72c3c0dc592f6cebed92f84e88753c8"
+    },
+    {
+      "path": "entry/src/main/ets/components/GalleryPreviewImage.ets",
+      "gitBlob": "cd61518ba2e7ad395ba7215762234df3423b1fa7"
+    },
+    {
+      "path": "entry/src/main/ets/components/GalleryHdcBatchOptions.ets",
+      "gitBlob": "6a2e7418706eb7eea190e9672a09080c5aaf6ba6"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryHdcPolicy.ets",
+      "gitBlob": "5fd57d0f52a7d29982848da82b5244e5d4ff0d39"
+    },
+    {
+      "path": "entry/src/main/ets/pages/chat/ChatContextBudget.ets",
+      "gitBlob": "cdaef0cb6b62f7a2ed6bf7e6bf0da7492e575623"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryAnalyzer.ets",
+      "gitBlob": "e22ac3c28f32879c5110b5af5e4ebee0e4c51343"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryImageStore.ets",
+      "gitBlob": "ef4b991dd93932e45fb25f891466c324a5d7cac2"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryHdcReader.ets",
+      "gitBlob": "921cd1c72f24d58724c7eb6c589813527442cd44"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryReverseGeocoder.ets",
+      "gitBlob": "b407a5c6b8e6a2715077f2069f9a1d18defd1399"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryWorkQueue.ets",
+      "gitBlob": "7b200f7aba952bf2c8129acf799da6c4368c4d80"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryKeywordFilter.ets",
+      "gitBlob": "86cc54e084b9fb10668383c9c01dbd9a4501755f"
+    },
+    {
+      "path": "entry/src/main/ets/utils/gallery/GalleryOcrService.ets",
+      "gitBlob": "1bdbd54c8efc949e471405f7bb70dc3c117ebdb9"
+    },
+    {
+      "path": "entry/src/main/ets/pages/settings/DesktopCompanionPage.ets",
+      "gitBlob": "5fe7ede9a291161b7915b304eb1204dab76e1e2f"
+    },
+    {
+      "path": "entry/src/main/ets/utils/voice/MimoVoiceClient.ets",
+      "gitBlob": "08c7277d9d5db9b729ead30bd5f329ff1bc4a307"
+    },
+    {
+      "path": "entry/src/main/ets/utils/voice/PcmWav.ets",
+      "gitBlob": "a31ca60d8d47bf7e29e2659dd94fc0099599a7ab"
+    }
+  ]
+}

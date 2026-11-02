@@ -1,0 +1,226 @@
+{
+  "phase": "SH-25",
+  "date": "2026-10-29",
+  "baseCommit": "a1997ed",
+  "feature": "P01/P04 first subphase: own-app screenshot preview and read-only single-step Decider proposal",
+  "status": "Partial implementation. Cross-app authorization, gestures/input/launch, coordinate mapping and bounded screenshot/action loop remain pending.",
+  "sourceMapping": [
+    {
+      "path": "utils/CloudDeciderPrompt.ets",
+      "gitBlob": "e5948bd83169db203763c2c3e19ad6912efe92d8",
+      "use": "Original system/user/current-step prompt constants compiled unchanged from existing lock; explicit single-proposal/pixel dimensions and untrusted screenshot constraints appended"
+    },
+    {
+      "path": "utils/MobileGuiTaskTool.ets",
+      "gitBlob": "e26feac6b5924a607977fdc6e73cba9c8ef61c5b",
+      "use": "Read-only reference for confirmation and cancellation contracts; whole chat GUI tool not enabled"
+    },
+    {
+      "path": "utils/MobileGuiTaskWorkflowAdapter.ets",
+      "gitBlob": "216bb8ed09cdb22eb2cf917f5ebd30f1208fecd0",
+      "use": "Read-only reference: Planner and Decider gui_task steps; Android workflow GUI steps remain blocked"
+    },
+    {
+      "path": "utils/WorkflowRunner.ets",
+      "gitBlob": "7a76bf0fd0bfe0633aa7306dd438ff3648209444",
+      "use": "Read-only reference for screenshot/Decider/action loop and result provenance; loop not claimed ported"
+    }
+  ],
+  "implementation": [
+    "Reusable Kotlin WindowScreenshot copies only the owning foreground unlocked activity SurfaceView via PixelCopy (Window fallback only if no SurfaceView). Secure windows and failed pixels are rejected; no projection/accessibility/shell/other-app access.",
+    "Maximum edge 1280, JPEG at most 1MB, bounded wait and NativeOperations job. Interruption/lifecycle epoch drops stale pixels; native code does not write chat or screenshot files.",
+    "Shared task page entry captures private temporary preview, clear/navigation deletes file and cancels requests; failed writes are removed. Abrupt process termination can leave app cache, documented.",
+    "Each cloud request requires local cloud grant, privacy acceptance and an explicit dialog naming screenshot/task/endpoint/model; native foreground and config/grant checks continue while waiting.",
+    "Strict bounded JSON, known action names, finite in-image coordinates, required action parameters and valid done status. Proposal is text only: no execution and no task-success log, even if model returns done/success.",
+    "Original screenshot-history settings now explain the independent temporary planning preview. Handbook body, manifest and older task screenshot limitations regenerated."
+  ],
+  "commands": [
+    "shared-frontend/build.ps1 -JavaHome <jdk17> -AndroidSdk <sdk> -MeetingSdkRoot <read-only-sdk> -Offline",
+    "gradlew.bat :shared-app:assembleDebug :shared-app:assembleDebugAndroidTest :android-capabilities:testDebugUnitTest --offline --no-daemon --console=plain",
+    "gradlew.bat :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+    "All shared-frontend verify*.mjs except verify-meeting.mjs; node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+    "scripts/test-shared-device.ps1 -Adb <adb> -Serial <phone> -EvidenceName sh25-non-meeting-final",
+    "adb shell am instrument -w -r -e class com.clawmate.shared.GuiScreenshotDeviceTest#<each-method> com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner (isolated target processes)",
+    "audit-apk.py <apk> --runtime-root <runtime> --output <json> --require-16kb; zipalign -c -v -P 16 4 <apk>; node shared-frontend/build-state.mjs verify",
+    "python docs/user-manual/build.py; python docs/user-manual/build.py --check; git diff --check"
+  ],
+  "host": {
+    "nonMeetingChecks": 181,
+    "newGuiChecks": 12,
+    "jvmTests": 134,
+    "jvmFailuresAndErrors": 0,
+    "manual": "15 chapters / 7 existing reviewed screenshots / local references and generated consistency"
+  },
+  "builds": {
+    "hap": [
+      "35 s 592 ms ",
+      "47s"
+    ],
+    "androidAndJvm": [
+      "3m 41s"
+    ],
+    "testApk": [
+      "1m 38s"
+    ],
+    "stagedArkts": {
+      "total": 153,
+      "unchanged": 77,
+      "adapted": 39,
+      "new": 37
+    },
+    "runtimeFiles": 398,
+    "elfLibraries": 326,
+    "elf16kbFailures": [],
+    "zip16kbPassed": true,
+    "new16kbKernelRun": false
+  },
+  "device": {
+    "model": "OPPO PKB110",
+    "android": 16,
+    "pageSize": 4096,
+    "coreNonMeetingChecks": 8,
+    "guiChecks": 3,
+    "totalFunctionalChecks": 11,
+    "seconds": {
+      "surface": 2.467,
+      "boundary": 2.77,
+      "page": 3.45
+    },
+    "scope": [
+      "Actual own ArkUI Surface JPEG decodes, is bounded, has nonblank pixels and OCR-recognized own UI labels; no screenshot export/upload",
+      "FLAG_SECURE rejects pixels; cancel and lifecycle-epoch invalidation drop result; actual Home prevents background starts",
+      "Actual task entry -> planning page -> capture -> private preview cache -> clear deletes file, while cloud grant is false"
+    ],
+    "realDeciderServiceUsed": false,
+    "meetingRuntimeOrNumericalChecks": false,
+    "fixtureCleanup": "Settings restored and preview/backup files cleaned; app relaunched"
+  },
+  "failuresAndCorrections": [
+    "ArkTS width/height fields conflicted with CustomComponent attributes; renamed shotWidth/shotHeight",
+    "Bridge ResultValue may be null and was incompatible with explicitly annotated Object callback; use inferred bridge callback type",
+    "Author check inputs changed during an intermediate build, so source seal correctly rejected stale provenance; final complete preparation/build passed",
+    "Kotlin capture record and engine had identical names; result record renamed WindowScreenshotResult",
+    "First boundary fixture expected unwrapped IllegalStateException; actual onUi FutureTask threw ExecutionException wrapping the correct refusal. Corrected fixture checks cause type and exact refusal text; product guard unchanged"
+  ],
+  "remaining": [
+    "Cross-app screenshot permission and allowed-app/session boundaries",
+    "Native action execution, coordinate mapping, per-action confirmation, stale-screen protection and bounded planning loop",
+    "Chat GUI tool and workflow integration with honest final-state/result extraction",
+    "Real visual-model reliability and model/network end-to-end device acceptance; proposal pipeline tested with controlled model port",
+    "Other vendors, lifecycle stress and 16KB kernel acceptance",
+    "Meeting integration/dedicated tests remain final phase"
+  ],
+  "apk": {
+    "sha256": "027f22a05653500bbd26cdb76b226e3de7e297d364b00d97045f946ec7ad4314",
+    "bytes": 312628469,
+    "testSha256": "eb8b7b16a45a390441051f7474c31562f0cd342648f08a02723a13c10ceed935"
+  },
+  "evidence": [
+    {
+      "path": ".arkui-x-validation/sh25/product-accepted.log",
+      "sha256": "17b6bdf920ff15b31f01c70958053bcbde4ece68c3c51e4eaf9840d4fabee26c"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/android-build-tests.log",
+      "sha256": "98085a1d4210cc07fa23369df58341e1b76a374827980d73b74c5c97e354a0d5"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/test-accepted.log",
+      "sha256": "59bade0be9eb1ad0d528872c1446659db5b95abb024f3f27f7d24f0ac72c9f2d"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/host-checks-final.log",
+      "sha256": "eee53a94b8ec9f4a0e2b78c9fc892c4a9cda386843d6f62683dcd1ed50ba423c"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/native-contracts.log",
+      "sha256": "aadab980419fc676d6cbb364e4fc9e22fff220ba96f06b2c68ab23771ccf43d9"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/source-contracts.log",
+      "sha256": "1841710a6b9f30122df27b491d8f63d0f25a98c0b5c97284b51a462e9967dae8"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/device-core-final.log",
+      "sha256": "e4f0b608d2005121115ead4c857214f479fc2ad02f5ee0b1180d2c7a7794c5db"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/device-surface-final.log",
+      "sha256": "4d41e2e48e5e87caf9d9e536e7fc50d5aed94d7f5cc3ed860ab801fcce296126"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/device-boundary-final.log",
+      "sha256": "a946250534d3596aa103fb164c1cf6e7f4a8423cc2f1acebc88ea5d837f4e08b"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/device-page-final.log",
+      "sha256": "f896f48d5081d19444cbaa06374eebb50989839eb4f2529d815f04743c191a6d"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/apk-audit-final.json",
+      "sha256": "8168305315c75dd91e67f327857401ebd4d13d42c7ba0e012ba17932667385f1"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/zipalign-final.log",
+      "sha256": "58a0fe5dbbcfaf0dbc269ce53879f99fd22293dc68d1a3e29a780d7eb245305d"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/provenance-final.log",
+      "sha256": "e7b9e0775a83a0eeb121d1354568c50a3b489694b81c70f5a4acf67755cd0271"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/manual-check-final.log",
+      "sha256": "134da768c1fcb8fdc1665cdd284f0070c22f915c3f74ab80a5e01c72e8fe0c73"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/device-cleanup.log",
+      "sha256": "b558c17fe007ab940f3addeb1d6527773fecf4323707c786fa9e534e609dd4e7"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh25-non-meeting-final/chat.log",
+      "sha256": "bf26ff58bda1891227998dfeedba457973239555bd78f3f7fd1ad022dbc04dd2"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh25-non-meeting-final/environment.json",
+      "sha256": "af044bd5a041df56b7b7d3e2c2e107af581d0015bcbfab74fd66cb65ba8c0036"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh25-non-meeting-final/install.log",
+      "sha256": "7ed8077e18ea1232bc80f6cf16f0e955db5bfc14dab4220ae2251853311aa9fb"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh25-non-meeting-final/native.log",
+      "sha256": "4f05881338218815651e84a1d8b9e15e1f83b9ae16fc0bd5e354ed42eb5c195b"
+    },
+    {
+      "path": ".arkui-x-validation/application/sh25-non-meeting-final/workflow.log",
+      "sha256": "e6fee4526bb04540e849c48a49ab1645214043745947b0dfa8c61ac50d0f5665"
+    }
+  ],
+  "earlierEvidence": [
+    {
+      "path": ".arkui-x-validation/sh25/product-build.log",
+      "sha256": "353a2851eb52d3551b6a9daa9a0009aa5512590611c1e5110076fb9c889d580e"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/product-build-fixed.log",
+      "sha256": "b5583e3525c1d237975393b0fa3ae49e23ac823c79b7c4893310f627bf1ac836"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/product-build-current.log",
+      "sha256": "667c71a0d55722efd9494cff89a54177475745bce2bd7820dc28a5761ebae535"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/product-build-final.log",
+      "sha256": "1f3390d6ee785938d57a626f2df0b35402c22f11ccc8ecb6d35bcf61f1e24e15"
+    },
+    {
+      "path": ".arkui-x-validation/sh25/device-boundary.log",
+      "sha256": "3fa478eff2bb5a93fa30a3837d46f15756032630836661871738aabba0cf1467"
+    }
+  ],
+  "references": [
+    "https://github.com/doulujiyao12/mobiinfra-oh/tree/cd69b68bf16b9ed352be5073939eb24d042de583",
+    "https://developer.android.com/reference/android/view/PixelCopy"
+  ]
+}

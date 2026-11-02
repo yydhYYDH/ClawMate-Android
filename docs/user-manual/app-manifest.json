@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "title": "ClawMate 用户手册",
+  "edition": "Android 共享版 · 0.3-integrated",
+  "updated": "2026-10-29",
+  "entryFile": "index.html",
+  "contentFile": "content.json",
+  "homeRoute": "#/",
+  "searchRoute": "#/search?q=",
+  "chapters": [
+    {
+      "id": "start",
+      "title": "第一次使用：先走通一条消息",
+      "summary": "先完成基础配置，再试文字聊天。图片和自动化可以稍后再开。",
+      "route": "#/chapter/start"
+    },
+    {
+      "id": "navigation",
+      "title": "认识五个入口",
+      "summary": "找功能时，先看底部导航。",
+      "route": "#/chapter/navigation"
+    },
+    {
+      "id": "models",
+      "title": "配置模型：地址、名称、密钥填哪里",
+      "summary": "模型服务负责生成回复。ClawMate 不会因为你点了授权，就自动给你一个模型账号。",
+      "route": "#/chapter/models"
+    },
+    {
+      "id": "chat",
+      "title": "聊天：发送、停止与找回会话",
+      "summary": "先用文字提问，再逐步尝试记忆查询和附件。",
+      "route": "#/chapter/chat"
+    },
+    {
+      "id": "images",
+      "title": "发图片给助手看",
+      "summary": "适合识别截图、读图和解释内容。需要支持图片的聊天模型。",
+      "route": "#/chapter/images"
+    },
+    {
+      "id": "gallery",
+      "title": "图库：选图、暂停、继续与查找",
+      "summary": "从你主动选中的图片建立分析记录，不会自动读完整个相册。",
+      "route": "#/chapter/gallery"
+    },
+    {
+      "id": "memory",
+      "title": "汇总与记忆：让已有信息能被找回来",
+      "summary": "会话记录、长期记忆和本机索引是不同的东西。",
+      "route": "#/chapter/memory"
+    },
+    {
+      "id": "home",
+      "title": "首页：概览、推荐与陪伴",
+      "summary": "首页需要已有数据和相应模型配置，空白时先建立一条真实记录。",
+      "route": "#/chapter/home"
+    },
+    {
+      "id": "tasks",
+      "title": "任务与工作流：先保存，再运行，再看结果",
+      "summary": "开启任务只是选择它。是否成功执行，要看运行状态与回执。",
+      "route": "#/chapter/tasks"
+    },
+    {
+      "id": "reminders",
+      "title": "每日提醒：通知到达后还要确认",
+      "summary": "提醒帮你记得处理任务，不会在通知到达时直接采集。",
+      "route": "#/chapter/reminders"
+    },
+    {
+      "id": "meeting",
+      "title": "本机会议：录音、转写、纪要与保存",
+      "summary": "先准备本地模型，再录音或导入音频；会议与汇总副本分别保存。",
+      "route": "#/chapter/meeting"
+    },
+    {
+      "id": "avatar",
+      "title": "数字分身与语音",
+      "summary": "分身图片服务、聊天模型、语音合成分别配置。",
+      "route": "#/chapter/avatar"
+    },
+    {
+      "id": "settings",
+      "title": "设置、隐私与数据清理",
+      "summary": "看不懂的高级选项先保留。需要哪项能力，再配置哪一组。",
+      "route": "#/chapter/settings"
+    },
+    {
+      "id": "limits",
+      "title": "哪些能用，哪些还有限制",
+      "summary": "页面里能看到一个选项，不一定表示当前 Android 版已经具备对应能力。",
+      "route": "#/chapter/limits"
+    },
+    {
+      "id": "help",
+      "title": "遇到问题，先从这里查",
+      "summary": "优先查看错误文字，再排查配置和授权。",
+      "route": "#/chapter/help"
+    }
+  ]
+}

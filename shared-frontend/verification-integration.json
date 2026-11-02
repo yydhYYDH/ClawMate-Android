@@ -1,0 +1,376 @@
+{
+  "phase": "SH-04",
+  "date": "2026-10-26",
+  "status": "device_checked_with_documented_platform_limits",
+  "upstreamCommit": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "previousArchitectureCommit": "010852f",
+  "architecture": {
+    "gradleRoot": "settings.gradle.kts",
+    "modules": [
+      "app",
+      "shared-app",
+      "android-capabilities"
+    ],
+    "capabilities": "One shared Kotlin OCR and TTS implementation; no application UI/storage dependency.",
+    "dataOwnership": "Shared ArkTS owns shared package JSON/preferences. Compose baseline retains its existing Room/DataStore; no dual writes or data migration.",
+    "applicationIds": [
+      "com.clawmate.app",
+      "com.clawmate.shared"
+    ]
+  },
+  "sourceCounts": {
+    "uniqueLockedInputs": 120,
+    "compiledArkTS": 130,
+    "unchanged": 81,
+    "adapted": 32,
+    "authored": 17,
+    "scope": "This compilation input set only, not whole-product reuse."
+  },
+  "presentation": {
+    "navigation": "Standard ArkUI floating capsule with source-derived dimensions/styles; HDS material is approximated.",
+    "barHeightVp": 64,
+    "barSideMarginVp": 20,
+    "barBottomMarginVp": 12,
+    "homeChatInsetVp": 88,
+    "sourceRoutes": 9,
+    "latestDarkKeyboardAndOverlayChecks": "Checked on OPPO PKB110; screenshots inspected. Theme-transition accessibility XML limitation documented."
+  },
+  "checks": {
+    "hostContracts": [
+      {
+        "command": "node shared-frontend/verify.mjs",
+        "passed": 6
+      },
+      {
+        "command": "node shared-frontend/verify-native.mjs",
+        "passed": 7
+      },
+      {
+        "command": "node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference",
+        "passed": 8
+      }
+    ],
+    "junit": {
+      "app": {
+        "tests": 1320,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "android-capabilities": {
+        "tests": 27,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "builds": [
+      {
+        "log": "shared-integration-build-5.log",
+        "arkts": "BUILD SUCCESSFUL in 16 s 314 ms",
+        "android": "BUILD SUCCESSFUL in 58s"
+      },
+      {
+        "log": "shared-integration-regression-5.log",
+        "command": ":android-capabilities:testDebugUnitTest :shared-app:assembleDebugAndroidTest :app:testDebugUnitTest :app:assembleDebug --offline --no-daemon --console=plain",
+        "result": "BUILD SUCCESSFUL in 6m 11s"
+      },
+      {
+        "log": "shared-integration-native-final.log",
+        "command": ":shared-app:assembleDebug :shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+        "result": "BUILD SUCCESSFUL in 42s"
+      },
+      {
+        "log": "shared-device-final-build.log",
+        "arkts": "BUILD SUCCESSFUL in 16 s 967 ms",
+        "android": "BUILD SUCCESSFUL in 43s"
+      },
+      {
+        "log": "shared-device-final-test-build.log",
+        "command": ":shared-app:assembleDebugAndroidTest --offline --no-daemon --console=plain",
+        "result": "BUILD SUCCESSFUL in 27s"
+      }
+    ],
+    "androidInstrumentation": {
+      "command": "adb shell am instrument -w -r -e class com.clawmate.shared.NativeCapabilitiesDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner",
+      "result": "OK (3 tests)",
+      "seconds": 138.629,
+      "log": "integrated-device-tests-final.log",
+      "recognizedFixtureText": "ClawMate 2026\n共享前端本地识别",
+      "ttsOutcome": "REAL_START_AND_STOP",
+      "scope": "Generated local text image, actual native bridge, cancellation/path restrictions, real TTS callbacks; no private photos or cloud calls."
+    }
+  },
+  "device": {
+    "manufacturer": "OPPO",
+    "model": "PKB110",
+    "android": "16",
+    "api": 36,
+    "intermediateApk": {
+      "installed": "Success",
+      "coldStartTotalTimeMs": 762,
+      "checked": [
+        "Floating capsule home screen",
+        "Primary chat tab navigation"
+      ],
+      "evidence": [
+        "integrated-home.png",
+        "integrated-home.xml",
+        "integrated-chat-empty.xml"
+      ]
+    },
+    "latestApk": "Installed successfully; final UI and native checks performed.",
+    "testPackage": "com.clawmate.shared.test",
+    "testStatus": "3 passed, 0 failures; test runner dependency fixed before final run.",
+    "plannedDeviceCases": [
+      "Real Chinese OCR from an app-generated text image",
+      "Cancellation and refusal of remote/private out-of-scope paths",
+      "Real TTS start/stop callbacks or an explicit unavailable outcome"
+    ],
+    "privatePhotosReadOrUploaded": false,
+    "realCloudModelCalled": false,
+    "oldAppDataModified": false,
+    "latestColdStartTotalTimeMs": 819,
+    "completedUiChecks": [
+      {
+        "flow": "Original message voice buttons: play, text replay, pause",
+        "provider": "android-system-tts",
+        "states": [
+          "playing",
+          "playing",
+          "paused"
+        ],
+        "audioUri": "",
+        "replayTimestampAdvanced": true,
+        "scope": "Explicitly labelled synthetic test message, not a model response."
+      },
+      {
+        "flow": "Single keyboard avoidance and capsule hide/restore",
+        "editorBounds": "[180,1285][798,1423]",
+        "usableSurfaceBounds": "[0,120][1080,1471]",
+        "editorBottomGapPx": 48
+      },
+      {
+        "flow": "Home avatar overlay closes on Android back",
+        "evidence": [
+          "integrated-avatar-overlay.xml",
+          "integrated-avatar-back.xml"
+        ]
+      },
+      {
+        "flow": "Dark home/settings and system bars, then restore light",
+        "evidence": [
+          "integrated-final-dark-home.png",
+          "integrated-final-dark-settings.png",
+          "integrated-final-light-restored.png"
+        ]
+      },
+      {
+        "flow": "Cleanup and final home",
+        "remainingSessions": 0,
+        "remainingOwnOcrFixtures": 0,
+        "nightMode": "no",
+        "evidence": [
+          "voice-index-cleaned.json",
+          "integrated-final-home-clean.xml",
+          "integrated-final-home-clean.png"
+        ]
+      }
+    ],
+    "cleanup": {
+      "syntheticVoiceSessionRemoved": true,
+      "remainingSharedSessions": 0,
+      "remainingOwnOcrFixtures": 0,
+      "systemNightModeRestored": "no",
+      "temporarySdcardDumpsRemoved": true,
+      "phoneLeftOn": "Shared frontend home"
+    },
+    "ownCurrentProcessRuntimeLog": {
+      "path": "integrated-final-own-runtime.log",
+      "bytes": 0,
+      "scope": "Current final app process only; excludes earlier fixed instrumentation runner crashes."
+    }
+  },
+  "limitations": [
+    "No matching-state HarmonyOS screenshots/recordings; no pixel/material/animation equivalence claim.",
+    "Actual cloud/image providers, ASR, image attachments, automatic summary, workflow/GUI execution and MNN integrations remain pending.",
+    "Two APK identities retained; no production application-ID switch or old-data migration.",
+    "Only one OPPO phone has intermediate UI evidence; no other OEM/iOS/API22 certification.",
+    "Full debug runtime with ML Kit; release signing/trimming/size/performance remain unverified.",
+    "After live theme changes, UIAutomator sometimes returns only host nodes while pixels/taps work; cold launch restores node tree. TalkBack not accepted.",
+    "Home comfort dialog duplicate keyboard offsets removed by the same resize policy; actual cloud comfort conversation not exercised."
+  ],
+  "artifacts": [
+    {
+      "path": "shared-app/build/outputs/apk/debug/shared-app-debug.apk",
+      "bytes": 107899717,
+      "sha256": "ab9ce00088f374355f738f5748efb69b93de392e86f9c40ff0e589211f11423a"
+    },
+    {
+      "path": "shared-app/build/outputs/apk/androidTest/debug/shared-app-debug-androidTest.apk",
+      "bytes": 603820,
+      "sha256": "91fcaaeb939ef8349ba8d46bc1875fe3951303bfb5b25f68bc21d520be97d79c"
+    },
+    {
+      "path": ".arkui-x-validation/application/clawmate-shared-integrated.apk",
+      "bytes": 107899717,
+      "sha256": "ab9ce00088f374355f738f5748efb69b93de392e86f9c40ff0e589211f11423a"
+    },
+    {
+      "path": ".arkui-x-validation/application/architecture-extraction-build-2.log",
+      "bytes": 16023,
+      "sha256": "9c94aae7295e1415b4f5bc2831b58629de11cf7ca3c3bbfee4b3b91f74bef641"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-integration-build-5.log",
+      "bytes": 45695,
+      "sha256": "70acf2220b841c753c62622fc6a30be44386fbe5127e5997a1fc65627ed80422"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-integration-regression-5.log",
+      "bytes": 31976,
+      "sha256": "3c03755f5f50e395fa85c9a561207b92da011cede89d86d6c305bef1297ec202"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-integration-native-final.log",
+      "bytes": 7844,
+      "sha256": "386ff6c438cee8b41a85b79e7693f0ce34c621ca65c1f9dbf87d7b9ed6b5caf8"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-integration-host-checks.log",
+      "bytes": 2328,
+      "sha256": "81f5b1f5ac92c8bd03c8c16382daa2d8b255cbffe66db5cc6b150693743126b4"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-home.png",
+      "bytes": 1094487,
+      "sha256": "e2e153f180457f3299603689810ceb38aa1491ba296240a72ea4f9e233865e65"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-home.xml",
+      "bytes": 46230,
+      "sha256": "f7ef4429648a8dce6c79679b68823de29691e952ab1fd940bf0488bc30b2fe32"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-chat-empty.xml",
+      "bytes": 33267,
+      "sha256": "69ce519d0cfe95463ece6cd910fd30c8fd81d8e4d457dfd4b3e9b6d15245f71a"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-test-install-continued.xml",
+      "bytes": 5414,
+      "sha256": "bea8eb09ea75dd0f2be0497c2afaba4f3588ecf6638ff8568c4a2e7831e77229"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-device-final-build.log",
+      "bytes": 44711,
+      "sha256": "dddd6a64989c7ddbe702d711c26dfb5d33d8a28a5b0292220e9844287b47e22c"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-device-final-test-build.log",
+      "bytes": 5242,
+      "sha256": "fbd3b4785535193ea10c2cdc332dfe3c482240d7be4f17cef37c2cace8736745"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-device-final-host-checks.log",
+      "bytes": 2326,
+      "sha256": "b33152d2b28de916e2973b2f746802d622d4f7515de594974b8d767c349c644c"
+    },
+    {
+      "path": ".arkui-x-validation/application/shared-device-runner-build-2.log",
+      "bytes": 5144,
+      "sha256": "d68f983411dfb6435a59178fcda12482b5d4d39ac0bd75e0060328c045e8cdf4"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-device-tests-final.log",
+      "bytes": 2353,
+      "sha256": "2810d6316e91e8e36cb970b1d23f5627c16f715ec3812a5e8aedd48b614dc2d2"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-keyboard-open.xml",
+      "bytes": 27483,
+      "sha256": "0257380196f186b3e3999eceb7db575c733f498f98067c47b5a077a40ddc2774"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-keyboard-closed.xml",
+      "bytes": 33267,
+      "sha256": "963cc0d2abbee8b1d29dc556da3d91641e154ddbfa1a076894110f99449898e5"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-keyboard-fixed.png",
+      "bytes": 321455,
+      "sha256": "91805dd576903839382be2a8f9ced297f2ce7554449847e9ff2dca24c2cf1155"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-avatar-overlay.xml",
+      "bytes": 54893,
+      "sha256": "9f04807472d31fdda9b2d79ec0647c051a36c8fc87a625e9b732cb9d501fae65"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-avatar-back.xml",
+      "bytes": 46230,
+      "sha256": "f7ef4429648a8dce6c79679b68823de29691e952ab1fd940bf0488bc30b2fe32"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-voice-playing.png",
+      "bytes": 297705,
+      "sha256": "14149605f8be319cb10582fb019fd7c50288c2196e1d9d1f4ca6a3dfc4309c97"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-voice-paused.png",
+      "bytes": 301424,
+      "sha256": "fe473e76e64f149a3375a75e94e9d793dec19dc132c2265072436571ac6b83c4"
+    },
+    {
+      "path": ".arkui-x-validation/application/voice-fixture-playing-record.json",
+      "bytes": 1425,
+      "sha256": "e1416059a6f55c2a1ffd279aeb031602c1f4594ed879866ac329791517cc6712"
+    },
+    {
+      "path": ".arkui-x-validation/application/voice-fixture-replay-record.json",
+      "bytes": 1425,
+      "sha256": "146b0c9626a01b2a5f3b3fdb5fd3fe2ff684bf8dc35a527aeb52ac89a5ac09d5"
+    },
+    {
+      "path": ".arkui-x-validation/application/voice-fixture-paused-record.json",
+      "bytes": 1424,
+      "sha256": "898f776ddc0f13c71507740395e20a98138f8eb5142fcf49e0c0a283db612ed9"
+    },
+    {
+      "path": ".arkui-x-validation/application/voice-index-cleaned.json",
+      "bytes": 16,
+      "sha256": "23f0d7cdc90623ddfbcea7aee456c2df8c7f0af3ce392b17b3278de26626fe81"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-dark-home.png",
+      "bytes": 431269,
+      "sha256": "45d0bde7fe5eae7d77f03560df967eb3c24c9c21380c215397dac87a9f665cb7"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-dark-settings.png",
+      "bytes": 259063,
+      "sha256": "baaf2ce281546b27105bb312b434e33de780c5f2796c9e87e7a86c95b6172d36"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-light-restored.png",
+      "bytes": 1096772,
+      "sha256": "e532614372ddcc9d8ce5ee28feace3ca0297f835df1a4937907520dbe8850d11"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-home-clean.xml",
+      "bytes": 46230,
+      "sha256": "f7ef4429648a8dce6c79679b68823de29691e952ab1fd940bf0488bc30b2fe32"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-home-clean.png",
+      "bytes": 1097403,
+      "sha256": "ae08f414707d4a4ec9894d210bde6d5a992b0a01c28a25ac11c17c4b1323c98b"
+    },
+    {
+      "path": ".arkui-x-validation/application/integrated-final-own-runtime.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "previousFrontendCommit": "1d42f90"
+}

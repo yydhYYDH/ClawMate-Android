@@ -35,7 +35,7 @@ at `$HOME/.gradle` (the default) rather than a project-local cache.
 - Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 - Install on a device: `adb install -r app/build/outputs/apk/debug/app-debug.apk`, then `adb shell monkey -p com.clawmate.app 1`. Confirm `adb devices -l` shows an authorized device first. Device inspection: `adb logcat`, `adb exec-out screencap -p`, `adb shell uiautomator dump`.
 - If a sandbox rejects wrapper/cache access, rerun with elevated permissions after confirming the resolved paths.
-- Pinned versions (owned by `gradle/libs.versions.toml`, `app/build.gradle.kts`): JDK 17, platform `android-34`, build-tools `34.0.0`, NDK `25.2.9519653`, CMake `3.22.1`, Gradle 8.9; shared frontend adds ArkUI-X `6.0.0.103`, OpenHarmony SDK `6.0.0.48`, hvigor `6.22.7`.
+- Pinned versions (owned by `gradle/libs.versions.toml`, `app/build.gradle.kts`): JDK 17, platform `android-34`, build-tools `34.0.0`, NDK `25.2.9519653`, CMake `3.22.1`, Gradle 8.9; shared frontend adds ArkUI-X `6.0.0.103`, OpenHarmony SDK `6.0.0.47`, hvigor `6.22.7` (see `experiments/arkui-x/toolchain-lock.json`).
 
 Native code: `app/src/main/cpp` builds a JNI **stub** (`clawmate_local_model`) via CMake 3.22.1 / NDK 25.2.9519653 — it links no MNN runtime, it only reports honest capability boundaries.
 

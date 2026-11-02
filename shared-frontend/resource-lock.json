@@ -1,0 +1,244 @@
+{
+  "repository": "doulujiyao12/mobiinfra-oh",
+  "ref": "cd69b68bf16b9ed352be5073939eb24d042de583",
+  "scope": "Reviewed display resources and bundled default workflows only; no profile/configuration, models or private data.",
+  "files": [
+    {
+      "path": "AppScope/resources/base/media/Icon.png",
+      "gitBlob": "b2eae7cbbae7d5cba65ded5cf49b1e759b44ac9c",
+      "target": "AppScope/resources/base/media/app_icon.png"
+    },
+    {
+      "path": "entry/src/main/resources/base/element/color.json",
+      "gitBlob": "3683a7526be3a968f6f452f9589445a879127e08"
+    },
+    {
+      "path": "entry/src/main/resources/base/element/float.json",
+      "gitBlob": "33ea22304f9b1485b5f22d811023701b5d4e35b6"
+    },
+    {
+      "path": "entry/src/main/resources/base/element/string.json",
+      "gitBlob": "af09a612d6f38fc1ea4493df53cae2049b4d5dc8"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/chat_assistant_avatar.png",
+      "gitBlob": "bff93834c51658ccbe8f30e4d5e4d656659fae8b"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/chat_card_flow.svg",
+      "gitBlob": "a2285795aec5b164f8fb47ca498a889f37f80519"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/chat_card_image.svg",
+      "gitBlob": "02e9b389a2b6d658301cfd91f6ab98214d965589"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/chat_card_search.svg",
+      "gitBlob": "b3e45d3edd98a4d4d742910941d50827079f2245"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/digital_avatar.png",
+      "gitBlob": "e571741aac3d9440cef9e55bc2a56686cb44a0d4"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/header_companion.svg",
+      "gitBlob": "f52fce6084b51dc86cc94832197175f3479b3191"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/header_footprint.svg",
+      "gitBlob": "e635a49a200f988f055875e0449f691e656924dc"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/header_mine.svg",
+      "gitBlob": "85366ae65400f8b0fb57ca17eb53d7f5b0d486a6"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/header_settings.svg",
+      "gitBlob": "c88e20f2dfd2701245fd4117d290da2e2cf1ab9a"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/header_task.svg",
+      "gitBlob": "f0c9de8e3e330c8ffdba99d8bd9c39867330a22e"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_category_icons.png",
+      "gitBlob": "dbacba6288bac27b27e38a44d610a9b14ffb837c"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_explorer_mascot.png",
+      "gitBlob": "568f4c9fc888cc091ef3bfa477fd63ac12606c78"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_feature_companion.svg",
+      "gitBlob": "6fc0b5027c66b643d62c48b9baa24727a8af6166"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_feature_growth.svg",
+      "gitBlob": "83fc1673375f2af1f95335f665fce7409a5dc001"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_feature_protect.svg",
+      "gitBlob": "f6b7ab91e5ad24392420d45a271843eea6af5c24"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_feature_understand.svg",
+      "gitBlob": "3a00ad0122d80d523e430dba263248f2b19d0e4a"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_overview_background_compact.png",
+      "gitBlob": "0e1a5e416e62d7f3d8226404beea0eee860ca98a"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/home_overview_background.png",
+      "gitBlob": "02e1a3534c05ea85ebd0e9b593e376fc2c8b6ac2"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/tab_chat.svg",
+      "gitBlob": "569206b84528320b3fc000b4a38f8b634bcf488d"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/tab_home.svg",
+      "gitBlob": "6fb97e4ae18a3a8f79cfc8dac50a7b5ac2cada67"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/tab_mine.svg",
+      "gitBlob": "b0847359f530f041faa9895e500729edca70160b"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/tab_settings.svg",
+      "gitBlob": "c646204c67e1e910505e06d9ff490bdb7253122f"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/tab_summary.svg",
+      "gitBlob": "94e28ec590e8d61dcb51c60dbad21ff42c171ab1"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/tab_task.svg",
+      "gitBlob": "f122e27ee6cda75bbbd5e38c6da9418557062d43"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/voice_microphone_light.svg",
+      "gitBlob": "95c995bb9409c35cd07f7847acb4fe6181fecc2c"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/voice_pause_light.svg",
+      "gitBlob": "5d575e0573b76d43838d912fb74bdecc770de74a"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/voice_replay_blue.svg",
+      "gitBlob": "92d3fcdeefa6b0a7968bdc3794efecd378792c87"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/voice_speaker_blue.svg",
+      "gitBlob": "e66fc3793bf6906f332b901f504a708a6afccf61"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/voice_speaker_light.svg",
+      "gitBlob": "c780ecc8a952c78b200538b4176222b96bf6dbb7"
+    },
+    {
+      "path": "entry/src/main/resources/dark/element/color.json",
+      "gitBlob": "22c74ab390e14c3d7f7227d8261a695893d532de"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/chat_card_flow.svg",
+      "gitBlob": "dfbc244ac77362ae0bd0cea3d68a7a9bcbad226f"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/chat_card_image.svg",
+      "gitBlob": "55705c1b70949862645e20360f8e67140e6038e3"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/chat_card_search.svg",
+      "gitBlob": "5190a46f2c07dc3c248a648f696e72da6408c97c"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/header_companion.svg",
+      "gitBlob": "ac31decfadbc8e3ce26d1d4a8b361b04d5d3e589"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/header_footprint.svg",
+      "gitBlob": "81a6807cd15f0e92e7d8e4ad0db3340a12ee1ae0"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/header_mine.svg",
+      "gitBlob": "08e3573bf0b465c74a266e1e3851ab53e0538d27"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/header_settings.svg",
+      "gitBlob": "c84e45895e00ec76465657de0d53b1dc077bdac9"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/header_task.svg",
+      "gitBlob": "72d47f6431ac35f36e5ebe4f6c70bb5a632b6250"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/home_feature_companion.svg",
+      "gitBlob": "0859f4d24ec1a6eb58588205c54b8333f0ffdc4f"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/home_feature_growth.svg",
+      "gitBlob": "e6a4d35c9df14f4b5f61ed00136405f63ef60391"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/home_feature_protect.svg",
+      "gitBlob": "c6c294f7ac3c5c453cb1f3fd4fdd5ec185031d46"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/home_feature_understand.svg",
+      "gitBlob": "829bba4d98848048d1c1037ce935bc7f62338c03"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/voice_replay_blue.svg",
+      "gitBlob": "fc781d91123d77bcbfdbffc7fc87b0465f1763bd"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/voice_speaker_blue.svg",
+      "gitBlob": "9e683e8ade6270756f83549ed8f5b63a85921de9"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_alipay_bill.json",
+      "gitBlob": "71cafd2ea262acc72ab7c2195b1d3ef62265013e"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_bilibili_history.json",
+      "gitBlob": "414952f23d41bd88296e28faa2380a0d62ceac36"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_ctrip_order.json",
+      "gitBlob": "14cb73f5d17ce86d224138033ffda11aa61a674a"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_dianping_order.json",
+      "gitBlob": "dcfa986b7d94d09bac4f6f721d640cb241a2a05a"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_ele_order.json",
+      "gitBlob": "654ad702e15e247df6044db52e43e2ef4c058d20"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_meituan_order.json",
+      "gitBlob": "3ccf2d3ac6d105ffb63eeb5b9cfce517142815e6"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_tencent_video_history.json",
+      "gitBlob": "d805443fb5215bdc12fcbe8a043df7ebd965d7ba"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_weibo_hot_search.json",
+      "gitBlob": "00f1ba4c5cbde066130c4eaf9bc3d18fe6f0d4bd"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_weixin_chat.json",
+      "gitBlob": "6d966e032fb20bbf86168c7203efcd502a70fc90"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_weixin_today_chat.json",
+      "gitBlob": "baea996a1ed79cc3204fdf37ed6948857601bfaa"
+    },
+    {
+      "path": "entry/src/main/resources/rawfile/workflows/configs/default_xiaohongshu_history.json",
+      "gitBlob": "d1eeed8e60137f9f5dfc0ba0f3253fb1825f09d8"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+def runtimeDir = file('../.arkui-x-validation/application/runtime')
+android {
+    namespace 'com.clawmate.shared'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.clawmate.shared'
+        minSdk 26
+        targetSdk 34
+        versionCode 2
+        versionName '0.3-integrated'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = '17' }
+    sourceSets.main { assets.srcDirs = [file('src/main/assets'), new File(runtimeDir, 'src/main/assets')]; jniLibs.srcDirs = [new File(runtimeDir, 'libs')] }
+    packagingOptions { jniLibs { useLegacyPackaging true } }
+}
+dependencies {
+    implementation project(':android-capabilities')
+    if (findProject(':meeting-sdk') != null) implementation project(':meeting-sdk')
+    implementation fileTree(dir: new File(runtimeDir, 'libs'), include: ['*.jar'])
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation 'androidx.test:runner:1.6.1'
+    androidTestImplementation libs.mlkit.text.recognition.chinese
+    androidTestImplementation libs.okhttp.mockwebserver
+    androidTestImplementation 'com.squareup.okhttp3:okhttp-tls:4.12.0'
+}
+tasks.named('preBuild').configure {
+    doFirst {
+        if (findProject(':meeting-sdk') == null) {
+            throw new GradleException('Shared host requires -PmeetingSdkRoot=<on-device-meeting-notes checkout> or MEETING_SDK_ROOT; see docs/MEETING_INTEGRATION.md')
+        }
+        if (!new File(runtimeDir, 'src/main/assets/arkui-x/entry/ets/modules.abc').isFile()) {
+            throw new GradleException('Compile and package shared-frontend first; see shared-frontend/README.md')
+        }
+        project.exec {
+            workingDir rootProject.projectDir
+            commandLine 'node', 'shared-frontend/build-state.mjs', 'verify'
+        }
+    }
+}
