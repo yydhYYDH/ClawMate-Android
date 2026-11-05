@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -26,6 +27,8 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     implementation(libs.okhttp)
     implementation("com.squareup.okio:okio:3.8.0")
+    // Encrypted credential storage for the Codex bridge token (AES-256-GCM + Keystore).
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation(libs.mlkit.text.recognition.chinese)
     // Bundled person mask; no Play-services model download or image upload.
     implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")

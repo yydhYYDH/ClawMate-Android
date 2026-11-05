@@ -37,7 +37,12 @@
   - [ ] 已知限制：`verifySources` 对全部条目只接受**一个** source-root，因此混合 pin 时必须提供同时含两个提交的目录（本次用两个工作树合成了 `.arkui-x-validation/source-composite`）；真机/CI 应直接 clone 全历史。
   - [ ] 已知限制：`.arkui-x-validation/reference/` 曾出现 20 个“在盘但未入锁”的文件，本轮已通过入锁或重钉消除，后续 staging 应保持 0 差额。
   - [ ] 工程债：`bootstrap.mjs` 在 Windows 上对每个路径组件调用一次 PowerShell 取属性判 junction（Node 的 `lstat` 不暴露 reparse 位），203 个文件约需 10 分钟；后续可改为一次性批量查询。
-  - [ ] C1 传输与凭据：`android-capabilities` 新增 OkHttp 传输（禁重定向/禁自动重试/CA 单连接注入/gzip 降级/代次取消）与 Keystore 凭据；**同时先落 `ChatBackend` 接口**，`CodexBackend` 按该接口实现。
+  - [x] C1 传输与凭据（2026-11-06）：`android-capabilities/.../platform/codex/` 新增 `CodexTypes`（origin/token/CA/配对校验、增量合并、交付限额）、`CodexProtocol`（桥接线格式）、`CodexTransport`（OkHttp：禁重定向、禁自动重试、**仅幂等 GET 重试一次**、代次隔离、gzip 降级、状态码分类）、`CodexTrustFactory`（CA 仅对单条连接生效，无放行回退）、`CodexCredentialStore` + `EncryptedCodexSecretStorage`（AES-256-GCM，无明文回退）、`ChatBackend` 接口与 `UnavailableLocalBackend`。单测 44 项（14+16+14）通过；`android-capabilities` 全量 257 项 0 失败。
+    - 该模块此前未应用 `kotlinx-serialization` 插件，已补 `alias(libs.plugins.kotlin.serialization)`；新增依赖 `androidx.security:security-crypto:1.1.0-alpha06`。
+    - 修正两处实现缺陷：重定向/401/429 原先在读 body 之后判定，空 body 的 3xx 会被误报成“无有效响应”；`needsDecompression` 判断写错。现状态码分类前置。
+    - `CodexTransport.useHttpOriginForTest` 是仅供回环测试的 seam（`configure` 仍强制 HTTPS）。
+  - [ ] C1 续：`CodexBackend`（实现 `ChatBackend`，封装 `CodexChatService` 语义）；`CodexTrustFactory` 尚无真实证书链测试（需自签 CA 夹具）。
+  - [ ] C1 环境：本机无 JDK 17，构建需显式设 `JAVA_HOME=D:\CODE\MeetingNotesHost\android\tools\jdk-17.0.20.1+1`（取自 Gradle daemon 日志，非仓库配置）。
   - [ ] C2 Codex Tab：六 Tab 导航、`pages/codex/` 全量 UI、扫码/拍照/选图/FileProvider、手册六入口更新。
   - [ ] C3 聊天委托（U05-A）：`SharedAgent` 加 `run_codex_task`、**独立于日历/邮箱的委托预算**、`codex-<runId>` 持久化结果卡片与手动同步；`disconnected/failed` 一律不自动重发。
   - [ ] 统一层：只统一编排接口，不合并实现。`ChatBackend/CloudBackend/CodexBackend` 逐步接入；**本地聊天（`LocalBackend`）由其他负责人并行开发**，本线只保留诚实的 `NOT_AVAILABLE` 占位，不并入本地推理工作。
