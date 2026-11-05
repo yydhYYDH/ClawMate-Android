@@ -136,6 +136,16 @@
 
 复现方法见 [tests/codex/README.md](../tests/codex/README.md)。
 
+### 本轮修掉的阻塞式调用缺陷
+
+`codexRunTask` 原本在桥接线程上 `runBlocking` 跑完整委托。委托可能持续数分钟，而平台桥接调用
+的实测超时是 60 秒——**任何真实委托都必然在桥接层失败，哪怕远端已经开始执行**。
+
+已改为项目既有的 start/poll 模式（`imagePrepareStart`/`imagePreparePoll` 用的就是这套）：
+`codexRunTaskStart` 启动协程并立即返回 id，`codexRunTaskPoll` 报告 running 或最终结果，
+`codexRunTaskCancel` 放弃等待但**不停止远端任务**。ArkTS 每 700 ms 轮询一次，超窗后报
+`status=disconnected`，让模型去同步而不是重发。
+
 ## 复现真实联调所需
 
 
