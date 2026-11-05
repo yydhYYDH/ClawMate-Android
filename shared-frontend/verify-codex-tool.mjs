@@ -134,4 +134,32 @@ check('a successful run has no terminal override', () => {
   assert.equal(module.codexTerminalMessage(JSON.stringify({ status: 'completed' })), null);
 });
 
+check('a delegation budget is separate from the memory-query budget', () => {
+  // SharedAgent mixes the model's tools, so a slow delegation must not eat the allowance
+  // for memory queries. The budgets are read from source: importing SharedAgent would drag
+  // in the cloud client, which this check deliberately does not exercise.
+  const agent = fs.readFileSync(path.join(here, 'adapters/platform/SharedAgent.ets'), 'utf8');
+  const budgets = /DEFAULT_SHARED_AGENT_BUDGETS[^=]*=\s*\{([^}]*)\}/.exec(agent);
+  assert.ok(budgets, 'DEFAULT_SHARED_AGENT_BUDGETS must be declared');
+  const maxDelegations = /maxDelegations:\s*(\d+)/.exec(budgets[1]);
+  const maxQueries = /maxQueries:\s*(\d+)/.exec(budgets[1]);
+  assert.ok(maxDelegations, 'the delegation budget must be explicit');
+  assert.ok(maxQueries, 'the query budget must be explicit');
+  assert.ok(Number(maxDelegations[1]) >= 1, 'at least one delegation must be possible');
+  // Separate counters are the point; equal values would suggest one shared allowance.
+  assert.notEqual(maxDelegations[1], maxQueries[1], 'the budgets must be independent values');
+});
+
+check('the over-budget answer tells the model not to retry', () => {
+  // What SharedAgent hands the model when the delegation budget is spent.
+  const payload = JSON.parse(module.codexTaskToolPayload({
+    ok: false, status: 'rejected', runId: '', computer: '', answer: '',
+    files: [], receivedIds: [], error: 'BUDGET_SPENT'
+  }));
+  assert.equal(payload.ok, false);
+  // The model must be able to tell "budget spent" from "it failed, try again".
+  assert.equal(payload.error, 'BUDGET_SPENT');
+  assert.equal(payload.status, 'rejected');
+});
+
 console.log(JSON.stringify({ passed, scope: 'ArkTS tool argument and payload policy; no device or model call' }));
