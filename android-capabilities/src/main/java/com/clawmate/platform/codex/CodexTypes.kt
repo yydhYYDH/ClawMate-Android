@@ -22,6 +22,9 @@ object CodexTypes {
     const val MAX_FILE_BYTES: Long = 8L * 1024 * 1024
     const val MAX_ARTIFACTS_PER_TURN: Int = 24
     const val MAX_ARTIFACT_TOTAL_BYTES: Long = 512L * 1024 * 1024
+    /** Per-artifact bound enforced by the bridge's delivery store. */
+    const val MAX_ARTIFACT_BYTES: Long = 128L * 1024 * 1024
+    const val MAX_ARTIFACT_NAME: Int = 180
     const val MAX_TIMELINE_ITEMS: Int = 160
     const val MAX_CA_BYTES: Int = 2048
 
@@ -127,18 +130,23 @@ object CodexTypes {
     /**
      * Rejects a delivered artifact that the phone cannot safely store.
      *
+     * Matches `validateCodexArtifact` in the HarmonyOS client: file names may not contain
+     * control characters, separators or a drive marker, may not be hidden, and are bounded
+     * to 180 characters so the sanitized copy stays inside the sandbox path budget.
+     *
      * @throws CodexValidationException on an invalid name, digest, size or timestamp.
      */
     fun validateArtifact(artifact: CodexArtifact) {
+        val name = artifact.name
+        val nameOk = name.isNotEmpty() && name.length <= MAX_ARTIFACT_NAME &&
+            name.none { it < ' ' || it == '/' || it == '\\' || it == ':' } &&
+            name != "." && name != ".." && !name.startsWith(".")
         val ok = artifact.id.matches(TASK_ID) &&
-            artifact.name.isNotEmpty() &&
-            artifact.name.length <= 240 &&
-            artifact.name.none { it == '/' || it == '\\' || it < ' ' } &&
-            artifact.name != "." && artifact.name != ".." &&
+            nameOk &&
             artifact.sha256.matches(Regex("^[a-f0-9]{64}$")) &&
-            artifact.size in 1..MAX_ARTIFACT_TOTAL_BYTES &&
+            artifact.size in 1..MAX_ARTIFACT_BYTES &&
             artifact.createdAt >= 0
-        if (!ok) throw CodexValidationException("交付文件信息无效")
+        if (!ok) throw CodexValidationException("电脑返回的交付文件信息无效")
     }
 
     /** Turn-scoped delivery bound: at most 24 files and 512 MB in one turn. */

@@ -83,6 +83,15 @@ class CodexTransport(
     var onReachability: (reachable: Boolean, message: String) -> Unit = { _, _ -> }
 
     /**
+     * Test hook invoked immediately after a successful [configure].
+     *
+     * Production never sets it; the transport tests use it to point a configured connection
+     * at a loopback server without weakening the `https://` rule in [configure].
+     */
+    @Volatile
+    internal var onConfigureForTest: (() -> Unit)? = null
+
+    /**
      * Installs [connection] and discards any previous one.
      *
      * @throws CodexValidationException when the origin, token or CA is malformed.
@@ -101,6 +110,7 @@ class CodexTransport(
         token = connection.token
         client = clientFactory(connection.caCertificate)
         generation += 1
+        onConfigureForTest?.invoke()
     }
 
     /** Drops the connection, cancels every outstanding call and forgets the token. */

@@ -149,6 +149,9 @@ class CodexTypesTest {
         val ok = CodexArtifact(id = "f1", name = "report.pdf", size = 10, sha256 = "a".repeat(64))
         CodexTypes.validateArtifact(ok)
         assertThrows(CodexValidationException::class.java) { CodexTypes.validateArtifact(ok.copy(name = "../x")) }
+        assertThrows(CodexValidationException::class.java) { CodexTypes.validateArtifact(ok.copy(name = "C:evil.exe")) }
+        assertThrows(CodexValidationException::class.java) { CodexTypes.validateArtifact(ok.copy(name = ".hidden")) }
+        assertThrows(CodexValidationException::class.java) { CodexTypes.validateArtifact(ok.copy(name = "a".repeat(181))) }
         assertThrows(CodexValidationException::class.java) { CodexTypes.validateArtifact(ok.copy(sha256 = "xyz")) }
         assertThrows(CodexValidationException::class.java) { CodexTypes.validateArtifact(ok.copy(size = 0)) }
         val many = (1..25).map { ok.copy(id = "f$it", name = "f$it.txt") }
