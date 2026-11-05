@@ -125,9 +125,16 @@
 
 ### 尚未覆盖
 
-- **交付文件下载**：仓库自带的 fake app-server 不产出 artifacts（`state/artifacts/index.json` 为空），
-  真实下载→SHA256 校验链路只有 `CodexArtifactStore` 的单元测试覆盖，没有端到端证据。
-- **审批卡片**：fake server 不发起审批请求，`waitingApproval` 状态未在真实服务上走过。
+- ~~交付文件下载~~：**已覆盖**。扩展替身（`tests/codex/android-fixture-app-server.mjs`）的
+  “deliver” 回合会在 `outputs/` 写入文件并给出 Markdown 链接，`CodexDeliveryLiveTest` 验证
+  手机落地、内容正确、落在沙盒目录内。
+- ~~审批卡片~~：**已覆盖**。“approve” 回合发起 `item/commandExecution/requestApproval`，
+  测试确认上报 `waitingApproval` 且**不误交付文件**。
+- **模型推理质量**：替身不调用任何模型，无法覆盖。
+- **真实 Codex CLI 差异**：替身按协议实现，不代表官方 App Server 的全部细节。
+- **执行中真正中断**：替身的 `turn/interrupt` 直接返回，未模拟运行中打断。
+
+复现方法见 [tests/codex/README.md](../tests/codex/README.md)。
 
 ## 复现真实联调所需
 
