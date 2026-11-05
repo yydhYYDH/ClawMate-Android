@@ -159,6 +159,17 @@
 
 修复前，这三条路径**在真机上都必然失败**，而单元测试全部通过——因为测试不经过桥接。
 
+### 真机发现的跳转缺陷（已修复）
+
+点击 Codex 空态的“连接指南”在真机上显示“无法打开连接指南”，logcat 明确报
+`can't find this page pages/codex/CodexHelpPage`。两个原因叠加：
+
+1. **页面从未带过来**：上游有 `CodexHelpPage.ets`，但适配层没复制，`main_pages.json` 也没注册。
+2. **只被 `router.pushUrl` 引用的页面不可达**：import 遍历看不见它，必须显式登记并加入清单。
+
+修复后真机验证：指南可打开、平台选择（Windows/macOS/Linux）可切换、返回正常、无崩溃。
+顺手审计了全部 14 个 `pushUrl` 目标，**其余均已正确注册**。
+
 ## 复现真实联调所需
 
 
