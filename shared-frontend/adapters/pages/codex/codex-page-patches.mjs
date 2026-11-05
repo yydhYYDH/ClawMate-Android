@@ -109,5 +109,35 @@ export function adaptCodexPage(source) {
     '.layoutWeight(1).height(chatComposerTextAreaHeight(this.draft)).barState(BarState.Auto)',
     '.layoutWeight(1).height(chatComposerTextAreaHeight(this.draft))');
 
+  // 7. A confirmation dialog whose button callback never fires (observed on Android when the
+  //    dialog is dismissed from outside) leaves `busy` set forever and the whole page dead.
+  //    Bound the wait so the page always returns to a usable state.
+  out = replaceChecked(out,
+    `      const confirmed = await new Promise<boolean>((resolve) => {
+        this.getUIContext().showAlertDialog({ title: '连接自己的电脑',
+          message: bundle.name + '\\n' + bundle.origin + '\\n\\n请确认这份配对信息来自你自己的 PC 应用。连接后可以向该电脑下发任务。',
+          autoCancel: false,
+          primaryButton: { value: '取消', action: () => { resolve(false); } },
+          secondaryButton: { value: '确认配对', action: () => { resolve(true); } }
+        });
+      });`,
+    `      const confirmed = await CodexConfirm.ask(this.getUIContext(), '连接自己的电脑',
+        bundle.name + '\\n' + bundle.origin + '\\n\\n请确认这份配对信息来自你自己的 PC 应用。连接后可以向该电脑下发任务。',
+        '取消', '确认配对');`);
+
+  out = replaceChecked(out,
+    `    const confirmed = await new Promise<boolean>((resolve) => {
+      this.getUIContext().showAlertDialog({ title: '删除连接',
+        message: '从此手机删除「' + item.name + '」？电脑上的任务会继续运行。',
+        primaryButton: { value: '取消', action: () => { resolve(false); } },
+        secondaryButton: { value: '删除', action: () => { resolve(true); } } });
+    });`,
+    `    const confirmed = await CodexConfirm.ask(this.getUIContext(), '删除连接',
+      '从此手机删除「' + item.name + '」？电脑上的任务会继续运行。', '取消', '删除');`);
+
+  out = replaceChecked(out,
+    "    import { CodexPickers } from '../../platform/CodexPickers';",
+    "    import { CodexPickers } from '../../platform/CodexPickers';\n    import { CodexConfirm } from '../../platform/CodexConfirm';");
+
   return out;
 }
