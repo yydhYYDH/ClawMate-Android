@@ -41,6 +41,12 @@
     - 该模块此前未应用 `kotlinx-serialization` 插件，已补 `alias(libs.plugins.kotlin.serialization)`；新增依赖 `androidx.security:security-crypto:1.1.0-alpha06`。
     - 修正两处实现缺陷：重定向/401/429 原先在读 body 之后判定，空 body 的 3xx 会被误报成“无有效响应”；`needsDecompression` 判断写错。现状态码分类前置。
     - `CodexTransport.useHttpOriginForTest` 是仅供回环测试的 seam（`configure` 仍强制 HTTPS）。
+  - [x] C0-b 六 Tab（2026-11-06）：`shared-frontend/app/Index.ets` 新增 Codex Tab（索引 3），Task/Mine 顺移到 4/5，并补 Codex 返回键（先关设置面板、再关历史、再退连接页）。原估算的“Index.ets 重建”**不存在**——共享入口是我们自己写的 `app/Index.ets`，覆盖上游同名文件；上游那 18 个漂移文件仍未对齐，但不阻塞 Codex。
+  - [x] C2 Codex Tab（2026-11-06）：`shared-frontend/adapters/pages/codex/` 替换 4 个鸿蒙 Kit——`RemoteCommunicationKit`→`CodexClient`（走原生 `codexRequest`）、`AssetStoreKit`→加密凭据、`PreviewKit`→系统 ACTION_VIEW/ACTION_CREATE_DOCUMENT、`ScanKit`/`CameraKit`/`MediaLibraryKit`→`CodexPickers`。`CodexPage` 用**锚定补丁**而非重写（上游一改即构建失败）；`CodexArtifactProvider` 只放行 `filesDir/codex/sessions/<64hex>/<id>/<name>` 三段路径。真机 PKB110 已验证渲染。
+  - [x] C3 聊天委托（2026-11-06）：`SharedAgent` 注册 `run_codex_task`，**独立预算**（`maxDelegations=1`，与 3 次记忆查询分开）；仅在页面提供委托实现时才向模型声明该工具；参数只允许 `task` 与自有 `run_id`；结果裁剪到 3900 字符，不含令牌/路径/文件内容；提交后未确认返回 `status=disconnected`，明确禁止重发。`CodexBackend` 新增 `defaultWorkspace`，让聊天路径无从选目录时由 `/v1/info` 解析。
+  - [ ] **未验证（重要）**：Codex 的“配对→建任务→下发→审批→收文件”**没有任何真实端到端验证**。本机没有运行 PC 桥接服务，也没有可用配对。现有证据只有 MockWebServer 单测（53 项）与真机 UI 渲染。真实联调需：一台跑 `bridge/codex` 的电脑 + Codex 登录 + 局域网 HTTPS 证书。
+  - [ ] 已知限制：Android **无扫码**（系统无扫码 intent，内置扫码器需额外相机权限），配对只支持“导入配对文件 / 粘贴配对信息”。
+  - [ ] 已知限制：`Index.ets` 与设置页/隐私页等 17 个上游漂移文件仍钉在 `cd69b68`，未对齐 `4e86f62`。
   - [ ] C1 续：`CodexBackend`（实现 `ChatBackend`，封装 `CodexChatService` 语义）；`CodexTrustFactory` 尚无真实证书链测试（需自签 CA 夹具）。
   - [ ] C1 环境：本机无 JDK 17，构建需显式设 `JAVA_HOME=D:\CODE\MeetingNotesHost\android\tools\jdk-17.0.20.1+1`（取自 Gradle daemon 日志，非仓库配置）。
   - [ ] C2 Codex Tab：六 Tab 导航、`pages/codex/` 全量 UI、扫码/拍照/选图/FileProvider、手册六入口更新。
