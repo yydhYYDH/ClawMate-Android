@@ -1,4 +1,4 @@
-﻿package com.clawmate.shared
+package com.clawmate.shared
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -179,17 +179,19 @@ class PlatformBridge(private val activity: StageActivity) :
     // intents, both of which the platform rejects off the main thread.
     private val pickers by lazy { CodexPickers(activity) }
     fun codexScanPairingCode(): String = onUi { pickers.scanPairingCode() }
-    fun codexTakePhoto(cacheDir: String): String = onUi { pickers.takePhoto(cacheDir) }
-    fun codexPickImage(): String = onUi { pickers.pickImage() }
+    fun codexTakePhotoStart(cacheDir: String): Boolean = onUi { pickers.takePhotoStart(cacheDir) }
+    fun codexTakePhotoResult(): String = pickers.takePhotoResult()
+    fun codexPickImageStart(): Boolean = onUi { pickers.pickImageStart() }
+    fun codexPickImageResult(): String = pickers.pickImageResult()
+    fun codexExportStart(raw: String): Boolean {
+        val saved = JSONObject(raw)
+        return onUi { pickers.exportStart(saved.optString("localPath"), saved.optString("name")) }
+    }
+    fun codexExportResult(): String = pickers.exportResult()
 
     fun codexOpenArtifact(raw: String): Boolean {
         val saved = JSONObject(raw)
         return onUi { pickers.openArtifact(saved.optString("localPath"), saved.optString("mimeType")) }
-    }
-
-    fun codexExportArtifact(raw: String): Boolean {
-        val saved = JSONObject(raw)
-        return onUi { pickers.exportArtifact(saved.optString("localPath"), saved.optString("name")) }
     }
 
     fun codexRunTaskStart(raw: String): String = codex.codexRunTaskStart(raw)
