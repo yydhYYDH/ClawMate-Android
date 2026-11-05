@@ -185,7 +185,15 @@ if (sources.has('pages/codex/CodexPage.ets')) {
   if (sources.has('pages/codex/CodexArtifactCard.ets')) {
     sources.set('pages/codex/CodexArtifactCard.ets', adaptCodexArtifactCard(sources.get('pages/codex/CodexArtifactCard.ets')));
   }
+  if (sources.has('pages/codex/CodexHelpPage.ets')) {
+    const { adaptCodexHelpPage } = await import('../../shared-frontend/adapters/pages/codex/codex-help-patches.mjs');
+    sources.set('pages/codex/CodexHelpPage.ets', adaptCodexHelpPage(sources.get('pages/codex/CodexHelpPage.ets')));
+  }
 }
+// A page reached only through router.pushUrl is not an import, so the reachability walk
+// cannot see it and main_pages.json must list it explicitly. Without this the Codex help
+// page builds but fails at runtime with "can't find this page".
+const ROUTED_PAGES = ['pages/codex/CodexHelpPage.ets'];
 const entry = fs.readFileSync(options.get('--entry') || path.join(here, 'probe/Index.ets'), 'utf8');
 sources.set('pages/Index.ets', entry);
 const picked = new Set();
@@ -204,6 +212,12 @@ visit('pages/Index.ets');
 if (options.has('--routes')) {
   const routes = JSON.parse(fs.readFileSync(options.get('--routes'), 'utf8')).src;
   for (const route of routes) { visit(route + '.ets'); }
+}
+// Pages reached only by navigation are invisible to the import walk, so they must be
+// visited explicitly or they are never staged. Without this the Codex help page is listed
+// in main_pages.json but absent from the bundle, and the router reports it as missing.
+for (const page of ROUTED_PAGES) {
+  if (sources.has(page)) visit(page);
 }
 const stage = path.join(project, 'entry/src/main/ets');
 // Only remove files from this generated probe that were staged by this script.
@@ -228,6 +242,22 @@ fs.writeFileSync(previousManifestPath, JSON.stringify({ upstream: lock.ref, raw,
 const module = JSON.parse(fs.readFileSync(path.join(project, 'entry/src/main/module.json5'), 'utf8'));
 module.module.requestPermissions = [{ name: 'ohos.permission.INTERNET' }];
 fs.writeFileSync(path.join(project, 'entry/src/main/module.json5'), JSON.stringify(module, null, 2));
+// Register pages that are reached only by navigation. The template's manifest is copied
+// from upstream, and upstream never had these routes, so they must be added here.
+const mainPagesFile = path.join(project, 'entry/src/main/resources/base/profile/main_pages.json');
+if (fs.existsSync(mainPagesFile)) {
+  const manifest = JSON.parse(fs.readFileSync(mainPagesFile, 'utf8'));
+  const src = Array.isArray(manifest.src) ? manifest.src : [];
+  let changed = false;
+  for (const page of ROUTED_PAGES) {
+    const route = page.replace(/\.ets$/, '');
+    if (sources.has(page) && !src.includes(route)) { src.push(route); changed = true; }
+  }
+  if (changed) {
+    manifest.src = src;
+    fs.writeFileSync(mainPagesFile, `${JSON.stringify(manifest, null, 2)}\n`);
+  }
+}
 // The template's unused HarmonyOS device tests require Hypium. Probe device tests
 // are Android checks; remove only this generated target, not any product test.
 fs.writeFileSync(path.join(project, 'entry/build-profile.json5'), JSON.stringify({

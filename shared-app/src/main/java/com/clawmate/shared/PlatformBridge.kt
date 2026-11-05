@@ -572,6 +572,30 @@ class PlatformBridge(private val activity: StageActivity) :
         true
     }
 
+    /**
+     * Opens an http(s) link in whatever browser the user has.
+     *
+     * The Codex help page needs this because ArkUI-X has no cross-platform equivalent of the
+     * HarmonyOS `context.openLink`. Only http(s) is accepted: a page URL can come from the
+     * bridge's guide content, and other schemes could reach unrelated apps.
+     *
+     * @return false when the URL is rejected or no app can handle it, so the page can tell
+     *   the user to copy the link instead.
+     */
+    fun openLink(value: String): Boolean = onUi {
+        val uri = android.net.Uri.parse(value)
+        if (uri.scheme != "https" && uri.scheme != "http") return@onUi false
+        try {
+            activity.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun <T> onUi(action: () -> T): T {
         val work = FutureTask(action)
         if (Looper.myLooper() == Looper.getMainLooper()) work.run() else activity.runOnUiThread(work)
