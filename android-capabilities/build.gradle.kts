@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
@@ -13,6 +13,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    testOptions {
+        unitTests.all { test ->
+            // Live Codex bridge checks stay opt-in: without these properties the
+            // CodexLiveBridgeTest cases are skipped rather than failing.
+            System.getProperty("clawmate.codex.bridgeUrl")?.let { test.systemProperty("clawmate.codex.bridgeUrl", it) }
+            System.getProperty("clawmate.codex.bridgeToken")?.let { test.systemProperty("clawmate.codex.bridgeToken", it) }
+            System.getProperty("clawmate.codex.bridgeCaFile")?.let { test.systemProperty("clawmate.codex.bridgeCaFile", it) }
+        }
+    }
 }
 
 dependencies {
@@ -39,3 +48,4 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation("com.squareup.okhttp3:okhttp-tls:4.12.0")
 }
+

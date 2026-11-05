@@ -52,6 +52,9 @@ class CodexTransport(
         ignoreUnknownKeys = true
         isLenient = false
         explicitNulls = false
+        // The bridge validates `Array.isArray(body.attachments)` and rejects a missing list.
+        // Serializing defaults keeps empty collections and known modes on the wire.
+        encodeDefaults = true
     }
 
     /** Encoder shared with [postTyped] and [post]. */
