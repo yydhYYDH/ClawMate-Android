@@ -146,6 +146,19 @@
 `codexRunTaskCancel` 放弃等待但**不停止远端任务**。ArkTS 每 700 ms 轮询一次，超窗后报
 `status=disconnected`，让模型去同步而不是重发。
 
+### 桥接线程阻塞是本轮发现的一类系统性问题
+
+平台桥接调用有**约 60 秒的硬上限**（实测 `TimeoutException: Waited 60000ms`）。任何超过它的
+同步调用都必然失败。本轮找出并修复了**三处**：
+
+| 位置 | 原来 | 现在 |
+|---|---|---|
+| `codexRunTask` | `runBlocking` 跑完整委托（可达 30 分钟） | `codexRunTaskStart` + `codexRunTaskPoll` |
+| `codexTakePhoto` / `codexPickImage` / 导出 | 阻塞最多 300 秒等待 Activity 结果 | `…Start` + `…Result` 轮询 |
+| `codexRequest` 单次超时 | 固定 70 秒，超过桥接上限 | 页面传 45 秒；transport 会把调用方请求钳制在自身上限内 |
+
+修复前，这三条路径**在真机上都必然失败**，而单元测试全部通过——因为测试不经过桥接。
+
 ## 复现真实联调所需
 
 
