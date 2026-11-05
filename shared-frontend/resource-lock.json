@@ -45,6 +45,71 @@
       "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
     },
     {
+      "path": "entry/src/main/resources/base/media/codex_close.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "43241a162f853105b6c876d007bada568d370ba0"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_computer.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "aeab8135fe8963b7d81250e80f98a739789a86ee"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_document.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "785489899e57c3cca1d4a04465d069cc13a647b2"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_download.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "ac322dbc06ed31b92fc9ee69d758347baaebd3bc"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_folder.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "f333aa71d869fde3f6b9ba5b18fda47548079231"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_history.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "c58bc30664528463bbe1a9e02075add39c175395"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_network.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "2a641074f96a7acf9a3edca321f4660abe86cf30"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_openai.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "258da22b8b68c1f31f21075679214a64b7e409d0"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_plus.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "a6819f0502abc17f3a2b247d39a62415cabac34f"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_scan.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "96dced1efffe98d7459198d5c0361524fa9c19cf"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_send.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "0e9fcfe7190b7093421797ef4a49231686190e13"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_settings.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "ca81e29cfc052b9590d9ebd868a7ebf0272d0941"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/codex_user.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "d270c7c75a5b78fdaeee904bbb7f90b8f39addda"
+    },
+    {
       "path": "entry/src/main/resources/base/media/digital_avatar.png",
       "gitBlob": "e571741aac3d9440cef9e55bc2a56686cb44a0d4",
       "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
@@ -118,6 +183,11 @@
       "path": "entry/src/main/resources/base/media/tab_chat.svg",
       "gitBlob": "569206b84528320b3fc000b4a38f8b634bcf488d",
       "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/tab_codex.svg",
+      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
+      "gitBlob": "bdea7a460c1b3d1ee585416518a28b0ca2adfb9e"
     },
     {
       "path": "entry/src/main/resources/base/media/tab_home.svg",
@@ -298,11 +368,6 @@
       "path": "entry/src/main/resources/rawfile/workflows/configs/default_xiaohongshu_history.json",
       "gitBlob": "d1eeed8e60137f9f5dfc0ba0f3253fb1825f09d8",
       "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
-    },
-    {
-      "path": "entry/src/main/resources/base/media/tab_codex.svg",
-      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
-      "gitBlob": "bdea7a460c1b3d1ee585416518a28b0ca2adfb9e"
     }
   ]
 }

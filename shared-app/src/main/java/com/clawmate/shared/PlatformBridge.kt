@@ -161,13 +161,45 @@ class PlatformBridge(private val activity: StageActivity) :
     private val workflowModels = java.util.concurrent.ConcurrentHashMap<String, WorkflowModelMailbox>()
     private var asr: AndroidSpeechRecognizerAsrAdapter? = null
     private val meeting = MeetingBridge(activity as SharedActivity)
+    private val codex by lazy { CodexPlatformBridge(activity) }
     private val reminders = CollectionReminderEngine(activity)
 
     fun reminderInitialize(hour: String, minute: String): String = onUi {
         reminders.initialize(SharedActivity::class.java.name, hour.toInt(), minute.toInt())
     }
-    fun reminderRefresh(): String = onUi { reminders.refresh() }
-    fun reminderState(): String = onUi { reminders.snapshot() }
+    fun reminderRefresh(): String = onUi { reminders.refresh() }    fun reminderState(): String = onUi { reminders.snapshot() }
+    fun codexRequest(raw: String): String = codex.codexRequest(raw)
+    fun codexCancel(id: String): Boolean = codex.codexCancel(id)
+    fun codexConnectionList(): String = codex.codexConnectionList()
+    fun codexConnectionLoad(id: String): String = codex.codexConnectionLoad(id)
+    fun codexConnectionSave(raw: String): String = codex.codexConnectionSave(raw)
+    fun codexConnectionForget(id: String): Boolean = codex.codexConnectionForget(id)
+
+    // Pickers must run on the UI thread: they register activity-result launchers and start
+    // intents, both of which the platform rejects off the main thread.
+    private val pickers by lazy { CodexPickers(activity) }
+    fun codexScanPairingCode(): String = onUi { pickers.scanPairingCode() }
+    fun codexTakePhoto(cacheDir: String): String = onUi { pickers.takePhoto(cacheDir) }
+    fun codexPickImage(): String = onUi { pickers.pickImage() }
+
+    fun codexOpenArtifact(raw: String): Boolean {
+        val saved = JSONObject(raw)
+        return onUi { pickers.openArtifact(saved.optString("localPath"), saved.optString("mimeType")) }
+    }
+
+    fun codexExportArtifact(raw: String): Boolean {
+        val saved = JSONObject(raw)
+        return onUi { pickers.exportArtifact(saved.optString("localPath"), saved.optString("name")) }
+    }
+
+    /** Routes a picker result back to the waiting Codex call; true when consumed. */
+    internal fun codexActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean =
+        pickers.onActivityResult(requestCode, resultCode, data)
+
+    /** Completes a "save as" request with the location the user chose. */
+    internal fun codexExportPicked(uri: Uri?) {
+        pickers.onExportPicked(uri)
+    }
     fun reminderSetEnabled(enabled: Boolean): String = onUi {
         if (enabled && Build.VERSION.SDK_INT >= 33 && activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             runCatching { reminders.setEnabled(true) } // Persist a controlled disabled/error state before the prompt.
@@ -544,3 +576,5 @@ class PlatformBridge(private val activity: StageActivity) :
         }
     }
 }
+
+

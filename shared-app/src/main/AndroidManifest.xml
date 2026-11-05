@@ -23,6 +23,8 @@
             android:label="@string/clawmate_gui_accessibility_name" android:exported="true" />
         <provider android:name=".CaptureProvider" android:authorities="${applicationId}.capture"
             android:exported="false" android:grantUriPermissions="true" />
+        <provider android:name=".CodexArtifactProvider" android:authorities="${applicationId}.codex"
+            android:exported="false" android:grantUriPermissions="true" />
         <receiver android:name="com.clawmate.platform.reminder.CollectionReminderReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

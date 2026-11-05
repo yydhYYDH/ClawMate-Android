@@ -23,6 +23,9 @@ android {
 }
 dependencies {
     implementation project(':android-capabilities')
+    // Codex bridge awaits suspending transport calls from bridge methods.
+    implementation libs.kotlinx.coroutines.android
+    implementation libs.okhttp
     if (findProject(':meeting-sdk') != null) implementation project(':meeting-sdk')
     implementation fileTree(dir: new File(runtimeDir, 'libs'), include: ['*.jar'])
     androidTestImplementation libs.androidx.junit

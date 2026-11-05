@@ -139,6 +139,15 @@ class CodexTransport(
 
     fun isConfigured(): Boolean = token.isNotEmpty() && baseUrl.isNotEmpty()
 
+    /** True when this transport already targets [origin]. */
+    @Synchronized
+    fun isConfiguredFor(origin: String): Boolean =
+        token.isNotEmpty() && baseUrl.isNotEmpty() && baseUrl == origin
+
+    /** Returns the origin this transport currently targets, or empty when unconfigured. */
+    @Synchronized
+    fun origin(): String = baseUrl
+
     /**
      * Points an already-configured connection at a loopback server.
      *

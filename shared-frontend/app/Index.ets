@@ -1,4 +1,4 @@
-﻿import { common } from '@kit.AbilityKit';
+import { common } from '@kit.AbilityKit';
 import { promptAction, router, KeyboardAvoidMode } from '@kit.ArkUI';
 import { FirstLaunchOnboarding } from '../pages/onboarding/FirstLaunchOnboarding';
 import { FIRST_LAUNCH_ONBOARDING_VERSION, FIRST_LAUNCH_ONBOARDING_STORAGE_KEY } from '../pages/onboarding/OnboardingTypes';
@@ -7,6 +7,7 @@ import { HomeComfortChatStore } from '../pages/home/HomeComfortChatStore';
 import { CollectionPage } from '../pages/collection/CollectionPage';
 import { TaskPage } from '../pages/task/TaskPage';
 import { ChatPage } from '../pages/chat/ChatPage';
+import { CodexPage } from '../pages/codex/CodexPage';
 import { SettingsCenterPage } from '../pages/settings/SettingsCenterPage';
 import { MainTabIndex, mainTabBackgroundColor } from '../pages/main/MainTabConfig';
 import { CHAT_MODE_CLOUD_AGENT, CHAT_MODE_LOCAL_INFERENCE } from '../pages/chat/ChatPageTypes';
@@ -63,6 +64,11 @@ struct Index {
   @State collectionScene: number = 1;
   @State taskScene: number = 0;
   @State configViewOpen: boolean = false;
+  // Codex tab state lives here so switching tabs keeps its screen, settings sheet and
+  // history drawer; CodexPage owns everything else internally.
+  @State codexScreen: number = 0;
+  @State codexTaskSettingsOpen: boolean = false;
+  @State codexHistoryOpen: boolean = false;
   @State profile: HomeProfileViewModel = createEmptyHomeProfileViewModel();
   @State collectionViews: CollectionViewModel[] = createEmptyCollectionViewModels();
   @State avatarVersions: AvatarVersionViewModel[] = [];
@@ -146,6 +152,12 @@ struct Index {
     if (this.tab === MainTabIndex.Mine && this.settingsSection >= 0) { this.settingsSection = -1; return true; }
     if (this.tab === MainTabIndex.Task && this.configViewOpen) {
       AppStorage.setOrCreate('androidWorkflowBackRequested', Date.now()); return true;
+    }
+    // Codex keeps its own sheets; close them before leaving the tab.
+    if (this.tab === MainTabIndex.Codex) {
+      if (this.codexTaskSettingsOpen) { this.codexTaskSettingsOpen = false; return true; }
+      if (this.codexHistoryOpen) { this.codexHistoryOpen = false; return true; }
+      if (this.codexScreen !== 0) { this.codexScreen = 0; return true; }
     }
     if (this.tab !== MainTabIndex.Home) { this.tab = MainTabIndex.Home; return true; }
     return false;
@@ -782,13 +794,17 @@ struct Index {
         }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(1))
         TabContent() { this.Chat() }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(2))
         TabContent() {
+          CodexPage({ active: this.tab === MainTabIndex.Codex, navigationBottomInset: MAIN_NAVIGATION_INSET,
+            screen: $codexScreen, taskSettingsOpen: $codexTaskSettingsOpen, historyOpen: $codexHistoryOpen })
+        }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(3))
+        TabContent() {
           TaskPage({ taskScene: $taskScene, configViewOpen: $configViewOpen, active: this.tab === MainTabIndex.Task,
             onEnsureDesktopCompanion: async (): Promise<boolean> => { return true; },
             onRunWorkflow: async (task: WorkflowTask, cancellation: WorkflowCancellation): Promise<void> => { await AndroidWorkflow.run(this.context().filesDir, task, cancellation, async (): Promise<void> => { await this.authorizeCloud(); }); },
             onRunPhoneWorkflow: async (task: WorkflowTask, cancellation: WorkflowCancellation): Promise<void> => { await AndroidWorkflow.run(this.context().filesDir, task, cancellation, async (): Promise<void> => { await this.authorizeCloud(); }); }
           })
-        }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(3))
-        TabContent() { this.Settings() }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(4))
+        }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(4))
+        TabContent() { this.Settings() }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(5))
   }
 
   build() {

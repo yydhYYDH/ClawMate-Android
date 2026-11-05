@@ -177,6 +177,15 @@ if (options.has('--overlay')) {
     sources.set(path.relative(overlay, file).split(path.sep).join('/'), fs.readFileSync(file, 'utf8'));
   }
 }
+// Platform adaptations that introduce new imports must run before the reachability walk,
+// otherwise the modules they reference are never picked up.
+if (sources.has('pages/codex/CodexPage.ets')) {
+  const { adaptCodexPage, adaptCodexArtifactCard } = await import('../../shared-frontend/adapters/pages/codex/codex-page-patches.mjs');
+  sources.set('pages/codex/CodexPage.ets', adaptCodexPage(sources.get('pages/codex/CodexPage.ets')));
+  if (sources.has('pages/codex/CodexArtifactCard.ets')) {
+    sources.set('pages/codex/CodexArtifactCard.ets', adaptCodexArtifactCard(sources.get('pages/codex/CodexArtifactCard.ets')));
+  }
+}
 const entry = fs.readFileSync(options.get('--entry') || path.join(here, 'probe/Index.ets'), 'utf8');
 sources.set('pages/Index.ets', entry);
 const picked = new Set();

@@ -1,4 +1,4 @@
-﻿package com.clawmate.shared
+package com.clawmate.shared
 
 import android.os.Bundle
 import android.graphics.Color
@@ -137,6 +137,12 @@ class SharedActivity : StageActivity() {
             captureStatus = if (resultCode == Activity.RESULT_OK && (captureFile?.length() ?: 0) > 0) "done" else "cancelled"
             if (captureStatus != "done") { captureFile?.delete(); captureFile = null }
         }
+        if (requestCode == CodexPickers.REQUEST_EXPORT) {
+            // The user chose a destination; the waiting export call copies the file there.
+            platform.codexExportPicked(if (resultCode == Activity.RESULT_OK) data?.data else null)
+            return
+        }
+        if (platform.codexActivityResult(requestCode, resultCode, data)) return
     }
 
     override fun onCreate(state: Bundle?) {

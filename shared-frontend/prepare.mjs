@@ -349,6 +349,8 @@ for (const route of ['pages/settings/DesktopCompanionPage', 'pages/settings/Self
   const source = fs.readFileSync(file, 'utf8');
   fs.writeFileSync(file, replaceChecked(source, /struct (\w+) \{/, 'struct $1 {\n  onBackPress(): boolean { router.back(); return true; }'));
 }
+// Codex page adaptations run inside prepare-project.mjs, before the import walk, because
+// they add imports that the walk must follow.
 console.log(JSON.stringify({ product: 'com.clawmate.shared', project, sourceCommit: app.sourceCommit }));
 
 // Some API-20 Android transports do not settle the request Promise on destroy.
