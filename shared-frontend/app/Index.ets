@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit';
+﻿import { common } from '@kit.AbilityKit';
 import { promptAction, router, KeyboardAvoidMode } from '@kit.ArkUI';
 import { FirstLaunchOnboarding } from '../pages/onboarding/FirstLaunchOnboarding';
 import { FIRST_LAUNCH_ONBOARDING_VERSION, FIRST_LAUNCH_ONBOARDING_STORAGE_KEY } from '../pages/onboarding/OnboardingTypes';
@@ -50,6 +50,11 @@ import { MainNavigation } from '../platform/MainNavigation';
 import { NavigationStyle, MAIN_NAVIGATION_INSET } from '../platform/NavigationStyle';
 import { LocalModelAccess, DownloadedModel, DownloadProgress } from '../platform/LocalModelAccess';
 import { ChatVoiceMetadata, VoiceInteractionStatus, TtsVoiceRuntimeStatus, createTtsVoiceRuntimeMetadata, createVoiceErrorMetadata } from '../pages/chat/VoiceInteractionTypes';
+
+/** Native start response for a chat delegation. */
+interface CodexStarted { id: string; failure: string; }
+/** Native poll response for a chat delegation. */
+interface CodexPolled { v: number; status: string; result?: string; }
 
 interface CaptureResult { v: number; status: string; uri: string; }
 
@@ -641,28 +646,71 @@ struct Index {
   /**
    * Bridges a chat delegation to the native Codex backend.
    *
-   * The tool result is bounded and the run id is surfaced so the transcript can host a
-   * card the user can resynchronise from; a lost connection never becomes a silent failure.
+   * A delegation can run for minutes, longer than a single bridge call may block, so this
+   * uses the same start/poll shape as image preparation. A failed delegation still yields a
+   * usable tool result: throwing here would abort the whole agent turn, and a run whose
+   * outcome is unknown is reported as such so the model does not resend it.
    */
   private codexDelegation(): CodexDelegation {
     return {
       run: async (request: CodexToolRequest): Promise<CodexRunOutcome> => {
-        const bridge = Bridge.createBridge('ClawMatePlatform');
-        const session = this.sessionId.length > 0 ? this.sessionId : 'chat';
-        const raw = await bridge.callMethod('codexRunTask', JSON.stringify({
-          task: request.task, continueRunId: request.continueRunId, sessionId: session
-        })) as string;
-        return JSON.parse(raw) as CodexRunOutcome;
+        let fallback: CodexRunOutcome = {
+          ok: false, status: 'failed', runId: '', computer: '', answer: '',
+          files: [], receivedIds: [], error: ''
+        };
+        try {
+          const bridge = Bridge.createBridge('ClawMatePlatform');
+          const session = this.sessionId.length > 0 ? this.sessionId : 'chat';
+          const started = JSON.parse(await bridge.callMethod('codexRunTaskStart', JSON.stringify({
+            task: request.task, continueRunId: request.continueRunId, sessionId: session
+          })) as string) as CodexStarted;
+          if (!started || !started.id) {
+            fallback.status = 'unavailable';
+            fallback.error = started && started.failure ? started.failure : '无法启动 Codex 委托';
+            return fallback;
+          }
+          // Poll until the native side settles. The window matches the backend's own
+          // follow timeout; past it the run is reported unknown rather than failed.
+          const deadline = Date.now() + 32 * 60 * 1000;
+          while (Date.now() < deadline) {
+            const polled = JSON.parse(await bridge.callMethod('codexRunTaskPoll', started.id) as string) as CodexPolled;
+            const raw = polled !== null ? polled.result : undefined;
+            if (typeof raw === 'string' && raw.length > 0) {
+              const parsed = JSON.parse(raw) as CodexRunOutcome;
+              const runId = parsed && typeof parsed.runId === 'string' ? parsed.runId : '';
+              if (runId.length > 0) { AppStorage.setOrCreate('androidCodexLastRunId', runId); }
+              return {
+                ok: parsed.ok === true,
+                status: parsed.status || 'failed',
+                runId: runId,
+                computer: parsed.computer || '',
+                answer: parsed.answer || '',
+                error: parsed.error || '',
+                files: Array.isArray(parsed.files) ? parsed.files : [],
+                receivedIds: Array.isArray(parsed.receivedIds) ? parsed.receivedIds : []
+              };
+            }
+            await new Promise<void>((resolve): void => { setTimeout(resolve, 700); });
+          }
+          await bridge.callMethod('codexRunTaskCancel', started.id).catch((): void => {});
+          fallback.status = 'disconnected';
+          fallback.error = '远端任务尚未确认结束，可稍后同步该委托';
+          return fallback;
+        } catch (e) {
+          fallback.error = (e as Error).message || 'Codex 委托失败';
+          // The native call may have submitted work before failing; say so.
+          fallback.status = 'disconnected';
+          return fallback;
+        }
       },
       onCreated: (runId: string): void => {
-        // Keep the id reachable from the transcript so a later round can resync this run.
+        // Reachable from the transcript so a later round can resync this run.
         AppStorage.setOrCreate('androidCodexLastRunId', runId);
       }
     };
   }
 
-  @Builder private Home() {
-    HomePage({ navigationBottomInset: this.navigationInset(), comfortChatStore: this.comfort, profile: this.profile, avatarVersions: this.avatarVersions,
+  @Builder private Home() {    HomePage({ navigationBottomInset: this.navigationInset(), comfortChatStore: this.comfort, profile: this.profile, avatarVersions: this.avatarVersions,
       taskSuggestions: this.suggestions, taskSuggestionsLoading: this.suggestionsLoading,
       comfortConcerns: this.concerns, comfortConcernsLoading: this.concernsLoading,
       onOpenTasks: (): void => { this.tab = MainTabIndex.Task; },
@@ -847,3 +895,5 @@ struct Index {
     }
   }
 }
+
+

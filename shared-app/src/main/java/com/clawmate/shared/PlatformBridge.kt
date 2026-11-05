@@ -192,7 +192,9 @@ class PlatformBridge(private val activity: StageActivity) :
         return onUi { pickers.exportArtifact(saved.optString("localPath"), saved.optString("name")) }
     }
 
-    fun codexRunTask(raw: String): String = codex.codexRunTask(raw)
+    fun codexRunTaskStart(raw: String): String = codex.codexRunTaskStart(raw)
+    fun codexRunTaskPoll(id: String): String = codex.codexRunTaskPoll(id)
+    fun codexRunTaskCancel(id: String): Boolean = codex.codexRunTaskCancel(id)
 
     /** Routes a picker result back to the waiting Codex call; true when consumed. */
     internal fun codexActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean =
@@ -578,6 +580,7 @@ class PlatformBridge(private val activity: StageActivity) :
         }
     }
 }
+
 
 
 

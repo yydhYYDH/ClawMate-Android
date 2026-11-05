@@ -15,6 +15,13 @@ import com.clawmate.platform.codex.CodexTransportException
 import com.clawmate.platform.codex.EncryptedCodexSecretStorage
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+// codexRequest is one bounded HTTP exchange, so blocking the bridge thread is acceptable
+// there; a delegation is not, and uses start/poll instead.
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -43,6 +50,18 @@ import kotlinx.serialization.json.put
 class CodexPlatformBridge(private val context: Context) {
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** Runs delegations off the bridge thread; they outlive a single poll. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Delegations in flight, keyed by the id handed to ArkTS. */
+    private val codexRuns = ConcurrentHashMap<String, CodexRunState>()
+
+    /** Releases running delegations; their remote tasks keep running on the PC. */
+    fun close() {
+        codexRuns.clear()
+        scope.coroutineContext[Job]?.cancel()
+    }
 
     private val credentials: CodexCredentialStore by lazy {
         CodexCredentialStore(EncryptedCodexSecretStorage.open(context.applicationContext))
@@ -149,34 +168,85 @@ class CodexPlatformBridge(private val context: Context) {
     }
 
     /**
-     * Runs one chat delegation to completion and returns its bounded outcome.
+     * Starts one chat delegation and returns its id immediately.
      *
-     * The picker is not needed here: a delegation reuses the single saved computer and the
-     * workspace stored on the run being continued, or the first saved computer's default
-     * workspace on a new run. Choosing a different computer stays a Codex-tab action.
+     * A delegation can run for many minutes. Blocking the bridge thread that long would hit
+     * the platform's call timeout (observed at 60 s), so this follows the same start/poll
+     * shape as `imagePrepareStart`: work runs on a coroutine and the caller polls.
      *
-     * Failures are reported as `status` values rather than exceptions so the ArkTS layer can
-     * give the model a truthful description, including "outcome unknown".
+     * @return `{"id": "<runId>"}` or `{"id": "", "failure": "..."}`.
      */
-    fun codexRunTask(raw: String): String {
+    fun codexRunTaskStart(raw: String): String {
         val request = try {
             json.parseToJsonElement(raw).jsonObject
         } catch (e: Exception) {
-            return outcome("failed", "", "", message = "委托参数无效")
+            return buildJsonObject { put("id", ""); put("failure", "委托参数无效") }.toString()
         }
         val text = request.text("task")
+        if (text.isEmpty()) {
+            return buildJsonObject { put("id", ""); put("failure", "task 不能为空") }.toString()
+        }
         val continueRunId = request.text("continueRunId")
         val sessionId = request.text("sessionId").ifEmpty { "chat" }
-        if (text.isEmpty()) return outcome("invalid_arguments", "", "", message = "task 不能为空")
+        val runId = java.util.UUID.randomUUID().toString()
+        codexRuns[runId] = CodexRunState(running = true)
+        scope.launch {
+            val state = codexRuns[runId] ?: return@launch
+            val result = try {
+                executeDelegation(text, continueRunId, sessionId, runId)
+            } catch (e: Exception) {
+                outcome("failed", runId, "", e.message ?: "Codex 委托失败")
+            }
+            state.complete(result)
+        }
+        return buildJsonObject { put("id", runId); put("failure", "") }.toString()
+    }
+
+    /**
+     * Polls a delegation.
+     *
+     * @return `{"v":1,"status":"running"}` or `{"v":1,"status":"done","result":{...}}`.
+     */
+    fun codexRunTaskPoll(id: String): String {
+        val state = codexRuns[id]
+            ?: return buildJsonObject { put("v", 1); put("status", "missing") }.toString()
+        val result = state.result
+        return if (result == null) {
+            buildJsonObject { put("v", 1); put("status", "running") }.toString()
+        } else {
+            codexRuns.remove(id)
+            buildJsonObject {
+                put("v", 1)
+                put("status", "done")
+                put("result", result)
+            }.toString()
+        }
+    }
+
+    /** Abandons a delegation; the remote task keeps running and must be resynced. */
+    fun codexRunTaskCancel(id: String): Boolean {
+        codexRuns.remove(id)
+        return true
+    }
+
+    private class CodexRunState(running: Boolean) {
+        @Volatile var result: String? = null
+        init { if (!running) result = "" }
+        fun complete(value: String) { result = value }
+    }
+
+    private suspend fun executeDelegation(
+        text: String,
+        continueRunId: String,
+        sessionId: String,
+        runId: String,
+    ): String {
         val store = runStore
         val backend = CodexBackend(
             transport = CodexTransport(clientFactory = { ca -> CodexTransport.defaultClient(ca) }),
             credentials = credentials,
             artifacts = CodexArtifactStore(File(context.filesDir, "codex/sessions")),
         ).apply {
-            // A chat delegation cannot prompt for a directory, so it uses the workspace the
-            // conversation already targets or the server's first one. Changing the computer
-            // or directory remains a Codex-tab action.
             selector = CodexBackend.TargetSelector { saved, _, _ -> CodexBackend.Target(saved.id, "") }
             runStore = store
             defaultWorkspace = { envelope -> envelope.workspaces.firstOrNull()?.id.orEmpty() }
@@ -186,7 +256,7 @@ class CodexPlatformBridge(private val context: Context) {
             override fun onTrace(line: String) = Unit
         }
         return try {
-            val result = runBlocking { backend.run(ChatRequest(sessionId, text, continueRunId = continueRunId), handlers) }
+            val result = backend.run(ChatRequest(sessionId, text, continueRunId = continueRunId), handlers)
             val received = result.files.filter { it.localPath.isNotEmpty() }.map { it.id }
             outcomeJson(result, received)
         } catch (e: CodexRunException) {
@@ -195,12 +265,12 @@ class CodexPlatformBridge(private val context: Context) {
                 if (e.outcomeUnknown) "disconnected" else "failed",
                 e.runId,
                 "",
-                message = e.message.orEmpty(),
+                e.message.orEmpty(),
             )
         } catch (e: ChatBackendUnavailableException) {
-            outcome("unavailable", "", "", message = e.message.orEmpty())
+            outcome("unavailable", "", "", e.message.orEmpty())
         } catch (e: Exception) {
-            outcome("failed", "", "", message = e.message ?: "Codex 委托失败")
+            outcome("failed", "", "", e.message ?: "Codex 委托失败")
         }
     }
 
@@ -271,3 +341,4 @@ class CodexPlatformBridge(private val context: Context) {
 
     private fun JsonElement.jsonPrimitiveOrNull(): JsonPrimitive? = this as? JsonPrimitive
 }
+
