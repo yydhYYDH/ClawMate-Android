@@ -251,6 +251,28 @@ class CodexTransportTest {
     }
 
     @Test
+    fun `a caller-supplied timeout is bounded by the transport ceiling`() = runBlocking {
+        // A platform bridge call cannot block indefinitely, so a caller asking for more than
+        // the transport allows must be capped rather than left to fail at the bridge.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"ready":true}"""))
+        val transport = transport()
+        transport.get("/v1/info", timeoutMs = 10L * 60 * 1000)
+        assertEquals(1, server.requestCount)
+        // A non-positive request keeps the transport default and still works.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"ready":true}"""))
+        transport.get("/v1/info", timeoutMs = 0L)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `a very small timeout still issues the call`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"ready":true}"""))
+        // Clamped up to the minimum instead of becoming an instant timeout.
+        val result = transport().get("/v1/info", timeoutMs = 1L)
+        assertEquals(true, result.ready)
+    }
+
+    @Test
     fun `the artifact chunk size is bounded`() {
         val transport = CodexTransport()
         transport.setArtifactChunkBytes(262_144)

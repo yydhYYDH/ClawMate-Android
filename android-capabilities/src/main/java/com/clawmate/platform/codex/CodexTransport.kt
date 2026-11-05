@@ -1,4 +1,4 @@
-package com.clawmate.platform.codex
+﻿package com.clawmate.platform.codex
 
 import okhttp3.Call
 import okhttp3.Callback
@@ -176,30 +176,46 @@ class CodexTransport(
     /**
      * `GET [route]`.
      *
+     * @param timeoutMs override for callers whose platform side limits how long one call may
+     *   block; clamped to [MIN_TIMEOUT_MS]..[CALL_TIMEOUT_MS].
      * @throws CodexTransportException on cancellation, timeout, redirect, auth failure or transport loss.
      * @throws CodexHttpException when the bridge answers with a non-2xx status.
      */
-    suspend fun get(route: String, authenticated: Boolean = true): CodexEnvelope =
-        execute(route = route, body = null, authenticated = authenticated)
+    suspend fun get(route: String, authenticated: Boolean = true, timeoutMs: Long = 0L): CodexEnvelope =
+        execute(route = route, body = null, authenticated = authenticated, timeoutMs = timeoutMs)
 
     /**
      * `POST [route]` with a JSON body. Never retried: see the class contract.
      */
-    suspend fun post(route: String, body: JsonElement, authenticated: Boolean = true): CodexEnvelope =
-        execute(route = route, body = json.encodeToString(JsonElement.serializer(), body), authenticated = authenticated)
+    suspend fun post(
+        route: String,
+        body: JsonElement,
+        authenticated: Boolean = true,
+        timeoutMs: Long = 0L,
+    ): CodexEnvelope = execute(
+        route = route,
+        body = json.encodeToString(JsonElement.serializer(), body),
+        authenticated = authenticated,
+        timeoutMs = timeoutMs,
+    )
 
     /** `POST [route]` with a typed body. Never retried. */
     suspend inline fun <reified T> postTyped(route: String, body: T, authenticated: Boolean = true): CodexEnvelope =
         post(route, encoder.encodeToJsonElement(serializer<T>(), body), authenticated)
 
-    private suspend fun execute(route: String, body: String?, authenticated: Boolean): CodexEnvelope {
+    private suspend fun execute(
+        route: String,
+        body: String?,
+        authenticated: Boolean,
+        timeoutMs: Long = 0L,
+    ): CodexEnvelope {
         val generationAtStart = generation
         // Only a read may be retried, and only once.
         val retryable = body == null && !route.contains("waitMs=")
         var attempt = 0
         while (true) {
             try {
-                return fetchOnce(route, body, authenticated, generationAtStart)
+                return fetchOnce(route, body, authenticated, generationAtStart, timeoutMs)
             } catch (e: CodexTransportException) {
                 val mayRetry = retryable && attempt == 0 && e.retryable && generation == generationAtStart
                 if (!mayRetry) throw e
@@ -215,6 +231,7 @@ class CodexTransport(
         body: String?,
         authenticated: Boolean,
         generationAtStart: Int,
+        requestedTimeoutMs: Long = 0L,
     ): CodexEnvelope {
         if (!isConfigured()) throw CodexValidationException("请先连接 Codex 服务器")
         val http = client ?: throw CodexValidationException("请先连接 Codex 服务器")
@@ -235,7 +252,7 @@ class CodexTransport(
 
         val call = http.newCall(builder.build())
         synchronized(this) { active[call] = generationAtStart }
-        val timeoutMs = if (route == "/v1/health") HEALTH_TIMEOUT_MS else CALL_TIMEOUT_MS
+        val timeoutMs = clampTimeout(requestedTimeoutMs, if (route == "/v1/health") HEALTH_TIMEOUT_MS else CALL_TIMEOUT_MS)
         try {
             val response = await(call, timeoutMs)
             if (generation != generationAtStart) throw CodexConnectionChangedException()
@@ -329,17 +346,28 @@ class CodexTransport(
     }
 
     /** Maps an I/O failure to the transport error the UI reports. */
-    fun classify(e: IOException): CodexTransportException = when {
-        e is SocketTimeoutException -> CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", true)
+    fun classify(e: IOException): CodexTransportException = when {        e is SocketTimeoutException -> CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", true)
         e is InterruptedIOException && e.message.orEmpty().contains("timeout", true) ->
             CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", true)
         else -> CodexTransportException("与电脑的网络连接中断，请稍后重试", true)
     }
 
+    /**
+     * Bounds a caller-supplied timeout.
+     *
+     * A platform bridge call cannot block longer than the host allows, so a request that
+     * asked for more is capped instead of being left to time out at the bridge. A zero or
+     * negative request keeps [fallback].
+     */
+    private fun clampTimeout(requested: Long, fallback: Long): Long =
+        if (requested <= 0L) fallback else requested.coerceIn(MIN_TIMEOUT_MS, fallback)
+
     companion object {
         const val CONNECT_TIMEOUT_MS: Long = 25_000
         const val CALL_TIMEOUT_MS: Long = 70_000
         const val HEALTH_TIMEOUT_MS: Long = 18_000
+        /** Shortest timeout worth issuing; below this a request should not be attempted. */
+        const val MIN_TIMEOUT_MS: Long = 3_000
         const val RETRY_DELAY_MS: Long = 600
         const val RETRY_DELAY_JITTER_MS: Long = 600
         const val DEFAULT_CHUNK_BYTES: Long = 1024 * 1024
@@ -411,3 +439,6 @@ class CodexHttpException(
 
 /** The bridge answered with something that is not a Codex envelope. */
 class CodexProtocolException(message: String) : CodexTransportException(message)
+
+
+

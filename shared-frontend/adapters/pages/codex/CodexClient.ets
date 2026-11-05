@@ -149,7 +149,10 @@ export class CodexClient {
         id: id, origin: this.origin, method: body === undefined ? 'GET' : 'POST', route: route,
         body: body === undefined ? undefined : JSON.stringify(body), authenticated: authenticated,
         caCertificate: this.caCertificate, token: this.token,
-        timeoutMs: route === '/v1/health' ? 18000 : 70000,
+        // The platform bridge call itself is capped (~60 s), so a single exchange must ask
+        // for less than that or the bridge times out before the request does. Long polls use
+        // waitMs=12000; a follow-up exchange gets the remaining headroom.
+        timeoutMs: route === '/v1/health' ? 15000 : 45000,
         expectGzip: this.compressionEnabled
       };
       let raw = await CodexClient.bridge().callMethod('codexRequest', JSON.stringify(payload)) as string;

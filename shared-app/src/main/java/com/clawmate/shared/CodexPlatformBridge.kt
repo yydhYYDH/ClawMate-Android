@@ -105,11 +105,14 @@ class CodexPlatformBridge(private val context: Context) {
                 )
             }
             val body = request["body"]?.jsonPrimitiveOrNull()?.content
+            // Honour the caller's deadline: a bridge call cannot block indefinitely, and the
+            // page already knows how long it is prepared to wait.
+            val requestedTimeout = (request["timeoutMs"] as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
             val envelope = runBlocking {
                 if (method == "POST") {
-                    transport.post(route, json.parseToJsonElement(body ?: "{}"))
+                    transport.post(route, json.parseToJsonElement(body ?: "{}"), timeoutMs = requestedTimeout)
                 } else {
-                    transport.get(route)
+                    transport.get(route, timeoutMs = requestedTimeout)
                 }
             }
             buildJsonObject {
