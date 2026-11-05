@@ -229,6 +229,28 @@ class CodexTransportTest {
     }
 
     @Test
+    fun `a gzip response is decoded transparently`() = runBlocking {
+        // The bridge compresses any body of 1024 bytes or more. Setting Accept-Encoding by
+        // hand bypasses OkHttp's transparent inflation and yields raw gzip bytes, which is
+        // how every large response failed once against a real server.
+        val large = """{"ready":true,"name":"${"x".repeat(4096)}"}"""
+        val raw = java.io.ByteArrayOutputStream().also { out ->
+            java.util.zip.GZIPOutputStream(out).use { it.write(large.toByteArray(Charsets.UTF_8)) }
+        }.toByteArray()
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .addHeader("Content-Encoding", "gzip")
+                .setBody(okio.Buffer().apply { write(raw) }),
+        )
+
+        val result = transport().get("/v1/info")
+
+        assertEquals(true, result.ready)
+        assertEquals(4096, result.name.length)
+    }
+
+    @Test
     fun `the artifact chunk size is bounded`() {
         val transport = CodexTransport()
         transport.setArtifactChunkBytes(262_144)

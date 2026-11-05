@@ -272,6 +272,11 @@ class CodexBackend(
         current: ActiveRun,
         handlers: ChatHandlers,
     ): CodexTask {
+        // A long poll that times out without a change answers `unchanged` with no task. That
+        // is the normal steady state while the PC works, not an error.
+        if (envelope.unchanged && envelope.task == null && envelope.taskDelta == null) {
+            return current.task ?: throw CodexValidationException("未收到任务状态")
+        }
         val merged = CodexTypes.mergeTask(current.task, envelope)
             ?: throw CodexValidationException("未收到任务状态")
         if (merged.id != run.taskId || merged.workspaceId != run.workspaceId ||

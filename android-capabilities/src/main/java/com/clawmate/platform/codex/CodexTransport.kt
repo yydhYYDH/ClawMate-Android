@@ -226,7 +226,10 @@ class CodexTransport(
         val builder = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
-            .header("Accept-Encoding", if (gzipEnabled) "gzip" else "identity")
+        // Accept-Encoding is deliberately not set here. OkHttp only inflates a gzip response
+        // when it added the header itself; setting it manually returns the raw compressed
+        // bytes, which the bridge sends for any body of 1024 bytes or more.
+        if (!gzipEnabled) builder.header("Accept-Encoding", "identity")
         if (authenticated) builder.header("Authorization", "Bearer $token")
         if (body == null) builder.get() else builder.post(body.toRequestBody(JSON_MEDIA_TYPE))
 
@@ -268,7 +271,11 @@ class CodexTransport(
         val envelope: CodexEnvelope = try {
             json.decodeFromString(CodexEnvelope.serializer(), text)
         } catch (e: Exception) {
-            throw CodexProtocolException("服务器响应不是有效的 Codex 协议数据")
+            // Include a short excerpt so a protocol mismatch is diagnosable from the message.
+            // The body comes from the bridge and never carries the bearer token.
+            throw CodexProtocolException(
+                "服务器响应不是有效的 Codex 协议数据（${code}）：" + text.take(160).replace('\n', ' '),
+            )
         }
         // The bridge reports a failure as a non-2xx status plus `error`. 502/504 are
         // transient and may be retried for reads only.
