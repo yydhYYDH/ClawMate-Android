@@ -44,13 +44,19 @@
   - [x] C0-b 六 Tab（2026-11-06）：`shared-frontend/app/Index.ets` 新增 Codex Tab（索引 3），Task/Mine 顺移到 4/5，并补 Codex 返回键（先关设置面板、再关历史、再退连接页）。原估算的“Index.ets 重建”**不存在**——共享入口是我们自己写的 `app/Index.ets`，覆盖上游同名文件；上游那 18 个漂移文件仍未对齐，但不阻塞 Codex。
   - [x] C2 Codex Tab（2026-11-06）：`shared-frontend/adapters/pages/codex/` 替换 4 个鸿蒙 Kit——`RemoteCommunicationKit`→`CodexClient`（走原生 `codexRequest`）、`AssetStoreKit`→加密凭据、`PreviewKit`→系统 ACTION_VIEW/ACTION_CREATE_DOCUMENT、`ScanKit`/`CameraKit`/`MediaLibraryKit`→`CodexPickers`。`CodexPage` 用**锚定补丁**而非重写（上游一改即构建失败）；`CodexArtifactProvider` 只放行 `filesDir/codex/sessions/<64hex>/<id>/<name>` 三段路径。真机 PKB110 已验证渲染。
   - [x] C3 聊天委托（2026-11-06）：`SharedAgent` 注册 `run_codex_task`，**独立预算**（`maxDelegations=1`，与 3 次记忆查询分开）；仅在页面提供委托实现时才向模型声明该工具；参数只允许 `task` 与自有 `run_id`；结果裁剪到 3900 字符，不含令牌/路径/文件内容；提交后未确认返回 `status=disconnected`，明确禁止重发。`CodexBackend` 新增 `defaultWorkspace`，让聊天路径无从选目录时由 `/v1/info` 解析。
-  - [ ] **未验证（重要）**：Codex 的“配对→建任务→下发→审批→收文件”**没有任何真实端到端验证**。本机没有运行 PC 桥接服务，也没有可用配对。现有证据只有 MockWebServer 单测（53 项）与真机 UI 渲染。真实联调需：一台跑 `bridge/codex` 的电脑 + Codex 登录 + 局域网 HTTPS 证书。
+  - [x] **协议层真实联调（2026-11-06）**：本机起真实 HTTPS 桥接（自签 CA，走生产 `CodexTransport` 代码路径），
+    14 项 live 测试全过：能力协商、单次往返、错误令牌、CA 钉扎、未钉扎拒绝、完整委托到终态、
+    同 `requestId` 不重复执行、冲突内容 409、中断确认、未知路由、**交付文件下载落地**、**审批提示 `waitingApproval` 且不误交付**。
+    替身与复现步骤见 [tests/codex/README.md](tests/codex/README.md)。
+  - [x] **由此发现的 6 个真实缺陷（单测全绿却必然导致真机失败）**：`attachments` 被省略、gzip 不解压、
+    `unchanged` 当错误、`codexRunTask` 阻塞桥接线程、选择器阻塞 300 秒、多处超时超过桥接 60 秒上限。均已修复。
+  - [ ] **未验证（重要）**：Codex 的“配对→建任务→下发→审批→收文件”**真机端到端仍无证据**。已排除的障碍：
+    `adb reverse` 数据通道在本机不通（设备侧有监听但请求无响应）、局域网被防火墙拦（需管理员权限）、
+    手机与主机网络隔离。UI 自动化路径已验证可用（输入框需先聚焦、密码框用 TAB、每次点击前重新 dump 取坐标）。
   - [ ] 已知限制：Android **无扫码**（系统无扫码 intent，内置扫码器需额外相机权限），配对只支持“导入配对文件 / 粘贴配对信息”。
   - [ ] 已知限制：`Index.ets` 与设置页/隐私页等 17 个上游漂移文件仍钉在 `cd69b68`，未对齐 `4e86f62`。
-  - [ ] C1 续：`CodexBackend`（实现 `ChatBackend`，封装 `CodexChatService` 语义）；`CodexTrustFactory` 尚无真实证书链测试（需自签 CA 夹具）。
+  - [ ] 已知限制：真实 Codex CLI 的推理质量、执行中真正中断、官方 App Server 与替身的细节差异均未验证。
   - [ ] C1 环境：本机无 JDK 17，构建需显式设 `JAVA_HOME=D:\CODE\MeetingNotesHost\android\tools\jdk-17.0.20.1+1`（取自 Gradle daemon 日志，非仓库配置）。
-  - [ ] C2 Codex Tab：六 Tab 导航、`pages/codex/` 全量 UI、扫码/拍照/选图/FileProvider、手册六入口更新。
-  - [ ] C3 聊天委托（U05-A）：`SharedAgent` 加 `run_codex_task`、**独立于日历/邮箱的委托预算**、`codex-<runId>` 持久化结果卡片与手动同步；`disconnected/failed` 一律不自动重发。
   - [ ] 统一层：只统一编排接口，不合并实现。`ChatBackend/CloudBackend/CodexBackend` 逐步接入；**本地聊天（`LocalBackend`）由其他负责人并行开发**，本线只保留诚实的 `NOT_AVAILABLE` 占位，不并入本地推理工作。
 - [ ] U06：手机微信采集、部分覆盖与批次完成后的记忆同步；依赖GUI与增量基础。所有新增能力在会议最终阶段之前完成适配。
 
