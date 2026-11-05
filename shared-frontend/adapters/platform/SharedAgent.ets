@@ -1,15 +1,43 @@
 import { CloudModelClient, CloudChatCompletionOptions, CloudChatMessage } from '../utils/CloudModelClient';
 import { MemoryQuery } from './MemoryQuery';
 import { PersonalSources } from './PersonalSources';
+import { runCodexTaskDefinition, parseCodexTaskArguments, codexTaskToolPayload, CodexRunOutcome, CodexToolRequest } from './CodexTool';
+
+/**
+ * Callbacks the chat page supplies so a Codex delegation can be launched and shown.
+ *
+ * Deliberately optional: when the page does not provide them, the tool is not offered to
+ * the model at all rather than being registered and failing at call time.
+ */
+export interface CodexDelegation {
+  /** Runs one delegation and resolves with its bounded outcome. */
+  run: (request: CodexToolRequest) => Promise<CodexRunOutcome>;
+  /** Called once a run id exists so the transcript can host a synchronisable card. */
+  onCreated: (runId: string) => void;
+}
+
+/** Separate budgets so a slow delegation cannot consume the memory-query allowance. */
+export interface SharedAgentBudgets {
+  maxTurns: number;
+  maxQueries: number;
+  maxDelegations: number;
+}
+
+export const DEFAULT_SHARED_AGENT_BUDGETS: SharedAgentBudgets = { maxTurns: 4, maxQueries: 3, maxDelegations: 1 };
 
 export class SharedAgent {
   static async run(client: CloudModelClient, options: CloudChatCompletionOptions,
     query: (raw: string) => string, active: () => boolean,
-    delta: (text: string) => void, trace: (message: string) => void): Promise<void> {
+    delta: (text: string) => void, trace: (message: string) => void,
+    codex?: CodexDelegation, budgets: SharedAgentBudgets = DEFAULT_SHARED_AGENT_BUDGETS): Promise<void> {
     options.tools = [MemoryQuery.definition(), PersonalSources.definition('calendar'), PersonalSources.definition('mail')];
+    // The tool is only advertised when a delegation sink exists, so the model cannot call
+    // something that would fail.
+    if (codex !== undefined) { options.tools.push(runCodexTaskDefinition()); }
     options.toolChoice = 'auto';
     let queries = 0;
-    for (let turn = 0; turn < 4; turn++) {
+    let delegations = 0;
+    for (let turn = 0; turn < budgets.maxTurns; turn++) {
       if (!active()) { throw new Error('用户取消请求'); }
       let response = await client.chatCompletionStream(options, { onContentDelta: (text: string): void => { if (active()) { delta(text); } } });
       if (!active()) { throw new Error('用户取消请求'); }
@@ -17,8 +45,24 @@ export class SharedAgent {
       let assistant: CloudChatMessage = { role: 'assistant', content: response.content, tool_calls: response.toolCalls };
       options.messages.push(assistant);
       for (let call of response.toolCalls) {
-        if (++queries > 3) { throw new Error('已达到本轮3次记忆查询上限，请缩小范围后重试'); }
         if (!active()) { throw new Error('用户取消请求'); }
+        if (call.function.name === 'run_codex_task') {
+          let result: string;
+          if (codex === undefined) {
+            result = codexTaskToolPayload(unavailableOutcome());
+            trace('拒绝未注册工具：run_codex_task');
+          } else if (++delegations > budgets.maxDelegations) {
+            result = codexTaskToolPayload(overBudgetOutcome(delegations, budgets.maxDelegations));
+            trace('本轮 Codex 委托已达上限');
+          } else {
+            result = await SharedAgent.delegate(codex, call.function.arguments, active, trace);
+          }
+          if (!active()) { throw new Error('用户取消请求'); }
+          options.messages.push({ role: 'tool', content: result, tool_call_id: call.id });
+          continue;
+        }
+        // Memory, calendar and mail share one allowance; Codex has its own.
+        if (++queries > budgets.maxQueries) { throw new Error('已达到本轮' + budgets.maxQueries.toString() + '次记忆查询上限，请缩小范围后重试'); }
         let source = call.function.name === 'query_calendar' ? 'calendar' : (call.function.name === 'query_mail' ? 'mail' : '');
         let result = source ? await PersonalSources.query(source, call.function.arguments, active, options) : call.function.name === 'query_events' ? query(call.function.arguments) :
           JSON.stringify({ ok: false, error: '此工具未注册，未执行' });
@@ -29,4 +73,47 @@ export class SharedAgent {
     }
     throw new Error('模型工具轮次已达上限，未继续执行');
   }
+
+  /** Parses the arguments and runs one delegation, reporting failures as a tool payload. */
+  private static async delegate(codex: CodexDelegation, raw: string, active: () => boolean,
+    trace: (message: string) => void): Promise<string> {
+    let request: CodexToolRequest;
+    try { request = parseCodexTaskArguments(raw); }
+    catch (e) { return codexTaskToolPayload(invalidArgumentsOutcome((e as Error).message)); }
+    if (!active()) { throw new Error('用户取消请求'); }
+    trace(request.continueRunId.length > 0 ? '正在继续此前的 Codex 委托' : '正在委托 Codex 电脑执行任务');
+    try {
+      let outcome = await codex.run(request);
+      if (outcome.runId.length > 0) { codex.onCreated(outcome.runId); }
+      trace(outcome.ok ? 'Codex 委托完成' : 'Codex 委托未完成：' + outcome.status);
+      return codexTaskToolPayload(outcome);
+    } catch (e) {
+      trace('Codex 委托中断，结果待同步');
+      return codexTaskToolPayload(failedOutcome((e as Error).message));
+    }
+  }
+}
+
+function baseOutcome(): CodexRunOutcome {
+  return { ok: false, status: '', runId: '', computer: '', answer: '', files: [], receivedIds: [], error: '' };
+}
+
+function invalidArgumentsOutcome(message: string): CodexRunOutcome {
+  let outcome = baseOutcome(); outcome.status = 'invalid_arguments'; outcome.error = message; return outcome;
+}
+
+function unavailableOutcome(): CodexRunOutcome {
+  let outcome = baseOutcome(); outcome.status = 'unavailable';
+  outcome.error = '当前聊天入口未接入 Codex 委托，请使用 App 云端聊天并先在 Codex 页保存电脑连接。';
+  return outcome;
+}
+
+function overBudgetOutcome(used: number, limit: number): CodexRunOutcome {
+  let outcome = baseOutcome(); outcome.status = 'rejected';
+  outcome.error = '本轮最多委托 ' + limit.toString() + ' 次 Codex 任务，已调用 ' + used.toString() + ' 次。';
+  return outcome;
+}
+
+function failedOutcome(message: string): CodexRunOutcome {
+  let outcome = baseOutcome(); outcome.status = 'failed'; outcome.error = message; return outcome;
 }

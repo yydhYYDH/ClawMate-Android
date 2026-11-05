@@ -1,4 +1,4 @@
-package com.clawmate.shared
+﻿package com.clawmate.shared
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -191,6 +191,8 @@ class PlatformBridge(private val activity: StageActivity) :
         val saved = JSONObject(raw)
         return onUi { pickers.exportArtifact(saved.optString("localPath"), saved.optString("name")) }
     }
+
+    fun codexRunTask(raw: String): String = codex.codexRunTask(raw)
 
     /** Routes a picker result back to the waiting Codex call; true when consumed. */
     internal fun codexActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean =
@@ -576,5 +578,6 @@ class PlatformBridge(private val activity: StageActivity) :
         }
     }
 }
+
 
 

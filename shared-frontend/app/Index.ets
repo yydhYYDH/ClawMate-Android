@@ -34,6 +34,8 @@ import { NativeCapabilities, AndroidRuntimeSnapshot } from '../platform/NativeCa
 import Bridge from '@arkui-x.bridge';
 import { ChatImages } from '../platform/ChatImages';
 import { SharedAgent } from '../platform/SharedAgent';
+import { CodexDelegation } from '../platform/SharedAgent';
+import { CodexToolRequest, CodexRunOutcome } from '../platform/CodexTool';
 import { ChatContext } from '../platform/ChatContext';
 import { CollectionReminderService } from '../utils/CollectionReminderService';
 import { MemoryQuery } from '../platform/MemoryQuery';
@@ -622,7 +624,7 @@ struct Index {
             return MemoryQuery.execute(this.facade, raw);
           }, (): boolean => generation === this.generation, onDelta, (message: string): void => {
             assistant.trace.push(message); this.messages = this.messages.slice(); this.scheduleChatSave();
-          });
+          }, this.codexDelegation());
         }
       } catch (error) {
         if (generation === this.generation) {
@@ -634,6 +636,29 @@ struct Index {
       }
     } catch (error) { if (generation === this.generation) { showToastSafely((error as Error).message, 3000); } }
     finally { if (!stored) { ChatImages.discard(paths); } this.preparing = false; this.sending = false; }
+  }
+
+  /**
+   * Bridges a chat delegation to the native Codex backend.
+   *
+   * The tool result is bounded and the run id is surfaced so the transcript can host a
+   * card the user can resynchronise from; a lost connection never becomes a silent failure.
+   */
+  private codexDelegation(): CodexDelegation {
+    return {
+      run: async (request: CodexToolRequest): Promise<CodexRunOutcome> => {
+        const bridge = Bridge.createBridge('ClawMatePlatform');
+        const session = this.sessionId.length > 0 ? this.sessionId : 'chat';
+        const raw = await bridge.callMethod('codexRunTask', JSON.stringify({
+          task: request.task, continueRunId: request.continueRunId, sessionId: session
+        })) as string;
+        return JSON.parse(raw) as CodexRunOutcome;
+      },
+      onCreated: (runId: string): void => {
+        // Keep the id reachable from the transcript so a later round can resync this run.
+        AppStorage.setOrCreate('androidCodexLastRunId', runId);
+      }
+    };
   }
 
   @Builder private Home() {

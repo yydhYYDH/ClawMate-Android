@@ -42,6 +42,15 @@ class CodexBackend(
     @Volatile
     var runStore: CodexRunStore? = null
 
+    /**
+     * Resolves the workspace for a delegation the user did not pick one for.
+     *
+     * The chat path cannot open a directory picker mid-conversation, so it supplies the
+     * workspace to use once `/v1/info` is known. Returning empty is an error, never a guess.
+     */
+    @Volatile
+    var defaultWorkspace: ((CodexEnvelope) -> String)? = null
+
     private class ActiveRun(val id: String) {
         @Volatile var stopRequested: Boolean = false
         @Volatile var stopSent: Boolean = false
@@ -90,7 +99,14 @@ class CodexBackend(
         )
         try {
             connect(target.connectionId)
-            val workspace = info?.workspaces?.firstOrNull { it.id == target.workspaceId }
+            // An empty workspace means "the caller could not ask"; resolve it from /v1/info.
+            if (run.workspaceId.isEmpty()) {
+                val resolved = defaultWorkspace?.invoke(info ?: CodexEnvelope())
+                    ?: throw CodexValidationException("请先在 Codex 页选择电脑和工作目录")
+                if (resolved.isEmpty()) throw CodexValidationException("电脑端尚未提供可用的工作目录")
+                run.workspaceId = resolved
+            }
+            val workspace = info?.workspaces?.firstOrNull { it.id == run.workspaceId }
                 ?: throw CodexValidationException("电脑端已移除此工作目录，请重新选择")
             val model = info?.models?.firstOrNull { it.isDefault } ?: info?.models?.firstOrNull()
                 ?: throw CodexValidationException("电脑端尚未提供可用的 Codex 模型")
@@ -355,11 +371,12 @@ class CodexBackend(
     }
 
     /** One persisted delegation, mirroring `CodexChatRun`. */
+    @kotlinx.serialization.Serializable
     data class RunRecord(
         val id: String,
         val sessionId: String,
         val connectionId: String,
-        val workspaceId: String,
+        var workspaceId: String,
         val requestId: String,
         val taskText: String,
         val createdAt: Long,
