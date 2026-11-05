@@ -85,7 +85,12 @@ class CodexArtifactStore(
     ): CodexArtifactChunk {
         val chunkBytes = transport.artifactChunkBytes()
         val length = if (chunkBytes < DEFAULT_CHUNK) "&length=$chunkBytes" else ""
-        val envelope = transport.get("/v1/tasks/$taskId/artifacts/${artifact.id}?offset=$offset$length")
+        // One chunk is up to 1 MiB of base64, and the whole exchange must still fit inside a
+        // single platform bridge call, so this is bounded rather than left at the default.
+        val envelope = transport.get(
+            "/v1/tasks/$taskId/artifacts/${artifact.id}?offset=$offset$length",
+            timeoutMs = CHUNK_TIMEOUT_MS,
+        )
         return envelope.artifactChunk
             ?: throw CodexValidationException("交付文件分块缺失，请同步后重试")
     }
@@ -131,6 +136,8 @@ class CodexArtifactStore(
 
     companion object {
         private const val DEFAULT_CHUNK: Long = 1024 * 1024
+    /** Deadline for one chunk exchange, kept under the platform bridge call ceiling. */
+    private const val CHUNK_TIMEOUT_MS: Long = 45_000
         private const val MAX_CHUNK_BASE64: Int = 1_400_000
         private const val MAX_NAME_BYTES: Int = 240
         private val BASE64 = Regex("^[A-Za-z0-9+/]*={0,2}$")

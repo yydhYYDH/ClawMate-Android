@@ -371,6 +371,19 @@ class CodexBackendTest {
         assertTrue("body: $body", fields.containsAll(setOf("id", "decision", "answers")))
     }
 
+    @Test
+    fun `every call the backend makes fits inside one platform bridge call`() {
+        // The platform bridge gives up well before a minute, so nothing the backend issues
+        // may ask for longer than that. A long poll waits waitMs=12000 on the server.
+        val ceiling = CodexTransport.CALL_TIMEOUT_MS
+        assertTrue("the poll deadline must fit one bridge call", CodexBackend.POLL_TIMEOUT_MS < ceiling)
+        assertTrue("the short deadline must fit one bridge call", CodexBackend.SHORT_TIMEOUT_MS < ceiling)
+        assertTrue(
+            "a long poll must outlast the server-side wait",
+            CodexBackend.POLL_TIMEOUT_MS > 12_000,
+        )
+    }
+
     private fun digest(bytes: ByteArray): String =
         java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 }

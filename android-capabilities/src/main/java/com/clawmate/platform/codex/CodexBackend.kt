@@ -118,7 +118,7 @@ class CodexBackend(
 
             if (previous != null) {
                 run.taskId = previous.taskId
-                val envelope = transport.get("/v1/tasks/${previous.taskId}")
+                val envelope = transport.get("/v1/tasks/${previous.taskId}", timeoutMs = POLL_TIMEOUT_MS)
                 val task = envelope.task
                 if (task == null || task.id != previous.taskId || task.workspaceId != previous.workspaceId ||
                     task.lastRequestId != previous.requestId || task.turnId != previous.turnId ||
@@ -157,7 +157,7 @@ class CodexBackend(
                 )
             } catch (e: CodexTransportException) {
                 // Only a read may recover from a lost turn response.
-                transport.get("/v1/tasks/$taskId")
+                transport.get("/v1/tasks/$taskId", timeoutMs = POLL_TIMEOUT_MS)
             }
             accept(turn, run, current, handlers)
             val finished = follow(run, current, handlers)
@@ -183,7 +183,7 @@ class CodexBackend(
         val connection = credentials.load(connectionId)
             ?: throw CodexValidationException("原电脑连接已删除，请先在 Codex 页重新配对")
         transport.configure(connection)
-        val envelope = transport.get("/v1/info")
+        val envelope = transport.get("/v1/info", timeoutMs = SHORT_TIMEOUT_MS)
         if (envelope.ready != true || envelope.permissionSettingsSupported != true ||
             envelope.artifactsSupported != true
         ) {
@@ -227,7 +227,7 @@ class CodexBackend(
                 current.stopSent = true
                 handlers.onStatus("stopping", "正在停止任务，等待电脑端确认")
                 val envelope = try {
-                    transport.post("/v1/tasks/${task.id}/interrupt", emptyPatch())
+                    transport.post("/v1/tasks/${task.id}/interrupt", emptyPatch(), timeoutMs = SHORT_TIMEOUT_MS)
                 } catch (e: CodexTransportException) {
                     throw CodexValidationException("停止请求未确认，远端可能仍在运行，请同步后重试停止")
                 }
@@ -248,12 +248,17 @@ class CodexBackend(
                 ""
             }
             try {
-                val envelope = transport.get("/v1/tasks/${task.id}$suffix")
+                // A long poll waits up to waitMs on the server, so the caller-side timeout
+                // must exceed that but still fit inside one platform bridge call.
+                val envelope = transport.get("/v1/tasks/${task.id}$suffix", timeoutMs = POLL_TIMEOUT_MS)
                 try {
                     accept(envelope, run, current, handlers)
                 } catch (e: CodexStaleDeltaException) {
                     // An unusable delta means a full resync, never a resend of the turn.
-                    accept(transport.get("/v1/tasks/${task.id}"), run, current, handlers)
+                    accept(
+                        transport.get("/v1/tasks/${task.id}", timeoutMs = POLL_TIMEOUT_MS),
+                        run, current, handlers,
+                    )
                 }
                 failures = 0
                 if (suffix.isEmpty()) delay(1200)
@@ -408,6 +413,16 @@ class CodexBackend(
         const val TOOL_NAME: String = "run_codex_task"
         const val MAX_IMAGES: Int = 6
         const val MAX_FOLLOW_FAILURES: Int = 3
+        /**
+         * Timeout for one task-update exchange.
+         *
+         * A long poll may wait `waitMs=12000` on the server, and the platform bridge call
+         * gives up around 60 s, so this leaves room for a slow network without ever
+         * exceeding the bridge.
+         */
+        const val POLL_TIMEOUT_MS: Long = 35_000
+        /** Deadline for a request that is expected to answer immediately. */
+        const val SHORT_TIMEOUT_MS: Long = 20_000
         const val FOLLOW_TIMEOUT_MS: Long = 30L * 60 * 1000
         private const val EMPTY_PATCH = """{"id":"","decision":"","answers":[]}"""
         private const val DELIVERY_INSTRUCTIONS =
@@ -422,3 +437,4 @@ class CodexRunException(
     val outcomeUnknown: Boolean,
     val runId: String,
 ) : Exception(message)
+
