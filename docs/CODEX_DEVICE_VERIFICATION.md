@@ -32,7 +32,41 @@
 `CodexTypesTest`(14)、`CodexCredentialStoreTest`(14)、`CodexTrustFactoryTest`(9)，
 以及 ArkTS 层的 `verify-codex-tool.mjs`(16)。
 
+## 协议层（本机桥接，非真机）
+
+在本机用仓库自带 `test/fake-app-server.mjs` 起了一个真实 HTTPS 桥接（自签 CA），
+用 `CodexLiveBridgeTest` 以生产的 `CodexTransport` 代码路径跑通：
+
+| 项 | 结果 |
+|---|---|
+| `/v1/info` 能力协商 | 通过 |
+| 建任务 → 下发 → 完成，回复归属正确回合 | 通过 |
+| 错误令牌 → 认证失败（非通用错误） | 通过 |
+| 配对 CA 钉扎后可连接 | 通过 |
+| 未钉扎客户端拒绝自签服务 | 通过 |
+| 整包 5 项 | **5/5，0 跳过** |
+
+**这一步发现了一个 MockWebServer 测不出的真实缺陷**：kotlinx 默认省略等于默认值的字段，
+导致下发回合的请求体缺少 `attachments`，桥接返回 `Invalid input`。已修为 `encodeDefaults = true`。
+
+## 真机联调尝试（未完成）
+
+用 `adb reverse tcp:8787` 把手机指向本机 HTTPS 桥接，尝试在 App 内完成配对。
+过程中确认与发现：
+
+| 观察 | 结论 |
+|---|---|
+| 输入完整配对串 → 提示“配对信息无效或已过期” | 时效校验在真机生效（配对串确实超过 5 分钟） |
+| 重新生成配对串 → 二次确认对话框出现 | 解析与确认流程正确 |
+| 点确认后桥接收到 `codexRequest`，返回 `Route not found` | **裸桥接不挂载 `/v1/pair`**：该路由仅在传入 `pairing` 扩展时启用，属电脑端产品组件 |
+| 对话框被外部关闭后页面永久“正在处理…” | **真实缺陷**，已修（`CodexConfirm` 超时兜底） |
+| 手动连接表单用 `adb shell input text` 填不进去 | ArkUI-X 输入框与 adb 输入的兼容问题，阻塞后续 UI 自动化 |
+
+未完成原因：真机 UI 自动化无法可靠填入输入框，且裸桥接不支持配对路由。
+要在真机上跑通，需**电脑端打包应用**（自带配对扩展与本机 TLS 证书），由人手完成配对。
+
 ## 复现真实联调所需
+
 
 1. 一台电脑装 Node 22+ 与 `@openai/codex`，完成 `codex login`。
 2. `node bridge/codex/server.mjs init <config> <项目目录>`，配置 HTTPS（配对文件可携带 CA）。
