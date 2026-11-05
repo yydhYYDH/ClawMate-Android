@@ -2,10 +2,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { spawnSync as win32Spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const blob = bytes => createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+// Windows junctions surface as ordinary directories to every Node stat (identical mode,
+// and lstat().isSymbolicLink() is false), so they are detected with the Win32 attribute
+// query instead. Without this a redirected input or output root would be accepted.
+function isLinked(stat, full) {
+  if (stat.isSymbolicLink()) return true;
+  if (process.platform !== 'win32') return false;
+  return (win32Attributes(full) & 0x400) !== 0;
+}
+function win32Attributes(full) {
+  const out = win32Spawn('powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-Command', `(Get-Item -LiteralPath '${full.replace(/'/g, "''")}' -Force).Attributes.value__`],
+    { encoding: 'utf8', windowsHide: true });
+  if (out.status !== 0) throw new Error(`Unable to inspect input attributes: ${full}`);
+  const value = Number.parseInt(String(out.stdout).trim(), 10);
+  if (!Number.isFinite(value)) throw new Error(`Unable to inspect input attributes: ${full}`);
+  return value;
+}
 export function checkedPath(root, relative) {
   if (typeof relative !== 'string' || !relative || relative.includes('\\') ||
       relative.split('/').some(p => !p || p === '.' || p === '..' || p.includes(':'))) throw new Error('Unsafe input path');
@@ -15,7 +33,7 @@ export function checkedPath(root, relative) {
     current = path.join(current, part);
     const stat = fs.lstatSync(current, { throwIfNoEntry: false });
     if (stat) {
-      if (stat.isSymbolicLink()) throw new Error(`Linked input/output rejected: ${relative}`);
+      if (isLinked(stat, current)) throw new Error(`Linked input/output rejected: ${relative}`);
     } else {
       // Descendants cannot exist once a directory is missing.
       break;
@@ -23,25 +41,36 @@ export function checkedPath(root, relative) {
   }
   return path.join(base, ...relative.split('/'));
 }
+// Every entry may pin its own `ref`; without one it inherits the lock-level `ref`.
+// A single shared revision cannot describe inputs that upstream changed between the
+// integrated revision and a newer revision whose new directories are being adopted.
 export function lockedInputs(repo) {
   const files = new Map();
-  let revision;
+  const revisions = new Set();
   for (const name of ['experiments/arkui-x/ui-upstream-lock.json', 'shared-frontend/upstream-lock.json', 'shared-frontend/resource-lock.json']) {
     const lock = json(path.join(repo, name));
-    if (revision && revision !== lock.ref) throw new Error('Source locks disagree on revision');
-    revision = lock.ref;
-    if (lock.repository !== 'doulujiyao12/mobiinfra-oh' || !/^[a-f0-9]{40}$/.test(revision)) throw new Error('Invalid source identity');
+    if (lock.repository !== 'doulujiyao12/mobiinfra-oh' || !/^[a-f0-9]{40}$/.test(lock.ref)) throw new Error('Invalid source identity');
+    revisions.add(lock.ref);
     for (const file of lock.files) {
+      const ref = file.ref === undefined ? lock.ref : file.ref;
+      if (!/^[a-f0-9]{40}$/.test(ref)) throw new Error('Invalid source revision');
       if (!/^[a-f0-9]{40}$/.test(file.gitBlob)) throw new Error('Invalid source blob');
       if (!/^(entry\/src\/main\/(ets\/.+\.ets|resources\/(base|dark)\/(element|media)\/.+|resources\/rawfile\/workflows\/configs\/default_[a-z_]+\.json)|AppScope\/resources\/base\/media\/Icon\.png)$/.test(file.path)) throw new Error('Input outside reviewed source/resource scope');
       if (/Default(?:Endpoint|Account)Config\.ets$/.test(file.path)) throw new Error('Private defaults must never be staged');
       const previous = files.get(file.path);
-      if (previous && previous.gitBlob !== file.gitBlob) throw new Error('Source locks disagree on blob');
+      if (previous && (previous.gitBlob !== file.gitBlob || previous.ref !== ref)) throw new Error(`Source locks disagree on blob or revision: ${file.path}`);
       if (file.target && file.target !== 'AppScope/resources/base/media/app_icon.png') throw new Error('Unexpected resource destination');
-      files.set(file.path, file);
+      revisions.add(ref);
+      files.set(file.path, { ...file, ref });
     }
   }
-  return { revision, files: [...files.values()].sort((a, b) => a.path.localeCompare(b.path, 'en')) };
+  const list = [...files.values()];
+  // Keep the historical `revision` field meaning "the integrated revision" so callers
+  // that only understand one revision continue to see the base pin, and expose the
+  // full set for diagnostics and for per-entry staging.
+  const count = ref => list.filter(file => file.ref === ref).length;
+  const revision = [...revisions].sort((a, b) => count(b) - count(a) || a.localeCompare(b, 'en'))[0];
+  return { revision, revisions: [...revisions].sort(), files: list.sort((a, b) => a.path.localeCompare(b.path, 'en')) };
 }
 export function verifySources(repo, sourceRoot) {
   const lock = lockedInputs(repo);
@@ -55,7 +84,7 @@ export function verifySources(repo, sourceRoot) {
     if (blob(bytes) !== file.gitBlob) throw new Error(`Pinned source/resource drift: ${file.path}`);
     return { ...file, bytes };
   });
-  return { revision: lock.revision, files, bytes: total };
+  return { revision: lock.revision, revisions: lock.revisions, files, bytes: total };
 }
 export function stageSources(repo, sourceRoot) {
   // Check every source and existing destination before creating or changing files.
@@ -71,7 +100,7 @@ export function stageSources(repo, sourceRoot) {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, file.bytes, { flag: 'wx' });
   }
-  return { revision: verified.revision, files: verified.files.length, bytes: verified.bytes, destination };
+  return { revision: verified.revision, revisions: verified.revisions, files: verified.files.length, bytes: verified.bytes, destination };
 }
 export function toolchainPaths(repo, overrides = {}) {
   const scratch = path.join(repo, '.arkui-x-validation');

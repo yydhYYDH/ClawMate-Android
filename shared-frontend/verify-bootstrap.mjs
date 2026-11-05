@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { checkedPath, lockedInputs, verifySources, stageSources, checkToolchain } from './bootstrap.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'clawmate-bootstrap-'));
 let passed = 0;
 const check = (name, run) => { run(); console.log('PASS ' + name); passed++; };
 const put = (file, bytes) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, bytes); };
@@ -18,6 +17,9 @@ const sourceFile = 'entry/src/main/ets/pages/A.ets';
 const resourceFile = 'entry/src/main/resources/base/element/color.json';
 const rawFile = 'entry/src/main/resources/rawfile/workflows/configs/default_fixture.json';
 const locks = [sourceFile, resourceFile, rawFile].map(name => ({ repository: 'doulujiyao12/mobiinfra-oh', ref: 'a'.repeat(40), files: [{ path: name, gitBlob: blob(name) }] }));
+// Unix symlinks need no privilege; Windows only allows junctions below a filesystem
+// mount point, so the fixture root must resolve its own real path before linking.
+const fixture = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'clawmate-bootstrap-')));
 let next = 0;
 function fresh() {
   const root = path.join(fixture, 'case-' + next++), source = path.join(root, 'source'), target = path.join(root, 'repo');
@@ -72,13 +74,38 @@ try {
     assert.throws(() => stageSources(f.target, f.source), /Linked/);
     assert.deepEqual(fs.readdirSync(outside), []);
   });
-  check('different pinned revisions fail before import', () => {
-    const f = fresh(); saveJson(path.join(f.target, paths[1]), { ...locks[1], ref: 'b'.repeat(40) });
-    assert.throws(() => lockedInputs(f.target), /revision/);
+  check('an invalid lock-level revision fails before import', () => {
+    const f = fresh(); saveJson(path.join(f.target, paths[1]), { ...locks[1], ref: 'not-a-commit' });
+    assert.throws(() => lockedInputs(f.target), /identity/);
   });
   check('conflicting blobs across locks fail', () => {
     const f = fresh(); saveJson(path.join(f.target, paths[1]), { ...locks[0], files: [{ path: sourceFile, gitBlob: 'c'.repeat(40) }] });
     assert.throws(() => lockedInputs(f.target), /blob/);
+  });
+  check('an entry may pin its own revision while others keep the base pin', () => {
+    const f = fresh(), newer = 'b'.repeat(40);
+    // Remove the raw file from the other locks so only this entry carries the override.
+    paths.forEach((name, i) => {
+      if (i === 1) return;
+      saveJson(path.join(f.target, name), { ...locks[i], files: locks[i].files.filter(file => file.path !== rawFile) });
+    });
+    saveJson(path.join(f.target, paths[1]), { ...locks[1], files: [{ path: rawFile, gitBlob: blob(rawFile), ref: newer }] });
+    const resolved = lockedInputs(f.target);
+    assert.equal(resolved.files.find(file => file.path === rawFile).ref, newer);
+    assert.equal(resolved.files.find(file => file.path === sourceFile).ref, locks[0].ref);
+    assert.deepEqual(resolved.revisions, [locks[0].ref, newer].sort());
+    // The measured revision stays the one most entries share.
+    assert.equal(resolved.revision, locks[0].ref);
+  });
+  check('the same path may not be pinned to two revisions', () => {
+    const f = fresh();
+    saveJson(path.join(f.target, paths[1]), { ...locks[1], files: [{ path: rawFile, gitBlob: blob(rawFile), ref: 'b'.repeat(40) }] });
+    assert.throws(() => lockedInputs(f.target), /blob/);
+  });
+  check('a per-entry revision must be a full commit id', () => {
+    const f = fresh();
+    saveJson(path.join(f.target, paths[1]), { ...locks[1], files: [{ path: rawFile, gitBlob: blob(rawFile), ref: 'b'.repeat(7) }] });
+    assert.throws(() => lockedInputs(f.target), /revision|blob/);
   });
   check('private defaults and unexpected resource destinations cannot be added to import lists', () => {
     const f = fresh(); saveJson(path.join(f.target, paths[0]), { ...locks[0], files: [{ path: 'entry/src/main/ets/config/DefaultEndpointConfig.ets', gitBlob: 'a'.repeat(40) }] });
@@ -116,6 +143,12 @@ try {
   });
 } finally {
   assert.ok(path.resolve(fixture).startsWith(path.resolve(os.tmpdir()) + path.sep));
-  fs.rmSync(fixture, { recursive: true, force: true });
+  // Windows refuses to unlink a junction before its now-empty target directory, which
+  // makes a single recursive removal order-dependent. Unlink links first, then delete.
+  for (const entry of fs.readdirSync(fixture, { withFileTypes: true })) {
+    const full = path.join(fixture, entry.name);
+    if (entry.isSymbolicLink()) { try { fs.unlinkSync(full); } catch { fs.rmSync(full, { recursive: true, force: true }); } }
+  }
+  try { fs.rmSync(fixture, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
 }
 console.log(JSON.stringify({ passed, scope: 'Allowlisted source/resource import and pinned toolchain validation; no SDK download or clean-machine certification' }));

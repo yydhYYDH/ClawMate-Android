@@ -1,4 +1,5 @@
 import { replaceChecked } from '../../shared-frontend/source-patches.mjs';
+import { lockedInputs } from '../../shared-frontend/bootstrap.mjs';
 // Stage a probe from pinned, read-only source. No production Android files change.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,12 +29,12 @@ const scratch = path.join(repo, '.arkui-x-validation');
 const reference = path.join(scratch, 'reference');
 const project = path.resolve(options.get('--project') || path.join(scratch, 'project'));
 if (!project.startsWith(scratch + path.sep)) throw new Error('Generated project must remain in the ignored workspace');
-const lock = JSON.parse(fs.readFileSync(path.join(here, 'ui-upstream-lock.json'), 'utf8'));
-if (options.has('--extra-lock')) {
-  const extra = JSON.parse(fs.readFileSync(options.get('--extra-lock'), 'utf8'));
-  if (extra.ref !== lock.ref) throw new Error('Additional inputs must pin the same source revision');
-  lock.files.push(...extra.files.filter(file => !lock.files.some(existing => existing.path === file.path)));
+// Inputs are resolved through bootstrap.lockedInputs so staging and preparation share
+// one scope/pin policy, including per-entry `ref` overrides.
+if (options.has('--extra-lock') && path.resolve(options.get('--extra-lock')) !== path.join(repo, 'shared-frontend/upstream-lock.json')) {
+  throw new Error('--extra-lock is read by bootstrap.lockedInputs; only the repository lock is accepted');
 }
+const lock = lockedInputs(repo);
 const sources = new Map();
 for (const file of lock.files) {
   const bytes = fs.readFileSync(path.join(reference, file.path));
@@ -41,6 +42,7 @@ for (const file of lock.files) {
   if (actual !== file.gitBlob) throw new Error(`Upstream drift: ${file.path}`);
   sources.set(file.path.slice('entry/src/main/ets/'.length), bytes.toString('utf8'));
 }
+lock.ref = lock.revision;
 const original = new Map(sources);
 const raw = process.argv.includes('--raw');
 const originalTransport = process.argv.includes('--original-transport');

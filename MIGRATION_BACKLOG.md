@@ -1,4 +1,4 @@
-﻿# 共享版后续待办
+# 共享版后续待办
 
 更新：2026-11-04。目标是把鸿蒙版ClawMate的全部功能迁移并适配Android，继续采用共享ArkTS/ArkUI-X前端和Kotlin平台能力。会议语音接入与专项测试放在最后；当前优先补齐ClawMate自身功能。先在fork继续验证，PR安排沿用既有约定。
 已完成项、关键阶段与验证统一见 [迁移日志](MIGRATION_STATUS.md)；本文只维护后续工作。
@@ -32,7 +32,11 @@
 - [ ] U01–U03：增量记忆/索引恢复、日历来源、邮件独立分析及真实验收。
 - [ ] U04/U05：Codex工作台、聊天委托、审批/文件交付与断线恢复。
   - 2026-11-06 用户已定方向：Codex 走**独立第六个 Tab**（首页/汇总/聊天/**Codex**/任务/我的），前端参考鸿蒙 `pages/codex/` 移植；PC 桥接 `bridge/codex/` **原样复用不改**；聊天委托按 U05-A 接入共享 `SharedAgent`。
-  - [ ] C0 源码锁升级：`shared-frontend/upstream-lock.json` 由 `cd69b68` 升到 `coevomind-app@4e86f62`，`prepare.mjs` 补丁命中检查通过，codex 20 个 ets 可入清单。
+  - [x] C0 源码锁按条目 pin（2026-11-06）：锁条目新增可选 `ref`，缺省继承锁级 `ref`；`lockedInputs` 校验全部条目、`prepare-project.mjs` 改为经 `lockedInputs` 取源码并废弃 `--extra-lock` 合并。`cd69b68` 的 49+59+77 条全部原地不动，仅把 codex 20 个 ets、`AppRequests`、新 `MainTabConfig` 与 `tab_codex.svg` 以 `4e86f62` 接入。bootstrap 203 文件通过，`verify-bootstrap` 17/17，`verify-contracts` 8/8。
+  - [ ] C0-b `Index.ets` 重建：上游把 `Index.ets` 与 17 个集成点文件（设置页、隐私 consent、数据管理层等）都已改动，这些仍钉在 `cd69b68`，尚未对齐 `4e86f62`；六 Tab 实际生效与聊天委托注入都要等这一步。
+  - [ ] 已知限制：`verifySources` 对全部条目只接受**一个** source-root，因此混合 pin 时必须提供同时含两个提交的目录（本次用两个工作树合成了 `.arkui-x-validation/source-composite`）；真机/CI 应直接 clone 全历史。
+  - [ ] 已知限制：`.arkui-x-validation/reference/` 曾出现 20 个“在盘但未入锁”的文件，本轮已通过入锁或重钉消除，后续 staging 应保持 0 差额。
+  - [ ] 工程债：`bootstrap.mjs` 在 Windows 上对每个路径组件调用一次 PowerShell 取属性判 junction（Node 的 `lstat` 不暴露 reparse 位），203 个文件约需 10 分钟；后续可改为一次性批量查询。
   - [ ] C1 传输与凭据：`android-capabilities` 新增 OkHttp 传输（禁重定向/禁自动重试/CA 单连接注入/gzip 降级/代次取消）与 Keystore 凭据；**同时先落 `ChatBackend` 接口**，`CodexBackend` 按该接口实现。
   - [ ] C2 Codex Tab：六 Tab 导航、`pages/codex/` 全量 UI、扫码/拍照/选图/FileProvider、手册六入口更新。
   - [ ] C3 聊天委托（U05-A）：`SharedAgent` 加 `run_codex_task`、**独立于日历/邮箱的委托预算**、`codex-<runId>` 持久化结果卡片与手动同步；`disconnected/failed` 一律不自动重发。
