@@ -113,8 +113,9 @@ class CodexPickers(private val activity: Activity) {
             REQUEST_IMAGE -> {
                 val uri = data?.data
                 val copied = if (resultCode == Activity.RESULT_OK && uri != null) copyToCache(uri) else ""
+
                 if (copied.isEmpty()) {
-                    pickStatus = "cancelled"
+                    pickStatus = if (resultCode != Activity.RESULT_OK) "cancelled" else "failed"
                 } else {
                     pickPath = copied
                     pickStatus = "done"
@@ -131,16 +132,32 @@ class CodexPickers(private val activity: Activity) {
         .toString()
 
     /** Copies a picked content URI into the cache so ArkTS can read a plain path. */
+    /**
+     * Copies a picked content URI into app storage and returns a real path.
+     *
+     * The cache directory is not durable enough here: the system may reclaim it between the
+     * picker returning and ArkTS reopening the path, and the caller then fails to open a file
+     * that was just reported as ready. This uses the app's own files directory and clears
+     * older picks so it cannot grow without bound.
+     */
     private fun copyToCache(uri: Uri): String {
         return try {
-            val target = File(File(activity.cacheDir, "codex-pick").apply { mkdirs() },
-                "pick-${System.currentTimeMillis()}.img")
-            val input = activity.contentResolver.openInputStream(uri) ?: return ""
+            val directory = File(activity.filesDir, "codex-pick").apply { mkdirs() }
+            val target = File(directory, "pick-${System.currentTimeMillis()}.img")
+            val input = activity.contentResolver.openInputStream(uri) ?: run {
+                android.util.Log.i("ClawMateCodex", "picker copy: no stream for the picked uri")
+                return ""
+            }
             input.use { source ->
                 target.outputStream().use { output -> source.copyTo(output) }
             }
+            if (!target.isFile || target.length() <= 0L) return ""
+            // Keep only the most recent picks; a failed upload otherwise accumulates files.
+            directory.listFiles()?.sortedByDescending { it.name }?.drop(6)?.forEach { it.delete() }
             target.absolutePath
         } catch (e: Exception) {
+            // The path alone is useless to the caller, so record why the copy failed.
+            android.util.Log.i("ClawMateCodex", "picker copy failed: " + e.javaClass.simpleName + " " + e.message)
             ""
         }
     }
