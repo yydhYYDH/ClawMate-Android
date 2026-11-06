@@ -51,6 +51,13 @@ class CodexPickers(private val activity: Activity) {
         // Reuse the narrow capture provider so only camera-cache UUID jpg files are granted.
         val directory = File(cacheDir, "chat-camera").apply { mkdirs() }
         val file = File(directory, "${java.util.UUID.randomUUID()}.jpg")
+        // The provider only serves a file that already exists, so create it here. Without
+        // this the camera is handed a URI it cannot open and the capture silently produces
+        // nothing, which the page then reports as a cancellation.
+        if (!runCatching { file.createNewFile() }.getOrDefault(false) && !file.isFile) {
+            captureStatus = "failed"
+            return false
+        }
         val uri = Uri.parse("content://${activity.packageName}.capture/${file.name}")
         captureFile = file
         capturePath = ""
