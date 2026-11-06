@@ -193,15 +193,46 @@
 尝试过但不可行：在设备上运行桥接服务（需 arm64 Node 二进制，`/data/local/tmp` 在
 SELinux Enforcing 下执行受限）。
 
-### adb reverse 的失败已定位到数据层
+## 真机端到端（已打通）
 
-进一步定位：`adb reverse` 建立后，设备侧端口**确实在 LISTEN**（`/proc/net/tcp6` 可见），
-用 **App 的 uid** 执行 `nc -z` 返回 `CAN_CONNECT`。
+**2026-11-06 首次完成真机全链路验证。**
 
-但连接建立后**数据不流转**：`nc` 读不到任何字节，主机侧服务器也收不到请求。
-所以问题不是"连不上"，而是 **adb 的转发链路只完成握手、不转发 payload**。
+| 步骤 | 结果 |
+|---|---|
+| 粘贴配对信息（含 CA 证书） | 二次确认对话框正常 |
+| 确认配对 → `/v1/pair` | **`transportFailure: false`**，TLS + CA 钉扎成功 |
+| 进入 Workspace | 显示连接名 `Local Test PC`、工作区 `Fixture Project`、`● 已连接` |
+| 输入任务 `hello` 并发送 | 用户消息上屏 |
+| Codex 回复 | **`测试成功`**，状态 **`已完成`** |
+| 桥接侧核对 | 任务标题 `hello`，状态 `completed` |
 
-这与 adb 37.0.1 及该设备的组合有关，不是应用代码、也不是设备网络栈的问题。
+### 之前 13 轮失败的真正原因
+
+**不是 `adb reverse` 坏了，而是自签证书没有被信任。**
+
+诊断日志（本轮新增的 `ClawMateCodex` tag）在一秒内给出了答案：
+
+```
+SSLHandshakeException: CertPathValidatorException: Trust anchor for certification path not found
+```
+
+TLS 握手**确实在进行**，只是证书链无法验证。此前用 `nc` 探测始终无输出，是因为
+`toybox nc` 不做 TLS 握手，看起来像"数据不转发"，**把人误导了 13 轮**。
+
+手动连接表单没有 CA 输入入口，所以只有**配对文件**（携带 CA）能连上自签桥接。
+
+### 复现命令
+
+```bash
+# 1) 本地桥接（需在 config.json 设 "testPairing": true 以挂载 /v1/pair；仅测试用）
+node server.mjs serve config.json
+
+# 2) 端口转发
+adb reverse tcp:19970 tcp:19970
+
+# 3) 生成配对串（origin 指向 127.0.0.1:19970，caCertificate 填自签 CA）
+#    在手机上「创建连接 → 粘贴配对信息 → 确认配对」
+```
 
 ## 复现真实联调所需
 

@@ -1,4 +1,4 @@
-﻿package com.clawmate.platform.codex
+package com.clawmate.platform.codex
 
 import okhttp3.Call
 import okhttp3.Callback
@@ -349,7 +349,12 @@ class CodexTransport(
     fun classify(e: IOException): CodexTransportException = when {        e is SocketTimeoutException -> CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", true)
         e is InterruptedIOException && e.message.orEmpty().contains("timeout", true) ->
             CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", true)
-        else -> CodexTransportException("与电脑的网络连接中断，请稍后重试", true)
+        else -> {
+            // The user-facing text stays generic, but the real cause is logged: a TLS, DNS
+            // and plain TCP failure all read the same to the user yet need different fixes.
+            android.util.Log.i("ClawMateCodex", "transport failure: " + e.javaClass.simpleName, e)
+            CodexTransportException("与电脑的网络连接中断，请稍后重试", true)
+        }
     }
 
     /**
