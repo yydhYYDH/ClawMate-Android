@@ -1205,3 +1205,50 @@ seal 通过；APK 安装到 PKB110 并在真实账号下验证收信、标题/�
 
 检查：`:android-capabilities` **213 项 / 0 失败**（新增 SolarTermsTest 5、LunarCalendarTest 5、
 FestivalsTest 7）；`:app` 1243 项 / 0 失败；ArkTS 编译、package-android、seal 通过；APK 已装到 PKB110。
+---
+
+## Codex 移植到 Android（2026-11-06 收尾）
+
+### 范围
+
+C1（`CodexBackend` 与传输层）、C0-b（六 Tab）、C2（Codex Tab UI + 选图/拍照/FileProvider）、
+C3（聊天委托 `run_codex_task`）。扫码按 Android 平台事实降级，不是遗漏。
+
+### 真机验收（PKB110）
+
+主链路全部走通：配对（含 CA 钉扎）→ Workspace → 下发任务 → 回复 →
+交付文件下载 → 审批（拒绝与批准）→ 选图附件 → 拍照附件 → 已保存连接重连 →
+聊天委托（模型自行调用 `run_codex_task`，含离线降级）。
+
+逐项证据见 [docs/CODEX_DEVICE_VERIFICATION.md](docs/CODEX_DEVICE_VERIFICATION.md)。
+
+### 本轮修掉的真实缺陷（10 个，单测全部漏掉）
+
+1. 下发请求体缺 `attachments` —— 每个真实任务都会被拒。
+2. 手动设 `Accept-Encoding` 绕过 OkHttp 解压 —— 大于等于 1024 字节的响应全部解析失败。
+3. `{"unchanged":true}` 被当成错误 —— 长轮询超过服务端窗口即中断。
+4. `codexRunTask` 在桥接线程 `runBlocking` —— 委托必然触发 60 秒上限。
+5. 选择器阻塞 300 秒 —— 用户在相机多停留片刻即超时。
+6. 多处超时超过桥接上限。
+7. 对话框被外部关闭后 `busy` 不复位 —— 整页失效。
+8. `CodexHelpPage` 未注册 —— “连接指南”必然失败（只被 `router.pushUrl` 引用的页面不在 import 遍历内）。
+9. 桥接重新序列化未设 `encodeDefaults` —— `canAccept` 变 `undefined`，**手机永远无法批准审批**。
+10. 相机未 `createNewFile()` —— `CaptureProvider` 要求文件已存在，**拍照静默失败**。
+
+### 一个需要记下的教训
+
+此前多轮认定“`adb reverse` 数据通道不通”，**结论是错的**。真实原因是自签证书缺少信任锚。
+`toybox nc` 不做 TLS 握手，看起来像“数据不转发”，把排查引向了网络层。
+后来在传输层加一条诊断日志（记录 `IOException` 的类名），一秒就给出了答案。
+**过时的结论比没有结论更危险**，它会让后来的人跳过正确的路径。
+
+### 已知限制（如实保留）
+
+- Android **无扫码**：系统无扫码 intent，内置扫码器需额外相机权限；配对走导入文件/粘贴。
+- 真实 Codex CLI 的推理质量、执行中真正中断、官方 App Server 与替身的细节差异未验证。
+- 上游 17 个漂移文件仍钉在 `cd69b68`。
+
+### 检查
+
+`:android-capabilities` **293 项 / 0 失败**（含 14 项 live 测试，未提供桥接时自动跳过）；
+`shared-frontend/verify-codex-tool.mjs` 18 项通过；APK 已装到 PKB110，六 Tab 正常、无 FATAL。

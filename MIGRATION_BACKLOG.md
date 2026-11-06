@@ -42,7 +42,7 @@
     - 修正两处实现缺陷：重定向/401/429 原先在读 body 之后判定，空 body 的 3xx 会被误报成“无有效响应”；`needsDecompression` 判断写错。现状态码分类前置。
     - `CodexTransport.useHttpOriginForTest` 是仅供回环测试的 seam（`configure` 仍强制 HTTPS）。
   - [x] C0-b 六 Tab（2026-11-06）：`shared-frontend/app/Index.ets` 新增 Codex Tab（索引 3），Task/Mine 顺移到 4/5，并补 Codex 返回键（先关设置面板、再关历史、再退连接页）。原估算的“Index.ets 重建”**不存在**——共享入口是我们自己写的 `app/Index.ets`，覆盖上游同名文件；上游那 18 个漂移文件仍未对齐，但不阻塞 Codex。
-  - [x] C2 Codex Tab（2026-11-06）：`shared-frontend/adapters/pages/codex/` 替换 4 个鸿蒙 Kit——`RemoteCommunicationKit`→`CodexClient`（走原生 `codexRequest`）、`AssetStoreKit`→加密凭据、`PreviewKit`→系统 ACTION_VIEW/ACTION_CREATE_DOCUMENT、`ScanKit`/`CameraKit`/`MediaLibraryKit`→`CodexPickers`。`CodexPage` 用**锚定补丁**而非重写（上游一改即构建失败）；`CodexArtifactProvider` 只放行 `filesDir/codex/sessions/<64hex>/<id>/<name>` 三段路径。真机 PKB110 已验证渲染。
+  - [x] C2 Codex Tab（2026-11-06）：`shared-frontend/adapters/pages/codex/` 替换 4 个鸿蒙 Kit——`RemoteCommunicationKit`→`CodexClient`（走原生 `codexRequest`）、`AssetStoreKit`→加密凭据、`PreviewKit`→系统 ACTION_VIEW/ACTION_CREATE_DOCUMENT、`ScanKit`→**诚实降级**（Android 无系统扫码 intent，返回空串，页面回落到导入文件/粘贴）、`CameraKit`/`MediaLibraryKit`→`CodexPickers`（start/poll，不阻塞桥接线程）。`CodexPage` 用**锚定补丁**而非重写（上游一改即构建失败）；`CodexArtifactProvider` 只放行 `filesDir/codex/sessions/<64hex>/<id>/<name>` 三段路径。真机 PKB110 已验证渲染。
   - [x] C3 聊天委托（2026-11-06）：`SharedAgent` 注册 `run_codex_task`，**独立预算**（`maxDelegations=1`，与 3 次记忆查询分开）；仅在页面提供委托实现时才向模型声明该工具；参数只允许 `task` 与自有 `run_id`；结果裁剪到 3900 字符，不含令牌/路径/文件内容；提交后未确认返回 `status=disconnected`，明确禁止重发。`CodexBackend` 新增 `defaultWorkspace`，让聊天路径无从选目录时由 `/v1/info` 解析。
   - [x] **协议层真实联调（2026-11-06）**：本机起真实 HTTPS 桥接（自签 CA，走生产 `CodexTransport` 代码路径），
     14 项 live 测试全过：能力协商、单次往返、错误令牌、CA 钉扎、未钉扎拒绝、完整委托到终态、
@@ -50,12 +50,33 @@
     替身与复现步骤见 [tests/codex/README.md](tests/codex/README.md)。
   - [x] **由此发现的 6 个真实缺陷（单测全绿却必然导致真机失败）**：`attachments` 被省略、gzip 不解压、
     `unchanged` 当错误、`codexRunTask` 阻塞桥接线程、选择器阻塞 300 秒、多处超时超过桥接 60 秒上限。均已修复。
-  - [ ] **未验证（重要）**：Codex 的“配对→建任务→下发→审批→收文件”**真机端到端仍无证据**。已排除的障碍：
-    `adb reverse` 数据通道在本机不通（设备侧有监听但请求无响应）、局域网被防火墙拦（需管理员权限）、
-    手机与主机网络隔离。UI 自动化路径已验证可用（输入框需先聚焦、密码框用 TAB、每次点击前重新 dump 取坐标）。
-  - [ ] 已知限制：Android **无扫码**（系统无扫码 intent，内置扫码器需额外相机权限），配对只支持“导入配对文件 / 粘贴配对信息”。
+  - [x] **真机端到端（2026-11-06，PKB110 实测）**：Codex 主链路已全部在真机跑通，
+    详见 [docs/CODEX_DEVICE_VERIFICATION.md](docs/CODEX_DEVICE_VERIFICATION.md)。
+
+    | 路径 | 真机证据 |
+    |---|---|
+    | 配对（含 CA） | 粘贴配对串 → 二次确认 → `transportFailure: false`，TLS+CA 钉扎成功 |
+    | 进入 Workspace | 显示 `Local Test PC` / `Fixture Project` / `● 已连接` |
+    | 任务下发 | 发 `hello` → 回复 `测试成功`，状态 `已完成`；桥接侧同任务 `completed` |
+    | 交付文件 | `report-….md` → 卡片 `1 KB · 已保存到此会话` |
+    | 审批 | `执行命令申请` 卡片，`拒绝`/`仅允许本次` 均可点；批准后桥接 `waitingApproval → running` |
+    | 选图附件 | 附件卡片 `▧ pick-….img`，消息带 `附件：…`，任务完成 |
+    | 拍照附件 | 相机快门→确认→附件卡片，消息带 `附件：….jpg`，任务完成 |
+    | 已保存连接重连 | 重启后列表可见，轻点即回到工作区 |
+    | 聊天委托 | 模型自行调用 `run_codex_task`，桥接新增任务 `completed`，模型转述真实 `run_id` |
+    | 委托降级 | 桥接离线时模型回答“等电脑重新连上后告诉我”，未谎称成功、未自动重发 |
+
+  - [x] **真机专属缺陷（共 10 个，单测全部漏掉，均已修复）**：
+    `attachments` 被省略、gzip 不解压、`unchanged` 当错误、`codexRunTask` 阻塞桥接线程、
+    选择器阻塞 300 秒、多处超时超过桥接上限、对话框关闭后页面卡死、`CodexHelpPage` 未注册导致跳转失败、
+    **`canAccept` 因 `encodeDefaults` 缺失而变 `undefined`（手机永远无法批准）**、
+    **相机未 `createNewFile()` 导致拍照静默失败**。
+  - [x] **此前"adb reverse 不通"的结论已作废**：真实原因是自签证书无信任锚
+    （`SSLHandshakeException: Trust anchor not found`）。`toybox nc` 不做 TLS 握手，
+    看起来像"数据不转发"，误导了多轮排查。adb reverse 本身一直正常。
+  - [ ] 已知限制：Android **无扫码**（系统无扫码 intent，内置扫码器需额外相机权限），配对只支持“导入配对文件 / 粘贴配对信息”。这是平台事实，非缺陷。
   - [ ] 已知限制：`Index.ets` 与设置页/隐私页等 17 个上游漂移文件仍钉在 `cd69b68`，未对齐 `4e86f62`。
-  - [ ] 已知限制：真实 Codex CLI 的推理质量、执行中真正中断、官方 App Server 与替身的细节差异均未验证。
+  - [ ] 已知限制：真实 Codex CLI 的推理质量、执行中真正中断、官方 App Server 与替身的细节差异均未验证（替身按协议实现，不调用模型）。
   - [ ] C1 环境：本机无 JDK 17，构建需显式设 `JAVA_HOME=D:\CODE\MeetingNotesHost\android\tools\jdk-17.0.20.1+1`（取自 Gradle daemon 日志，非仓库配置）。
   - [ ] 统一层：只统一编排接口，不合并实现。`ChatBackend/CloudBackend/CodexBackend` 逐步接入；**本地聊天（`LocalBackend`）由其他负责人并行开发**，本线只保留诚实的 `NOT_AVAILABLE` 占位，不并入本地推理工作。
 - [ ] U06：手机微信采集、部分覆盖与批次完成后的记忆同步；依赖GUI与增量基础。所有新增能力在会议最终阶段之前完成适配。
