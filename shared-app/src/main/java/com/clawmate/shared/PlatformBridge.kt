@@ -168,7 +168,9 @@ class PlatformBridge(private val activity: StageActivity) :
         reminders.initialize(SharedActivity::class.java.name, hour.toInt(), minute.toInt())
     }
     fun reminderRefresh(): String = onUi { reminders.refresh() }    fun reminderState(): String = onUi { reminders.snapshot() }
-    fun codexRequest(raw: String): String = codex.codexRequest(raw)
+    fun codexRequestStart(raw: String): String = codex.codexRequest(raw)
+    fun codexRequestPoll(ticket: String): String = codex.codexRequestPoll(ticket)
+    fun codexRequestCancel(ticket: String): Boolean = codex.codexRequestCancel(ticket)
     fun codexCancel(id: String): Boolean = codex.codexCancel(id)
     fun codexConnectionList(): String = codex.codexConnectionList()
     fun codexConnectionLoad(id: String): String = codex.codexConnectionLoad(id)

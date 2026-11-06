@@ -41,6 +41,23 @@ interface CodexNativeResponse {
   transportFailure: boolean;
 }
 
+/** Ticket returned when the native side starts an exchange on a coroutine. */
+interface CodexTicket { ticket: string; }
+
+/** A poll of a pending exchange: either a marker or the finished reply. */
+interface CodexPolledReply {
+  status?: string;
+  failure?: string;
+  text?: string;
+  gzipUnsupported?: boolean;
+  transportFailure?: boolean;
+}
+
+// How long one exchange may take, and how often to ask. The native side keeps its own
+// timeouts; these only bound how long the page keeps polling for the answer.
+const EXCHANGE_DEADLINE_MS: number = 60000;
+const EXCHANGE_POLL_MS: number = 120;
+
 export class CodexRequestFailure extends Error {
   retryable: boolean;
   transportFailure: boolean;
@@ -63,6 +80,39 @@ export class CodexClient {
   private chunkBytes: number = 1024 * 1024;
   private sequence: number = 0;
   onReachability: (reachable: boolean, message: string) => void = () => {};
+
+  /**
+   * Performs one exchange through the native side without blocking its thread.
+   *
+   * A long poll can occupy the transport for tens of seconds, and holding the bridge thread
+   * that long is reported as an ANR. The native side therefore starts the exchange and
+   * returns a ticket, and this polls until the answer is ready.
+   */
+  private static async exchangeOnce(payload: string): Promise<string> {
+    const started = JSON.parse(
+      await CodexClient.bridge().callMethod('codexRequestStart', payload) as string) as CodexTicket;
+    if (started === null || !started.ticket) {
+      // The native side answered immediately (a validation failure with no exchange).
+      return JSON.stringify({ status: 0, text: '', gzipUnsupported: false,
+        failure: '无法开始请求，请重新连接', transportFailure: false });
+    }
+    const deadline = Date.now() + EXCHANGE_DEADLINE_MS;
+    while (Date.now() < deadline) {
+      const polled = JSON.parse(
+        await CodexClient.bridge().callMethod('codexRequestPoll', started.ticket) as string) as CodexPolledReply;
+      if (polled !== null && polled.status === 'pending') {
+        await new Promise<void>((resolve): void => { setTimeout(resolve, EXCHANGE_POLL_MS); });
+        continue;
+      }
+      if (polled !== null && polled.status === 'expired') {
+        throw new CodexRequestFailure('请求超时，请同步会话后重试', true, true);
+      }
+      // Anything that is not a pending/expired marker is the exchange result itself.
+      return JSON.stringify(polled);
+    }
+    await CodexClient.bridge().callMethod('codexRequestCancel', started.ticket);
+    throw new CodexRequestFailure('请求超时，请同步会话后重试', true, true);
+  }
 
   private static bridge(): ESObject { return Bridge.createBridge('ClawMatePlatform'); }
 
@@ -155,7 +205,7 @@ export class CodexClient {
         timeoutMs: route === '/v1/health' ? 15000 : 45000,
         expectGzip: this.compressionEnabled
       };
-      let raw = await CodexClient.bridge().callMethod('codexRequest', JSON.stringify(payload)) as string;
+      const raw = await CodexClient.exchangeOnce(JSON.stringify(payload));
       if (generation !== this.generation) { throw new Error('连接已更换'); }
       const response = JSON.parse(raw) as CodexNativeResponse;
       if (response.failure && response.failure.length > 0) {

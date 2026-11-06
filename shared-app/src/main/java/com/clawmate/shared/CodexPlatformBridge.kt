@@ -49,13 +49,53 @@ import kotlinx.serialization.json.put
  */
 class CodexPlatformBridge(private val context: Context) {
 
-    private val json = Json { ignoreUnknownKeys = true }
+    // encodeDefaults matters on the way out as well as in: a field left at its default is
+    // omitted, and the page then sees `undefined` instead of the value. That silently made
+    // `canAccept` disappear, so the approval card could not be accepted — the same class of
+    // bug as the missing `attachments` in a turn body.
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     /** Runs delegations off the bridge thread; they outlive a single poll. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Delegations in flight, keyed by the id handed to ArkTS. */
     private val codexRuns = ConcurrentHashMap<String, CodexRunState>()
+
+    /**
+     * One in-flight HTTP exchange, so `codexRequest` never blocks the bridge thread.
+     *
+     * The value is settled exactly once and collected by the next poll.
+     */
+    private class ExchangeSlot {
+        @Volatile var result: String? = null
+        fun complete(value: String) { result = value }
+    }
+
+    private val exchanges = ConcurrentHashMap<String, ExchangeSlot>()
+
+    /**
+     * Collects the answer to a [codexRequestStart].
+     *
+     * @return `{"status":"pending"}` until the exchange finishes, then the same JSON the
+     *   blocking form used to return. An unknown ticket reports `expired`, which happens when
+     *   the caller polled again after collecting.
+     */
+    fun codexRequestPoll(ticket: String): String {
+        val slot = exchanges[ticket]
+            ?: return buildJsonObject { put("status", "expired") }.toString()
+        val done = slot.result
+        if (done == null) {
+            return buildJsonObject { put("status", "pending") }.toString()
+        }
+        exchanges.remove(ticket)
+        return done
+    }
+
+    /** Abandons a pending exchange; the transport call keeps running until it returns. */
+    fun codexRequestCancel(ticket: String): Boolean {
+        exchanges.remove(ticket)
+        return true
+    }
 
     /** Releases running delegations; their remote tasks keep running on the PC. */
     fun close() {
@@ -108,30 +148,57 @@ class CodexPlatformBridge(private val context: Context) {
             // Honour the caller's deadline: a bridge call cannot block indefinitely, and the
             // page already knows how long it is prepared to wait.
             val requestedTimeout = (request["timeoutMs"] as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
-            val envelope = runBlocking {
-                if (method == "POST") {
-                    transport.post(route, json.parseToJsonElement(body ?: "{}"), timeoutMs = requestedTimeout)
-                } else {
-                    transport.get(route, timeoutMs = requestedTimeout)
+            // A long poll (waitMs=12000) plus network slack can occupy this thread for tens
+            // of seconds. Blocking the bridge thread that long is what the system reports as
+            // an ANR, so the exchange runs on a coroutine and the caller polls for it.
+            val ticket = java.util.UUID.randomUUID().toString()
+            val slot = ExchangeSlot()
+            exchanges[ticket] = slot
+            scope.launch {
+                val outcome = try {
+                    val envelope = if (method == "POST") {
+                        transport.post(route, json.parseToJsonElement(body ?: "{}"), timeoutMs = requestedTimeout)
+                    } else {
+                        transport.get(route, timeoutMs = requestedTimeout)
+                    }
+                    buildJsonObject {
+                        put("status", 200)
+                        put("text", json.encodeToString(com.clawmate.platform.codex.CodexEnvelope.serializer(), envelope))
+                        put("gzipUnsupported", false)
+                        put("failure", "")
+                        put("transportFailure", false)
+                    }.toString()
+                } catch (e: Exception) {
+                    failureJson(e)
                 }
+                slot.complete(outcome)
             }
-            buildJsonObject {
-                put("status", 200)
-                put("text", json.encodeToString(com.clawmate.platform.codex.CodexEnvelope.serializer(), envelope))
-                put("gzipUnsupported", false)
-                put("failure", "")
-                put("transportFailure", false)
-            }.toString()
+            return buildJsonObject { put("ticket", ticket) }.toString()
         } catch (e: CodexTransportException) {
             // Report the status the caller must reason about, plus the reason it failed.
             val text = buildJsonObject { put("error", e.message.orEmpty()) }.toString()
             failure(e.message.orEmpty(), transportFailure = e.retryable, gzipUnsupported = false, text = text)
         } catch (e: Exception) {
-            failure(e.message ?: "Codex 请求失败", transportFailure = false, gzipUnsupported = false)
-        } finally {
-            // Nothing to retain between calls; the generation is tracked inside the transport.
-            if (id.isEmpty()) Unit
+            failureJson(e)
         }
+    }
+
+    /**
+     * Turns an exchange failure into the reply the page expects.
+     *
+     * A transport failure reports its retryable flag so the page can decide whether the
+     * remote may still be working; anything else is a plain failure.
+     */
+    private fun failureJson(e: Exception): String = when (e) {
+        is com.clawmate.platform.codex.CodexTransportException -> {
+            // Log the concrete cause; the user still sees the generic message.
+            transports.values.firstOrNull()?.lastFailureClass?.takeIf { it.isNotEmpty() }?.let { cause ->
+                android.util.Log.i("ClawMateCodex", "transport failure: " + cause)
+            }
+            val text = buildJsonObject { put("error", e.message.orEmpty()) }.toString()
+            failure(e.message.orEmpty(), transportFailure = e.retryable, gzipUnsupported = false, text = text)
+        }
+        else -> failure(e.message ?: "Codex 请求失败", transportFailure = false, gzipUnsupported = false)
     }
 
     /** Cancels the request with [id]. Safe to call for an unknown id. */

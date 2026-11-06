@@ -352,7 +352,7 @@ class CodexTransport(
         else -> {
             // The user-facing text stays generic, but the real cause is logged: a TLS, DNS
             // and plain TCP failure all read the same to the user yet need different fixes.
-            android.util.Log.i("ClawMateCodex", "transport failure: " + e.javaClass.simpleName, e)
+            lastFailureClass = e.javaClass.simpleName
             CodexTransportException("与电脑的网络连接中断，请稍后重试", true)
         }
     }
@@ -364,6 +364,16 @@ class CodexTransport(
      * asked for more is capped instead of being left to time out at the bridge. A zero or
      * negative request keeps [fallback].
      */
+    /**
+     * Class name of the most recent non-timeout transport failure.
+     *
+     * The message shown to the user is deliberately generic — a TLS, DNS and TCP failure all
+     * look the same from the outside — but for diagnosis (and for a host that can log it)
+     * the concrete cause is kept here instead of being discarded.
+     */
+    @Volatile var lastFailureClass: String = ""
+        private set
+
     private fun clampTimeout(requested: Long, fallback: Long): Long =
         if (requested <= 0L) fallback else requested.coerceIn(MIN_TIMEOUT_MS, fallback)
 

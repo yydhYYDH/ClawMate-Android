@@ -181,9 +181,14 @@ if (options.has('--overlay')) {
 // otherwise the modules they reference are never picked up.
 if (sources.has('pages/codex/CodexPage.ets')) {
   const { adaptCodexPage, adaptCodexArtifactCard } = await import('../../shared-frontend/adapters/pages/codex/codex-page-patches.mjs');
-  sources.set('pages/codex/CodexPage.ets', adaptCodexPage(sources.get('pages/codex/CodexPage.ets')));
+  const { adaptCodexApprovalKeys } = await import('../../shared-frontend/adapters/pages/codex/codex-approval-keys.mjs');
+  sources.set('pages/codex/CodexPage.ets', adaptCodexApprovalKeys(adaptCodexPage(sources.get('pages/codex/CodexPage.ets'))));
   if (sources.has('pages/codex/CodexArtifactCard.ets')) {
     sources.set('pages/codex/CodexArtifactCard.ets', adaptCodexArtifactCard(sources.get('pages/codex/CodexArtifactCard.ets')));
+  }
+  if (sources.has('pages/codex/CodexApprovalCard.ets')) {
+    const { adaptCodexApprovalCard } = await import('../../shared-frontend/adapters/pages/codex/codex-approval-patches.mjs');
+    sources.set('pages/codex/CodexApprovalCard.ets', adaptCodexApprovalCard(sources.get('pages/codex/CodexApprovalCard.ets')));
   }
   if (sources.has('pages/codex/CodexHelpPage.ets')) {
     const { adaptCodexHelpPage } = await import('../../shared-frontend/adapters/pages/codex/codex-help-patches.mjs');
