@@ -264,6 +264,30 @@ adb reverse tcp:19970 tcp:19970
 结论：**审批流程协议层正确，卡片渲染存在但 ArkUI-X 在该状态下不暴露可访问性节点**，
 无法用自动化确认卡片内容。这需要人工目视或截图审查。
 
+### 审批（真机已验证通过）
+
+发送含 `approve` 的任务后，真机上的 `执行命令申请` 卡片内容：
+
+| 元素 | 内容 |
+|---|---|
+| 标题 | `执行命令申请` |
+| 安全提示 | `确认前请检查命令、目录和申请原因；允许操作可能超出当前沙箱。` |
+| 命令详情 | `rm -rf build` + 工作目录 |
+| 按钮 | `拒绝`（可点）、**`仅允许本次`（可点）** |
+| 状态 | `等待你的确认` |
+
+点击「仅允许本次」后，桥接任务状态由 **`waitingApproval` → `running`**，界面无错误横幅。
+
+### 这条路径修掉的三个真实缺陷
+
+| 缺陷 | 后果 | 定位方式 |
+|---|---|---|
+| 桥接重新编码时未设 `encodeDefaults` | `canAccept` 变成 `undefined`，**手机永远无法批准**（只能拒绝） | 桥接返回 `canAccept:true`，卡片诊断显示 `ca=undefined` |
+| `codexRequest` 在桥接线程 `runBlocking` | 长轮询期间触发系统 ANR（`OplusAnrThrowable`） | logcat 堆栈指向 `codexRequest` |
+| `result.task !== undefined` 放过了 `null` | 审批成功后立刻弹 `Cannot read property id of null` | ArkCompiler 堆栈精确到 `applyTask` |
+
+第一条尤其隐蔽：功能"能用"（能找到审批、能拒绝），但**最关键的那个按钮永远点不了**。
+
 ## 复现真实联调所需
 
 
