@@ -1252,3 +1252,11 @@ C3（聊天委托 `run_codex_task`）。扫码按 Android 平台事实降级，�
 
 `:android-capabilities` **293 项 / 0 失败**（含 14 项 live 测试，未提供桥接时自动跳过）；
 `shared-frontend/verify-codex-tool.mjs` 18 项通过；APK 已装到 PKB110，六 Tab 正常、无 FATAL。
+
+## Codex 官方 App Server 真机复测（2026-11-07）
+
+- 用 USB 在 PKB110 复测已安装的共享版 APK。官方 App Server 跑通真实文本回复、图片识别、执行中断、文件下载和系统导出。保存的连接在重启后可用设备令牌重连。
+- 正式配对在签发设备令牌后收到 401。隔离测试桥接临时接受同一测试码后继续验证，产品配对缺陷仍待修复。
+- 同时复现文档选择后读取失败（配对 JSON、普通文件附件）、任务增量未刷新终态、审批「拒绝」无回调。审批「仅允许本次」用受控替身验证请求返回 200。
+- `node shared-frontend/verify-codex-tool.mjs` 18 项通过。另用主机探针复现增量合并丢失和拒绝回调缺失。
+  本轮沿用设备现有 APK，细节及未覆盖范围见 [Codex 真机复测](docs/CODEX_DEVICE_VERIFICATION.md#2026-11-07-usb-真机复测)。
