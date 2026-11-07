@@ -52,7 +52,7 @@ export struct PersonalSourceEntry {
           }.width(38).height(38).borderRadius(12)
             .backgroundColor(AppTheme.background(this.kind === 'meeting' ? '#E8F5F2' : (this.kind === 'calendar' ? '#FBF1E4' : '#EEF0FC')))
           Column({ space: 4 }) {
-            Text(this.kind === 'meeting' ? '本机会议' : (this.kind === 'calendar' ? '日历分析' : '邮箱分析'))
+            Text(this.kind === 'meeting' ? '语音纪要' : (this.kind === 'calendar' ? '日历分析' : '邮箱分析'))
               .fontSize(15).fontWeight(FontWeight.Medium).fontColor(AppTheme.text('#161B28'))
             Text(this.kind === 'meeting' ? '录音、转写与纪要' : (this.kind === 'calendar' ? '日程同步与聊天查询' : '邮箱设置与近三天邮件'))
               .fontSize(11).fontColor(AppTheme.text('#7C879A')).maxLines(2)

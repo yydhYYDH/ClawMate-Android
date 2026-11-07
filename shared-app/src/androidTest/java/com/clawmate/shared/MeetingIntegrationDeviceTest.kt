@@ -115,7 +115,7 @@ class MeetingIntegrationDeviceTest {
             }
             for (index in 0 until node.childCount) node.getChild(index)?.let { queue.add(it) }
         }
-        return if (text == "保存到本机记录" || text == "刷新" || text == "本机会议") clickRenderedText(text) else false
+        return if (text == "保存到本机记录" || text == "刷新" || text == "语音纪要") clickRenderedText(text) else false
     }
     private fun waitClick(text: String) {
         repeat(60) {
@@ -160,7 +160,7 @@ class MeetingIntegrationDeviceTest {
                 val field = SharedActivity::class.java.getDeclaredField("platform").apply { isAccessible = true }
                 bridge = field.get(activity) as PlatformBridge
             }
-            waitClick("汇总"); waitClick("本机会议")
+            waitClick("汇总"); waitClick("语音纪要")
             evidence("meetingTimeoutMultiplier", timeoutMultiplier.toString())
             val engineDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90L * timeoutMultiplier)
             do {
