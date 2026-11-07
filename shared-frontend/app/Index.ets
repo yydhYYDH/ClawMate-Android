@@ -838,12 +838,12 @@ struct Index {
       onTestAndConnectHdc: async (): Promise<void> => { this.unavailable('HDC 连接'); },
       onTestCloudPlanner: async (): Promise<void> => { this.saveSettings(); await this.testCloudService(); },
       onStartCloudBackend: async (): Promise<void> => { this.unavailable('桌面后端启动'); },
-      onClearScreenshots: (): void => { this.output = '本应用规划截图请在任务页清除；尚无跨应用自动控制截图历史'; },
+      onClearScreenshots: (): void => { this.output = '本应用规划截图可在「数据采集 → 界面采集与规划」中清除'; },
       onDeleteDebugOutputs: (): void => { this.unavailable('调试文件清理'); },
       onSwitchDownloadedModel: (modelId: string): void => { this.switchModel(modelId); },
       onDeleteDownloadedModel: (modelId: string): void => { this.deleteModel(modelId); },
       onRefreshDownloadedModels: (): void => { this.refreshModels(); },
-      onListScreenshots: (): void => { this.output = '任务页已支持本应用截图与单步规划；临时预览不进入截图历史，跨应用自动控制尚未接入'; },
+      onListScreenshots: (): void => { this.output = '本应用截图预览位于「数据采集 → 界面采集与规划」，离开时清除'; },
       onDeleteModelConfigJson: (): void => { this.unavailable('MNN 配置删除'); },
       onListModelFilesTree: (): void => { this.output = '尚无安卓模型文件目录'; },
       onListChunkVisionOmFiles: (): void => { this.cacheOutput = '安卓没有已注册的 OM 缓存'; },
@@ -855,15 +855,12 @@ struct Index {
   @Builder private MainTabContents() {
         TabContent() { this.Home() }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(0))
         TabContent() {
-          Column() {
-          Button('本机会议 · 录音与纪要').width('90%').margin({ top: 14, bottom: 8 })
-            .onClick((): void => { this.stopAsr(); this.stopVoice(); router.pushUrl({ url: 'pages/meeting/MeetingPage' }); })
-          Column() { CollectionPage({ collectionModule: $collectionScene, viewModels: this.collectionViews, refreshing: this.refreshing,
+          CollectionPage({ collectionModule: $collectionScene, viewModels: this.collectionViews, refreshing: this.refreshing,
             onRefresh: (): void => { this.refreshCollection(); },
             onOpenDataCollectionSettings: (): void => { this.settingsSection = 1; this.tab = MainTabIndex.Mine; },
+            onOpenMeeting: (): void => { this.stopAsr(); this.stopVoice(); router.pushUrl({ url: 'pages/meeting/MeetingPage' }); },
             onRunWechatAutoSummary: async (): Promise<void> => { throw new Error('安卓微信自动采集尚未接入，未读取聊天数据'); }
-          }) }.layoutWeight(1).width('100%')
-          }.height('100%')
+          })
         }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(1))
         TabContent() { this.Chat() }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(2))
         TabContent() {

@@ -1,5 +1,16 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## 任务及汇总入口对齐、鸿蒙录音分析对照（2026-11-07）
+
+- 任务页移除 Android 专用的「本应用截图与单步规划」入口。「我的 → 数据采集 → 界面采集与规划」承接现有截图、采集与手动控制流程。
+- 汇总去掉顶部会议按钮。「本机会议」复用日历、邮箱来源行，排在两者下方，点击仍先结束聊天语音再进入现有会议页面。
+- 核查鸿蒙 `coevomind-app@0bc30157` 与新增录音分析的 `84535ff3`。更新会议差异表、D30 映射与最终阶段待办。会议运行专项继续放在最后阶段。 [实现对照](docs/MEETING_INTEGRATION.md#与鸿蒙录音分析的差异2026-11-07)
+- 更新中文手册入口、旧截图差异及设备测试的入口定位。
+
+- `prepare.mjs`、hvigor `assembleHap`、Android 运行包导出和来源校验通过。`:shared-app:assembleDebug :shared-app:assembleDebugAndroidTest --offline` 通过，沿用本机会议 SDK 占位及非会议测试的临时 Gradle 过滤。
+- OPPO PKB110 / Android 16 实测旧版与新版，确认任务页规划按钮及汇总顶部会议按钮已移除，来源行顺序为「日历分析 → 邮箱分析 → 本机会议」。设置页实测新入口，首次仪表测试点击「数据采集」时命中浮动导航栏。修正测试先滚动卡片后，`GuiScreenshotDeviceTest#settingsEntryCapturesPreviewAndClearDeletesItWithoutCloudAuthorization` 复测通过，覆盖设置导航、预览和清除。
+- `verify-gui-plan.mjs` 通过 13 项。手册生成检查通过 16 章和 10 张审核图，导航测试通过 8 项。会议专项未运行。
+
 ## P01/P04 跨应用本机文字采集首段（2026-11-07）
 
 - 核查 `coevomind-app@0bc30157` 的 Planner / Decider、手机 HDC UI 树与动作接口、PC `/api/workflow` 和手机微信采集。三家 GUI 模型的接口与 Key 申请入口见 [分支计划](docs/COEVOMIND_BRANCH_PLAN.md#android-跨应用采集2026-11-07)。

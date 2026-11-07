@@ -143,7 +143,7 @@ let debug = applyPatches(read('utils/DebugSettings.ets'), [
 overlay('utils/DebugSettings.ets', debug);
 let settings = read('pages/settings/SettingsCenterPage.ets');
 overlay('pages/settings/SettingsCenterPage.ets', applyPatches(settings, [
-  ['      this.SectionTitle(SettingsSectionId.DataCollection)', "      this.SectionTitle(SettingsSectionId.DataCollection)\n      Button('日历分析').onClick(() => { router.pushUrl({ url: 'pages/settings/CalendarSourcesPage', params: { kind: 'calendar' } }); })\n      Button('邮箱分析').onClick(() => { router.pushUrl({ url: 'pages/settings/MailSourcesPage', params: { kind: 'mail' } }); })\n      Button('聊天长期记忆与本机索引').onClick(() => { router.pushUrl({ url: 'pages/settings/MemorySyncPage' }); })"],
+  ['      this.SectionTitle(SettingsSectionId.DataCollection)', "      this.SectionTitle(SettingsSectionId.DataCollection)\n      Button('日历分析').onClick(() => { router.pushUrl({ url: 'pages/settings/CalendarSourcesPage', params: { kind: 'calendar' } }); })\n      Button('邮箱分析').onClick(() => { router.pushUrl({ url: 'pages/settings/MailSourcesPage', params: { kind: 'mail' } }); })\n      Button('界面采集与规划').onClick(() => { router.pushUrl({ url: 'pages/task/GuiPlanPage' }); })\n      Button('聊天长期记忆与本机索引').onClick(() => { router.pushUrl({ url: 'pages/settings/MemorySyncPage' }); })"],
   ['开启后显示并记录聊天和手机 HDC 日志', '开启后记录本次前端诊断；原生推理与自动控制日志尚未接入'],
   // 模型下载：鸿蒙端“下载中禁用按钮、另设暂停”，安卓改为同一按钮在“下载/继续下载”和“暂停”之间切换，
   // 否则暂停后按钮被禁用，无法续传。其余文案与进度面板沿用原页面。
@@ -198,9 +198,11 @@ overlay('utils/PrivacyConsent.ets', replaceChecked(read('utils/PrivacyConsent.et
 overlay('utils/gallery/GalleryPhotoPicker.ets', fs.readFileSync(path.join(here, 'adapters/utils/gallery/GalleryPhotoPicker.ets'), 'utf8'));
 let collectionSources = read('pages/collection/CollectionPage.ets');
 collectionSources = "import { PersonalSourceEntry } from '../../components/PersonalSourceEntry';\n" + collectionSources;
+collectionSources = replaceChecked(collectionSources, '  onOpenDataCollectionSettings: () => void = () => {};',
+  '  onOpenDataCollectionSettings: () => void = () => {};\n  onOpenMeeting: () => void = () => {};');
 collectionSources = replaceChecked(collectionSources,
   "router.pushUrl({ url: 'pages/gallery/GalleryPage' });\n            })",
-  "router.pushUrl({ url: 'pages/gallery/GalleryPage' });\n            })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'calendar', target: 'pages/settings/CalendarSourcesPage' })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'mail', target: 'pages/settings/MailSourcesPage' })",
+  "router.pushUrl({ url: 'pages/gallery/GalleryPage' });\n            })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'calendar', target: 'pages/settings/CalendarSourcesPage' })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'mail', target: 'pages/settings/MailSourcesPage' })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'meeting', onOpenMeeting: () => { this.onOpenMeeting(); } })",
   'collection personal source entries');
 overlay('pages/collection/CollectionPage.ets', collectionSources);
 let gallery = read('pages/gallery/GalleryPage.ets');
@@ -310,13 +312,12 @@ taskPage = replaceChecked(taskPage, '  private closeConfigView(): void {\n    th
 taskPage = replaceChecked(taskPage, '.onClick(() => { this.editorOpen = false; })', '.onClick(() => { this.requestCloseEditor(); })');
 taskPage = replaceChecked(taskPage, "Text(subtitle + ' · ' + files.length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(files)))",
   "Text(subtitle + ' · ' + this.androidManagedFiles(category).length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(this.androidManagedFiles(category))))");
-taskPage = replaceChecked(taskPage, '          TaskDeviceControlPanel({ mode: this.taskControlMode,', "          Button('本应用截图与单步规划').onClick(() => { router.pushUrl({ url: 'pages/task/GuiPlanPage' }); })\n          TaskDeviceControlPanel({ mode: this.taskControlMode,");
 overlay('pages/task/TaskPage.ets', taskPage);
 writeJson('entry/src/main/resources/base/profile/main_pages.json', { src: [
   'pages/Index', 'pages/gallery/GalleryPage', 'pages/collection/CollectionGroupDetailPage',
   'pages/task/WorkflowFileViewer', 'pages/settings/DesktopCompanionPage', 'pages/settings/SelfHdcTestPage',
   'pages/LogView', 'pages/OpTest', 'pages/ProfileTest', 'pages/settings/MemorySyncPage', 'pages/settings/CalendarSourcesPage', 'pages/settings/MailSourcesPage', 'pages/meeting/MeetingPage', 'pages/task/GuiPlanPage' ] });
-for (const name of ['source_calendar', 'source_mail']) {
+for (const name of ['source_calendar', 'source_mail', 'source_meeting']) {
   fs.copyFileSync(path.join(template, 'entry/src/main/resources/base/media', name + '.svg'),
     path.join(project, 'entry/src/main/resources/base/media', name + '.svg'));
 }

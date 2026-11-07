@@ -42,7 +42,7 @@
     "reviewedDate": "2026-10-28",
     "capturePhase": "SH-18",
     "sha256": "09d20cc64d9325be8b612faee20ed5b644c300c33696466dbcc4bf585b26c395",
-    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 本机会议在当前版位于日历和邮箱下方。"
   },
   {
     "file": "assets/tasks.png",
@@ -51,7 +51,7 @@
     "reviewedDate": "2026-10-28",
     "capturePhase": "SH-18",
     "sha256": "0df2c0b540611c04219ca0e5f0ce0ef82e19e4e27f11143da92335db453c829c",
-    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 SH-25 adds an own-app screenshot/one-step planning entry absent from this older capture; caption and text identify this difference. The independent manual-control and cross-app local collection flows were added after this capture."
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 当前版的界面采集与规划已移至“我的 → 数据采集”。"
   },
   {
     "file": "assets/privacy.png",
@@ -87,6 +87,6 @@
     "reviewedDate": "2026-11-04",
     "capturePhase": "harmony-source-ui-oppo",
     "sha256": "83d7c674383d3a321c00ec1e74ca989413af96bb7630824d6735bd193b61b0a3",
-    "limitations": "已核看OPPO Android 16当前界面：无私人日程、邮件正文、账号或凭据；日历仅显示厂商通用来源名称，汇总无记录，含通用系统状态栏。来源APK SHA256 e57cb57c00ae9734d4681404b082fab3fe09cedd6dfeafaaf9a1c5195c684a4f。截图用于布局说明，不代表真实邮箱或模型服务验收。"
+    "limitations": "已核看OPPO Android 16当前界面：无私人日程、邮件正文、账号或凭据；日历仅显示厂商通用来源名称，汇总无记录，含通用系统状态栏。来源APK SHA256 e57cb57c00ae9734d4681404b082fab3fe09cedd6dfeafaaf9a1c5195c684a4f。此图早于本机会议移入同一组列表，用于说明日历和邮箱布局。"
   }
 ]

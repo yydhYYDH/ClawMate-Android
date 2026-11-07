@@ -100,17 +100,25 @@ class GuiScreenshotDeviceTest {
         android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand("input tap ${b.centerX()} ${b.centerY()}")).use{it.readBytes()};Thread.sleep(180);return true
     }
     private fun previews()=(context.filesDir.walkTopDown()+context.cacheDir.walkTopDown()).filter{it.isFile && it.name.startsWith("gui-preview-")}.toList()
-    @Test fun actualTaskPageCapturesPreviewAndClearDeletesItWithoutCloudAuthorization()=fixture{_,_->
+    @Test fun settingsEntryCapturesPreviewAndClearDeletesItWithoutCloudAuthorization()=fixture{_,_->
         val before=previews().toSet()
         try{
-            await("Task navigation missing"){click("任务")}
-            await("GUI planning entry missing"){click("本应用截图与单步规划")}
+            await("Settings navigation missing"){click("我的")}
+            // On a tall Settings home the card can be reported below the floating tab bar.
+            val screen = context.resources.displayMetrics
+            val x = screen.widthPixels / 2
+            val swipe = "input swipe $x ${screen.heightPixels * 3 / 4} $x ${screen.heightPixels * 2 / 5} 330"
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(swipe))
+                .use { it.readBytes() }
+            Thread.sleep(550)
+            await("Data collection settings missing"){click("数据采集")}
+            await("GUI planning entry missing"){click("界面采集与规划")}
             await("Own screenshot button missing"){click("截取本应用界面")}
             await("No preview file from actual page"){(previews().toSet()-before).isNotEmpty()}
             val image=(previews().toSet()-before).single();assertTrue(image.length()>1000)
             await("Clear preview control missing"){click("清除截图")}
             await("Preview cache survived clear"){!image.exists()}
-            instrumentation.sendStatus(2,Bundle().apply{putString("guiPreviewPage","Actual task entry and ArkTS capture/preview/private file/clear; cloud authorization false, no provider request or execution")})
+            instrumentation.sendStatus(2,Bundle().apply{putString("guiPreviewPage","Actual settings entry and ArkTS capture/preview/private file/clear; cloud authorization false, no provider request or execution")})
         }finally{(previews().toSet()-before).forEach{it.delete()}}
     }
 }

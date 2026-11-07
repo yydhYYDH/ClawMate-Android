@@ -75,7 +75,7 @@ flowchart TB
 | D27 文件清理与诊断 | LogView、OpTest、ProfileTest 等适配 | NativeCapabilities；拟 InferenceDiagnostics | 部分；当前受限原生诊断不可计完成 |
 | D28 桌面端下载 | DesktopCompanionPage | 配置链接、浏览器打开 | 集成入口；下载成功不代表服务就绪 |
 | D29 画像分享/匹配、小艺记忆 | 原 ProfileKnockShareService、PersonalMemoryAccess | 拟 ProfileSharePort、PersonalMemoryExportPort | 待补；分享传输、系统接入及 Android 替代须单独决策 |
-| D30 会议/音频笔记 | 现有 MeetingPage、MeetingApi | MeetingBridge 与既有 SDK | 延后；完整上游范围待核，不由页面反推已完成 |
+| D30 会议/音频笔记 | 鸿蒙 `RecordingPage`、录音分析 Worker、录音库 | Android `MeetingPage`、`MeetingApi`、`MeetingBridge` 与既有 SDK | 业务迁移延后，入口已合并至汇总来源列表。见[鸿蒙录音分析差异](MEETING_INTEGRATION.md#与鸿蒙录音分析的差异2026-11-07) |
 
 上述原类名只表示参考源码或调用点存在，不保证每个底层实现已包含在本地快照中。
 

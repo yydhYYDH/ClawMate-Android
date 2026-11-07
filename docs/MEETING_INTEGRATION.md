@@ -1,6 +1,6 @@
 # 本机会议接入
 
-入口：共享版“汇总 → 本机会议 · 录音与纪要”。主页面与业务存储仍使用 ArkTS；Kotlin
+在共享版「汇总」的日历分析和邮箱分析下方打开「本机会议」。主页面与业务存储使用 ArkTS。Kotlin
 `MeetingBridge` 连接会议 SDK、Android 前台录音、系统文件选择和音频回听。
 
 ## 源码依赖与构建
@@ -79,3 +79,16 @@ adb shell am instrument -w -r -e class com.clawmate.shared.MeetingIntegrationDev
 Activity 关闭后 SDK 状态。ArkUI-X 条件布局可能保留过期的无障碍节点，测试用现有离线中文 OCR
 定位实际渲染的按钮，再注入触摸。它不启动麦克风；长时间锁屏录音、来电/音频焦点、其他厂商、16KB 页大小、
 发布签名/包体与完整隐私数据迁移仍需专项验收。真实本地纪要按需加载验证见会议仓库的第四步记录。
+
+## 与鸿蒙录音分析的差异（2026-11-07）
+
+`coevomind-app` 的 [`84535ff3`](https://github.com/doulujiyao12/mobiinfra-oh/commit/84535ff3) 新增独立的「录音分析」，已在核对的分支头 `0bc30157` 中。以下为源码和文档对照。
+
+| 范围 | 鸿蒙 `RecordingPage` | Android `MeetingPage` |
+| --- | --- | --- |
+| 录音来源 | 麦克风、系统音及混音，支持 WAV 文件分享/导入、Wear Engine 接收华为手表录音 | Android 前台麦克风录音、暂停/继续、系统文件选择器导入音频 |
+| 转写与说话人 | 默认边录边用 Silero VAD + SenseVoice 转写。文件分析可开启 Pyannote 分段和 3D-Speaker 声纹匹配与比较。长录音分块保存进度 | Meeting SDK 提供实时文本事件和本地 SenseVoice 转写，并提供 FireRed、Qwen 离线精修配置，以及正文、说话人标签和历史版本编辑 |
+| 纪要 | 默认用现有云端 Planner，仅提交转写文字。也可用应用已下载的大模型分段生成本地结构化摘要与待办，支持继续 | 会议页通过独立 SDK 的本地纪要任务生成文本，通过 SDK 管理任务状态、取消和重试 |
+| 保存 | 独立录音库保存 WAV、转写、纪要和声纹。可只删除音频并保留文字结果 | 会议 SDK 保管音频、数据库和版本。可导出 Markdown、JSON 或交接副本。主动保存副本后，以可去重的 Markdown 记录进入「汇总 → 文档」 |
+
+鸿蒙说明的操作清单仍写着录制后转写，后文和当前页面代码均已接入边录边转写，页面默认开启。系统内录和混音、手表接收、声纹比较、分段续跑和鸿蒙摘要结构列入会议最终阶段核查。 [鸿蒙录音分析设计](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/docs/recording-analysis.md) · [鸿蒙录音页面](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/ets/pages/recording/RecordingPage.ets)
