@@ -18,11 +18,13 @@ import java.util.regex.Pattern;
 /** Separate SDK-only actor; no mock service, shared static state or target process restart. */
 public class GuiControlExternalRunner extends Instrumentation {
     private UiAutomation ui;
+    private boolean collectOnly;
     private static final String HOST="com.clawmate.shared", FIXTURE="com.clawmate.gui.fixture";
     private void progress(String stage){Log.i("ClawMateGuiActor",stage);Bundle value=new Bundle();value.putString("guiControlStage",stage);sendStatus(2,value);}
     @Override public void onCreate(Bundle args) {
         super.onCreate(args);
         if(args==null || !"true".equals(args.getString("guiControlGranted"))){Bundle result=new Bundle();result.putString("scenarioPassed","false");finish(Activity.RESULT_CANCELED,result);return;}
+        collectOnly = "true".equals(args.getString("guiCollectionFixture"));
         start();
     }
     private void check(boolean value,String message){if(!value)throw new AssertionError(message);}
@@ -77,6 +79,47 @@ public class GuiControlExternalRunner extends Instrumentation {
     }
     private String fixtureState(){AccessibilityWindowInfo window=fixtureWindow();AccessibilityNodeInfo node=window==null?null:find(window.getRoot(),"Fixture scroll offset:",false);return node==null?"":String.valueOf(node.getContentDescription());}
     private void setup(){shell("am start -W -n com.clawmate.shared/com.clawmate.platform.gui.GuiControlSetupActivity");await("Native control settings did not open",()->owned("ClawMate control status",true)!=null);}
+    private void verifyCollection() {
+        click("查看本机采集记录", true);
+        await("Collection fixture requires empty history", () -> owned("暂无记录。", false) != null);
+        click("关闭", true);
+        click("选择应用并开始采集", true);
+        click("ClawMate GUI Fixture\ncom.clawmate.gui.fixture", true);
+        click("打开并开始会话", true);
+        await("Collection panel missing", () -> owned("停止采集", true) != null);
+        SystemClock.sleep(1500);
+        AccessibilityWindowInfo target = fixtureWindow();
+        check(target != null, "Fixture window missing");
+        AccessibilityNodeInfo edit = find(target.getRoot(), "Fixture editable value", true);
+        check(edit != null && edit.isEditable(), "Editable test node missing");
+        click("采集当前页", true);
+        await("Collection preview missing", () -> owned("采集预览：ClawMate GUI Fixture", true) != null);
+        click("取消", true);
+        setup();
+        click("查看本机采集记录", true);
+        await("Cancelled capture was saved", () -> owned("暂无记录。", false) != null);
+        click("关闭", true);
+        click("选择应用并开始采集", true);
+        click("ClawMate GUI Fixture\ncom.clawmate.gui.fixture", true);
+        click("打开并开始会话", true);
+        await("Second collection panel missing", () -> owned("停止采集", true) != null);
+        SystemClock.sleep(1500);
+        click("采集当前页", true);
+        click("保存到本机", true);
+        setup();
+        click("查看本机采集记录", true);
+        click("ClawMate GUI Fixture · ", false);
+        AccessibilityNodeInfo hostRoot = ui.getRootInActiveWindow();
+        check(hostRoot != null && HOST.equals(String.valueOf(hostRoot.getPackageName())), "History window missing");
+        check(find(hostRoot, "Fixture row 0", false) != null, "Saved text missing");
+        check(find(hostRoot, "Fixture editable value", false) == null, "Editable text was saved");
+        check(find(hostRoot, "Fixture row 39", false) == null, "Offscreen text was saved");
+        click("删除记录", true);
+        click("删除", true);
+        click("查看本机采集记录", true);
+        await("Record was not deleted", () -> owned("暂无记录。", false) != null);
+        click("关闭", true);
+    }
     @Override public void onStart() {
         Thread scenario=Thread.currentThread();
         Thread diagnostic=new Thread(()->{SystemClock.sleep(25000);StringBuilder stack=new StringBuilder();for(StackTraceElement frame:scenario.getStackTrace())stack.append(frame).append('\n');Log.i("ClawMateGuiActor","25-second actor stack: "+stack);},"fixture-diagnostic");diagnostic.setDaemon(true);diagnostic.start();
@@ -87,6 +130,14 @@ public class GuiControlExternalRunner extends Instrumentation {
             progress("Connected automation; opening native settings");
             AccessibilityServiceInfo info=ui.getServiceInfo();info.flags|=AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;ui.setServiceInfo(info);
             setup();await("Real service did not connect",()->{AccessibilityNodeInfo status=owned("ClawMate control status",true);return status!=null && String.valueOf(status.getText()).contains("无障碍服务已连接");});
+            if (collectOnly) {
+                verifyCollection();
+                passed = true;
+                result.putString("scenarioPassed", "true");
+                result.putString("guiCollectionFixture", "Real exact-app text preview, cancel, save, filtering and deletion");
+                sendStatus(2, result);
+                return;
+            }
             progress("Actual service connected; selecting only synthetic fixture");
             SystemClock.sleep(1000);click("选择应用并开启手动控制",true);
             click("ClawMate GUI Fixture\ncom.clawmate.gui.fixture",true);

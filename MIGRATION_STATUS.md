@@ -1,5 +1,20 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## P01/P04 跨应用本机文字采集首段（2026-11-07）
+
+- 核查 `coevomind-app@0bc30157` 的 Planner / Decider、手机 HDC UI 树与动作接口、PC `/api/workflow` 和手机微信采集。三家 GUI 模型的接口与 Key 申请入口见 [分支计划](docs/COEVOMIND_BRANCH_PLAN.md#android-跨应用采集2026-11-07)。
+- 共享任务页及原生无障碍设置页接入“选择应用并开始采集”和“查看本机采集记录”。Kotlin 复用单应用、解锁、窗口遮挡及 120 秒会话边界，窗口截图由系统确认可读后即释放，目标页的无障碍文字在工作线程读取。可编辑、密码和敏感节点跳过，读取有界，达到上限时标为部分。离开目标或取消时丢弃未保存预览。
+- 明确保存后写入应用私有目录的最近 10 条记录，保留来源、采集时间和文字，可删除单条。首段采用手动导航和逐页采集，独立于模型与汇总。新增 opt-in 的测试 App 用例，检查取消、保存、可编辑/屏外过滤和删除。
+- 更新中文手册流程及旧任务图差异。后续先验证 Android 微信的可见节点、联系人匹配、日期边界和跨页去重，再接结构化记录与汇总索引。GUI 模型的坐标和动作协议与现有 Decider 解析分开适配。
+
+验证结果：
+
+- `node shared-frontend/prepare.mjs`、hvigor `assembleHap`、`package-android.py`、`build-state.mjs seal` 均通过。生成的任务页与仓库适配层一致，`node shared-frontend/verify-gui-plan.mjs` 通过 13 项受控回归。
+- `gradlew.bat :android-capabilities:testDebugUnitTest :gui-control-fixture:assembleDebug --offline` 通过。最终共享能力测试报告 279 项通过、14 项联网服务测试跳过、0 失败。
+- 共享宿主用本机现有的会议 SDK 占位编译。首次全量 `:shared-app:assembleDebugAndroidTest` 因会议专项引用缺少的 SDK 方法失败。通过未入库的 Gradle init 脚本仅排除 `MeetingIntegrationDeviceTest.kt` 后，`:shared-app:assembleDebug :shared-app:assembleDebugAndroidTest --offline` 通过。
+- OPPO PKB110 / Android 16 安装共享调试 APK 和非会议测试 APK。 `adb shell am instrument -w -r -e class com.clawmate.shared.GuiControlDeviceTest com.clawmate.shared.test/androidx.test.runner.AndroidJUnitRunner` 返回 `OK (2 tests)`。覆盖系统服务声明、无权限时阻止开启采集以及取消说明后权限保持关闭。启用服务后的采集夹具、微信真实采集和 GUI 模型调用待验收。
+- `python docs/user-manual/build.py --check` 验证 16 章与 10 张审核图，导航测试 8 项通过，`git diff --check` 通过。
+
 ## 鸿蒙参考的日历/邮箱界面与同步设置（2026-11-04）
 
 - PersonalSourcesPage复用AppHeader/FrostedPage：居中标题、白色分组卡片、字段标题、蓝色行式操作、清除确认；无页面内互跳。

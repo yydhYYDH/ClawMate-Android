@@ -30,6 +30,13 @@ Success is `scenarioPassed=true` plus the `guiControlFixture` status marker. Thi
 is one SDK scenario, not a JUnit result. The actor itself does not change system
 permissions. Normal migration regression excludes this explicit opt-in scenario.
 
+To verify collection on a test installation with empty collection history, add
+`-e guiCollectionFixture true` before the instrumentation component. The actor
+checks that cancellation leaves history empty, a confirmed save includes visible
+fixture text, editable and offscreen values are omitted, and deleting the saved
+record leaves history empty. Success emits `scenarioPassed=true` and the
+`guiCollectionFixture` status marker.
+
 If the device vendor presents an installation CAPTCHA, the human must complete
 it on the phone. The actor and build scripts do not solve or bypass that gate.
 Vendor accessibility safety prompts may also require physical confirmation on

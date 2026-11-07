@@ -3,6 +3,7 @@ package com.clawmate.shared;
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -19,6 +20,12 @@ public class GuiControlFixtureActivity extends Activity {
         TextView counter=new TextView(this);counter.setText("Count: 0");counter.setTextSize(24);column.addView(counter);
         scroll=new ScrollView(this);
         Button increment=new Button(this);increment.setText("Increment fixture");increment.setContentDescription("Increment fixture");increment.setOnClickListener(v->{count++;counter.setText("Count: "+count);describe();});column.addView(increment);
+        EditText edit = new EditText(this);
+        edit.setText("Fixture editable value");
+        edit.setShowSoftInputOnFocus(false);
+        column.addView(edit);
+        column.setFocusableInTouchMode(true);
+        column.requestFocus();
         for(int i=0;i<40;i++){TextView row=new TextView(this);row.setText("Fixture row "+i);row.setTextSize(22);row.setPadding(0,12,0,12);column.addView(row);}
         scroll.addView(column);scroll.setOnScrollChangeListener((v,x,y,oldX,oldY)->describe());describe();setContentView(scroll);
     }

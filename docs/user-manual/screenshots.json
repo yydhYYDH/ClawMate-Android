@@ -51,7 +51,7 @@
     "reviewedDate": "2026-10-28",
     "capturePhase": "SH-18",
     "sha256": "0df2c0b540611c04219ca0e5f0ce0ef82e19e4e27f11143da92335db453c829c",
-    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 SH-25 adds an own-app screenshot/one-step planning entry absent from this older capture; caption and text identify this difference. SH-26 independent manual-control screen/overlay is not represented; no cross-app runtime screenshot acceptance is claimed."
+    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 SH-25 adds an own-app screenshot/one-step planning entry absent from this older capture; caption and text identify this difference. The independent manual-control and cross-app local collection flows were added after this capture."
   },
   {
     "file": "assets/privacy.png",

@@ -119,3 +119,25 @@ ImapTransport承接只读TLS，MailOAuth承接Google/Microsoft授权，ArkTS Per
 - `entry/src/main/ets/pages/{home/HomePage,collection/CollectionPage}.ets`：新来源入口与展示。
 
 本轮仅更新规划，不把上游文档的测试描述算作本仓库测试通过，不更新Android功能完成计数。检查文档结构/本地链接及git diff --check；未渲染Mermaid，未执行Gradle、上游测试、服务或设备验收。
+
+## Android 跨应用采集（2026-11-07）
+
+GitHub 分支 API 返回 [`0bc30157`](https://github.com/doulujiyao12/mobiinfra-oh/tree/0bc301573e47e5e6f6d0fd03fdd9f54143f298df)。它比本计划原审计点多 3 个提交。对比显示微信摘要提示词有改动，以下手机 GUI 与微信 UI 采集器文件在这段范围内没有变动。 [分支对比](https://github.com/doulujiyao12/mobiinfra-oh/compare/4e86f6250c7739d0ea922e2379eeedad2d35d450...0bc301573e47e5e6f6d0fd03fdd9f54143f298df)
+
+| 上游能力 | Android 对应 |
+| --- | --- |
+| `MobileGuiTaskTool` 先请求用户确认。`MobileGuiTaskWorkflowAdapter` 生成 Planner → Decider 两步，整理最终业务结果。 | 共享版 `GuiPlan` 已支持本应用截图的单步建议。跨应用建议、动作确认和结果契约待接入。 [上游工具](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/ets/utils/MobileGuiTaskTool.ets) · [工作流适配](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/ets/utils/MobileGuiTaskWorkflowAdapter.ets) |
+| `PhoneHdcWorkflowBridge` 提供启动、截图、UI 树和动作。PC 的 `/api/workflow` 另提供 `screenshot`、`gui_action`、`execute_decider_action`、`uidump`、`wechat_collect`。 | Kotlin `GuiControlService` 提供单应用授权、窗口校验及用户确认的手动控制。`GuiCollection` 从同一授权窗口读取文字。 [手机 HDC](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/ets/utils/selfhdc/PhoneHdcWorkflowBridge.ets) · [PC HDC](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/python/hdc_server.py) |
+| `PhoneWechatAutoSummaryClient` 通过 `WechatPhoneDevice.openWechat/dump/action` 定位联系人，逐页解析聊天、合并时间边界并写检查点。 | U06 可沿用独立设备接口和结果语义，需按 Android 微信节点重新实现选择器并验证，尤其是同名联系人、日期边界和部分覆盖。 [手机微信采集](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/ets/utils/wechat/PhoneWechatAutoSummaryClient.ets) |
+
+### GUI 模型接口
+
+| 服务 | 申请与调用 |
+| --- | --- |
+| 智谱 AutoGLM Phone | 标准模型 API Key，Base URL 为 `https://open.bigmodel.cn/api/paas/v4`，模型 `autoglm-phone`。适合先验证手机截图到动作的回路。 [API Keys](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) · [官方手机 Agent 示例](https://github.com/zai-org/Open-AutoGLM#readme) |
+| 阿里云百炼 GUI‑Plus | 百炼业务空间 Key。按控制台配置华北 2 的业务空间 Base URL，核对 `gui-plus` 或 `gui-plus-2026-02-26` 的授权。 [申请 API Key](https://help.aliyun.com/zh/model-studio/get-api-key) · [GUI‑Plus API](https://help.aliyun.com/zh/model-studio/gui-plus-interface-interaction-model) |
+| 火山方舟 Doubao Seed | 方舟项目 Key，选择支持 GUI Agent 的模型或推理接入点。官方示例将截图和任务发给模型，再用 UI‑TARS 解析动作。 [申请 API Key](https://docs.volcengine.com/docs/ark/api-key?lang=zh) · [GUI Agent 文档](https://console.volcengine.com/ark/region:cn-beijing/docs/gui-task-processing) |
+
+模型返回动作建议，手机端负责授权、校验和实际执行。OpenAI 兼容指请求协议相容，现有 Decider JSON 解析器仍需为各模型适配输出和坐标。凭据由账号所有者创建，开发联调使用本机注入。云端真实可用性以取得凭据后的合成页面测试为准。
+
+首段默认在手机本机逐页读取文字并预览保存。先在合成 App 验证关闭预览、读取范围和持久化；再验微信一位明确联系人及一段时间，保存结构化记录并接入汇总。遇到缺少节点文字的界面，可验证本机 OCR，云端截图需独立确认。Google Play 对通用应用使用无障碍 API 自主规划及执行有明确限制，发布路径需按其规则单独评估。 [Google Play 无障碍 API 政策](https://support.google.com/googleplay/android-developer/answer/10964491?hl=zh-Hans)

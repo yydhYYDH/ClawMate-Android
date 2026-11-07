@@ -23,9 +23,18 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import java.security.MessageDigest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-/** User-operated exact-app session. Shared/model code has no action-dispatch API. */
+/** User-operated exact-app session. Shared/model code has no API for reading nodes or dispatching actions. */
 class GuiControlService : AccessibilityService() {
     companion object {
         @Volatile var connected: GuiControlService? = null
@@ -44,6 +53,9 @@ class GuiControlService : AccessibilityService() {
     private var armedUntil=0L
     private var captureAt=0L
     private var targetLabel=""
+    private var collectOnly = false
+    private val collectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var collectionJob: Job? = null
     private val watchdog=object:Runnable {
         override fun run() {
             if(grant==null)return
@@ -72,12 +84,13 @@ class GuiControlService : AccessibilityService() {
     }
     override fun onInterrupt(){stop("系统中断控制会话")}
     override fun onUnbind(intent:Intent?):Boolean{stop("无障碍服务已断开");if(connected===this)connected=null;return super.onUnbind(intent)}
-    override fun onDestroy(){stop("无障碍服务已销毁");if(connected===this)connected=null;super.onDestroy()}
-    fun begin(target:String,label:String,launch:Intent) {
+    override fun onDestroy(){stop("无障碍服务已销毁");collectionScope.cancel();if(connected===this)connected=null;super.onDestroy()}
+    fun begin(target:String,label:String,launch:Intent,collectOnly:Boolean=false) {
         check(Build.VERSION.SDK_INT>=34) { "跨应用窗口截图需要Android 14及以上" }
         stop("正在开启新会话")
         check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "请先解锁手机" }
         grant=GuiControlSession(target,SystemClock.elapsedRealtime());targetLabel=label.take(40);armedUntil=SystemClock.elapsedRealtime()+5000
+        this.collectOnly = collectOnly
         lastStatus="等待目标应用进入前台：$targetLabel"
         try{startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));handler.post(watchdog)}catch(failure:Exception){stop("无法打开目标应用");throw failure}
     }
@@ -85,6 +98,8 @@ class GuiControlService : AccessibilityService() {
         val active=grant!=null
         overlayOwnership.retain(emptySet())
         epoch++;grant?.stop();grant=null;handler.removeCallbacks(watchdog);busy=false
+        collectionJob?.cancel()
+        collectionJob = null
         dialog?.dismiss();dialog=null;preview?.recycle();preview=null
         panel?.let{runCatching{getSystemService(WindowManager::class.java).removeView(it)}};panel=null
         lastStatus=reason
@@ -115,25 +130,92 @@ class GuiControlService : AccessibilityService() {
         val safe=Rect(metrics.bounds).apply{left+=insets.left;top+=insets.top;right-=insets.right;bottom-=insets.bottom}
         check(safe.intersect(window) && !safe.isEmpty) { "无法取得安全的应用内容区域" };return safe
     }
-    private fun overlayDialog(builder:AlertDialog.Builder):AlertDialog {
+    private fun overlayDialog(builder:AlertDialog.Builder, secure:Boolean=false):AlertDialog {
         val value=builder.create();value.window?.setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+        if (secure) value.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         value.setOnCancelListener{busy=false};dialog=value;value.show();return value
     }
     private fun showPanel() {
         if(panel!=null)return
         val layout=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8,8,8,8);setBackgroundColor(0xee18304f.toInt())}
-        layout.addView(TextView(this).apply{text="ClawMate · $targetLabel\n120秒 / 最多20次动作";setTextColor(-1);textSize=11f})
+        layout.addView(TextView(this).apply{
+            text=if (collectOnly) "ClawMate · $targetLabel\n本机采集 / 120秒" else "ClawMate · $targetLabel\n120秒 / 最多20次动作"
+            setTextColor(-1);textSize=11f
+        })
         fun button(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;textSize=12f;minHeight=0;setOnClickListener{if(!busy)runCatching{currentWindow();action()}.onFailure{stop(it.message ?: "目标应用已变化")}}})}
-        button("截图 / 点按"){capturePreview()}
-        button("向上滑动"){confirmGesture("向上滑动",null)}
-        button("向下滑动"){confirmGesture("向下滑动",null)}
-        button("返回"){confirmGesture("返回",null)}
-        layout.addView(Button(this).apply{text="停止控制";setOnClickListener{stop()}})
+        if (collectOnly) {
+            button("采集当前页"){collectPage()}
+        } else {
+            button("截图 / 点按"){capturePreview()}
+            button("向上滑动"){confirmGesture("向上滑动",null)}
+            button("向下滑动"){confirmGesture("向下滑动",null)}
+            button("返回"){confirmGesture("返回",null)}
+        }
+        layout.addView(Button(this).apply{
+            text=if (collectOnly) "停止采集" else "停止控制"
+            setOnClickListener{if (collectOnly) stop("用户停止采集") else stop()}
+        })
         val params=WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT,WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,android.graphics.PixelFormat.TRANSLUCENT)
         params.gravity=Gravity.TOP or Gravity.END;params.x=8;params.y=80
         params.width=minOf((150*resources.displayMetrics.density).toInt(),resources.displayMetrics.widthPixels/3)
-        getSystemService(WindowManager::class.java).addView(layout,params);panel=layout;lastStatus="控制会话进行中：$targetLabel；全部操作由用户逐次确认"
+        getSystemService(WindowManager::class.java).addView(layout,params);panel=layout
+        lastStatus=if (collectOnly) "本机采集会话进行中：$targetLabel" else "控制会话进行中：$targetLabel；全部操作由用户逐次确认"
+    }
+    private fun collectPage() {
+        check(Build.VERSION.SDK_INT >= 34 && collectOnly)
+        busy = true
+        val turn = epoch
+        val target = checkNotNull(grant).target
+        val label = targetLabel
+        // Require a system-approved window capture before reading its nodes.
+        // The pixels are discarded and never included in a preview or record.
+        screenshot { image, bounds, windowId ->
+            image.recycle()
+            val window = currentWindow()
+            check(window.id == windowId) { "采集前窗口已变化" }
+            val root = checkNotNull(window.root) { "无法读取目标页面" }
+            val area = safeBounds(bounds)
+            collectionJob = collectionScope.launch {
+                try {
+                    val record = withContext(Dispatchers.IO) {
+                        GuiCollection.read(this, root, area, target, label)
+                    }
+                    if (turn != epoch) return@launch
+                    val current = currentWindow()
+                    check(current.id == windowId && Rect().also { current.getBoundsInScreen(it) } == bounds) {
+                        "采集期间窗口已变化，请重新采集"
+                    }
+                    if (record.lines.isEmpty()) {
+                        busy = false
+                        lastStatus = "当前页没有可采集的无障碍文字"
+                        Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
+                        return@launch
+                    }
+                    val previewDialog = overlayDialog(AlertDialog.Builder(this@GuiControlService)
+                        .setTitle("采集预览：$label")
+                        .setMessage(record.description() + "\n保存后仅存于本机，可在采集记录中查看或删除。")
+                        .setView(record.preview(this@GuiControlService))
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton("保存到本机") { _, _ ->
+                            if (turn == epoch) runCatching {
+                                check(currentWindow().id == windowId) { "保存前窗口已变化" }
+                                GuiCollectionHistory.save(this@GuiControlService, record)
+                                lastStatus = "已保存到本机采集记录：$label"
+                                Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
+                            }.onFailure { stop("未保存采集记录，请重新采集") }
+                        }, secure = true)
+                    previewDialog.setOnDismissListener {
+                        if (dialog === previewDialog) dialog = null
+                        if (turn == epoch) busy = false
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    if (turn == epoch) stop("采集已停止，请确认目标页面仍在前台后重试")
+                }
+            }
+        }
     }
     private fun screenshot(receive:(Bitmap,Rect,Int)->Unit) {
         check(Build.VERSION.SDK_INT>=34)

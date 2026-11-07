@@ -70,6 +70,7 @@ class GuiControlDeviceTest {
         ActivityScenario.launch(SharedActivity::class.java).use{scenario->
             val bridge=port(scenario);Thread.sleep(800)
             bridge.guiControlOpen();click("知道了")
+            bridge.guiCollectionOpen();click("知道了")
             assertFalse(JSONObject(bridge.guiControlStatus()).getBoolean("connected"))
             bridge.guiControlSettings();click("取消")
             assertTrue("Enabled services changed after cancelling disclosure",before==Settings.Secure.getString(resolver,Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES))

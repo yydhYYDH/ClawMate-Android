@@ -90,13 +90,17 @@ struct GuiPlanPage {
       Column({ space: 14 }) {
         Button('返回').onClick(() => { this.clear(); router.back(); })
         Text('本应用截图与单步规划').fontSize(21).fontWeight(FontWeight.Bold)
-        Text('此处截取ClawMate当前界面，确认后才发送给Decider，只生成建议。跨应用手动控制使用下方独立入口；模型动作执行与规划循环尚未接入。').fontSize(14)
+        Text('此处截取ClawMate当前界面，确认后才发送给Decider以生成建议。跨应用采集和手动控制使用下方入口。').fontSize(14)
         TextInput({ text: this.task, placeholder: '描述界面任务（最多2000字）' }).maxLength(2000).enabled(!this.busy).onChange((value: string): void => { this.task = value; })
         Button('截取本应用界面').enabled(!this.busy).onClick(() => { this.capture(); })
         if (this.preview) { Image(this.preview).width('100%').height(280).objectFit(ImageFit.Contain).accessibilityText('待确认上传的本应用截图').onError((): void => { this.clear(); this.status = '截图预览失败，请重新截图；未发送图片。'; }) }
         Button('确认截图并请求单步规划').enabled(!this.busy && this.preview.length > 0 && this.task.trim().length > 0).onClick(() => { this.plan(); })
         Button(this.busy ? '取消并清除截图' : '清除截图').onClick(() => { this.clear(); this.status = '已取消并清除本页截图，未执行动作。'; })
         Text(this.status).fontSize(14).width('100%').copyOption(CopyOptions.InApp)
+        Text('跨应用本机采集').fontSize(18).fontWeight(FontWeight.Bold)
+        Text('Android 14及以上，需开启无障碍权限。选择一个应用，到目标页面后点击浮层的“采集当前页”，预览后可保存。最近10条记录仅存本机。').fontSize(14)
+        Button('选择应用并开始采集').enabled(!this.busy).onClick(() => { this.control('guiCollectionOpen'); })
+        Button('查看本机采集记录').enabled(!this.busy).onClick(() => { this.control('guiCollectionHistory'); })
         Text('跨应用手动控制').fontSize(18).fontWeight(FontWeight.Bold)
         Text('选择一个应用，按次开启120秒/20次动作会话。截图仅本机预览；手动点按、上下滑动和返回逐次确认。不自动执行模型建议，不支持文字输入。').fontSize(14)
         Button('无障碍权限说明').enabled(!this.busy).onClick(() => { this.control('guiControlSettings'); })
