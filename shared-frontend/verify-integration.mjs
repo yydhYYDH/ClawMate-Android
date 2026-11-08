@@ -98,8 +98,17 @@ await check('historical image files contain only the decoded byte range and rema
   store.discard(result.paths); assert.equal(written.size, 0);
 });
 
-await check('workflow results persist actual summary metadata; cancellation never commits a late summary', async () => {
+const { taskServiceLabel } = module('shared-frontend/adapters/platform/TaskServices.ets', 'taskServiceLabel');
+await check('task service labels reflect local, visual and nested automatic GUI steps', () => {
+  assert.equal(taskServiceLabel([{ type: 'gui_action', action: 'sleep' }, { type: 'tool', tool_name: 'summary' }]), '本机工作流');
+  assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'vlm_qa' }]), '视觉问答 · 发送前确认');
+  assert.equal(taskServiceLabel([{ type: 'if', else_steps: [{ type: 'loop', steps: [{ type: 'gui_task' }] }] }]), '自动 GUI · 待接入');
+  assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'python' }]), '含待适配步骤');
+});
+
+await check('only a persisted workflow summary makes results ready for sync', async () => {
   const files = new Map(), statuses = []; let cancelled = false, nativeCalls = 0, collectionMarks = 0;
+  let result = { status: 'success', message: 'completed', resultSummary: '真实输入的输出', steps: [] };
   const signal = { isCancelled: () => cancelled, setHandler() {}, throwIfCancelled() { if (cancelled) throw new Error('用户取消'); } };
   const storage = { ensureDir() {}, readText: path => files.get(path) ?? '',
     writeTextAtomic: (path, value) => files.set(path, value), writeJsonAtomic: (path, value) => files.set(path, JSON.stringify(value)) };
@@ -110,10 +119,10 @@ await check('workflow results persist actual summary metadata; cancellation neve
     Bridge: { createBridge: () => ({ async callMethod(method) {
       nativeCalls++;
       if (method === 'workflowStart') return 'run-one';
-      return JSON.stringify({ v: 1, status: 'done', result: JSON.stringify({ status: 'success', message: 'completed', resultSummary: '真实输入的输出', steps: [] }) });
+      return JSON.stringify({ v: 1, status: 'done', result: JSON.stringify(result) });
     } }) }
   });
-  await AndroidWorkflow.run('/fixture', { id: 'task-one', title: '用户任务', sceneId: 12 }, signal);
+  assert.equal(await AndroidWorkflow.run('/fixture', { id: 'task-one', title: '用户任务', sceneId: 12 }, signal), true);
   assert.equal(statuses.at(-1), 'success'); assert.equal(nativeCalls, 2);
   assert.ok([...files.keys()].some(path => path.endsWith('/run_summary.json')));
   assert.equal(JSON.parse([...files.entries()].find(([path]) => path.endsWith('/run_summary.json'))[1]).source_kind, 'android_workflow');
@@ -123,6 +132,15 @@ await check('workflow results persist actual summary metadata; cancellation neve
   cancelled = true; const count = files.size;
   await assert.rejects(AndroidWorkflow.run('/fixture', { id: 'task-two' }, signal), /取消/);
   assert.equal(files.size, count); assert.equal(nativeCalls, 2); assert.equal(statuses.at(-1), 'cancelled');
+  cancelled = false;
+  result = { status: 'success', message: 'completed', resultSummary: '', steps: [] };
+  assert.equal(await AndroidWorkflow.run('/fixture', { id: 'echo' }, signal), false);
+  result = { status: 'blocked', message: 'GUI requires Android automation', resultSummary: '', steps: [
+    { id: '1', type: 'gui_task', status: 'blocked' }
+  ] };
+  await assert.rejects(AndroidWorkflow.run('/fixture', { id: 'gui' }, signal), /第 1 步需要自动 GUI/);
+  assert.equal(statuses.at(-1), 'blocked');
+  assert.equal([...files.keys()].filter(path => path.endsWith('.md')).length, 1);
   assert.equal(collectionMarks, 1);
 });
 

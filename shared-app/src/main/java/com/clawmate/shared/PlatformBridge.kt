@@ -328,7 +328,7 @@ class PlatformBridge(private val activity: StageActivity) :
             .put("status", result.status.name.lowercase())
             .put("message", result.message).put("resultSummary", result.resultSummary)
             .put("steps", JSONArray(result.steps.map { step ->
-                JSONObject().put("id", step.stepId).put("status", step.status.name.lowercase())
+                JSONObject().put("id", step.stepId).put("type", step.type).put("status", step.status.name.lowercase())
                     .put("message", step.note).put("detail", step.detail)
                     .put("output", step.output?.let { JSONObject(it.toString()) })
             })).toString()

@@ -240,7 +240,7 @@ overlay('utils/gallery/GalleryImageStore.ets', applyPatches(read('utils/gallery/
 ]));
 overlay('components/TaskDeviceControlPanel.ets', replaceChecked(read('components/TaskDeviceControlPanel.ets'), "      Text('任务控制方式').fontSize(15).fontWeight(FontWeight.Bold).width('100%')",
     "      Text('任务控制方式').fontSize(15).fontWeight(FontWeight.Bold).width('100%')\n" +
-    "      Text('安卓支持有界等待、条件、循环与 echo/summary；GUI 与模型工具需要另行配置。开关只保存选择，不启用周期调度').fontSize(12).fontColor('#65718B').width('100%')"));
+    "      Text(this.mode === 'pc' ? '电脑控制待接入 Android 设备桥接。' : '可运行本机工作流和本机图片视觉问答。自动 GUI 待接入。').fontSize(12).fontColor(AppTheme.text('#65718B')).width('100%')"));
 // Data-pipeline requests must use the saved model and reject cancelled results
 // before validators/checkpoints or later stages can commit them.
 overlay('datamanager/DataManagerTypes.ets', replaceChecked(read('datamanager/DataManagerTypes.ets'), 'export interface DataManagerModelConfig {', 'export interface DataManagerModelConfig {\n  model?: string;\n  ensureActive?: () => void;'));
@@ -254,7 +254,65 @@ overlay('datamanager/DataPipelineModelClient.ets', applyPatches(read('datamanage
   ['        dataManagerInfo(`Model request response:', '        config.ensureActive?.();\n        dataManagerInfo(`Model request response:']
 ]));
 let taskPage = read('pages/task/TaskPage.ets');
-taskPage = replaceChecked(taskPage, "import { AppTheme }", "import { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }");
+taskPage = replaceChecked(taskPage, "import { AppTheme }",
+  "import { taskServiceLabel } from '../../platform/TaskServices';\nimport { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }");
+taskPage = applyPatches(taskPage, [
+  ['  @State private batchSyncing: boolean = false;', '  @State private batchSyncing: boolean = false;\n  @State private androidCollectedResultsReady: boolean = false;'],
+  ['  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {};',
+    '  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<boolean> = async (): Promise<boolean> => false;'],
+  ['  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {',
+    '  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<boolean> =\n    async (): Promise<boolean> => {'],
+  ['    cancellation: WorkflowCancellation = new WorkflowCancellation()): Promise<void> {\n    cancellation.throwIfCancelled();\n    if (this.taskControlMode',
+    '    cancellation: WorkflowCancellation = new WorkflowCancellation()): Promise<boolean> {\n    cancellation.throwIfCancelled();\n    if (this.taskControlMode'],
+  [`    if (this.taskControlMode === 'phone') {
+      await this.onRunPhoneWorkflow(task, cancellation);
+    } else { await this.onRunWorkflow(task, cancellation); }`,
+   `    let savedSummary = this.taskControlMode === 'phone' ? await this.onRunPhoneWorkflow(task, cancellation) :
+      await this.onRunWorkflow(task, cancellation);
+    if (savedSummary) { this.androidCollectedResultsReady = true; }`],
+  ["        AppLogger.errorCause('CollectionReminder', 'Collection history save failed', e);\n      });\n    }\n  }",
+    "        AppLogger.errorCause('CollectionReminder', 'Collection history save failed', e);\n      });\n    }\n    return savedSummary;\n  }"],
+  ['    let attemptedTasks = 0;', '    let collectedSummaries = 0;'],
+  ['          attemptedTasks++;\n          await this.runSelectedWorkflow(currentTask, cancellation);',
+    '          if (await this.runSelectedWorkflow(currentTask, cancellation)) { collectedSummaries++; }'],
+  ["            this.tasks = WorkflowStorage.updateTaskRun(this.filesDir, currentTask.id, 'failed', err.message);",
+    '            this.tasks = WorkflowStorage.loadTasks(this.filesDir);'],
+  [/      \} else if \(attemptedTasks > 0\) \{[^]*?\n      \}\n    \} finally \{/,
+    `      } else if (collectedSummaries > 0) {
+        showToastSafely(stoppedByError ? '部分任务未完成，已保存采集结果' : '采集结果已保存，可同步到汇总', 2200);
+      } else if (!stoppedByError) {
+        showToastSafely('已完成开启任务的依次执行', 1500);
+      }
+    } finally {`],
+  ["if (this.batchSyncing) { return '正在同步分析…'; }", "if (this.batchSyncing) { return '正在打开同步…'; }"],
+  ["            showToastSafely('批量任务无法执行：' + (e as Error).message, 2200);\n          }\n        })",
+    `            showToastSafely('批量任务无法执行：' + (e as Error).message, 2200);
+          }
+        })
+      if (this.androidCollectedResultsReady && !this.batchRunning) {
+        Button(this.batchSyncing ? '正在打开同步…' : '同步采集结果').fontSize(13).height(38).margin({ top: 10 })
+          .backgroundColor(AppTheme.background('#EEF1FF')).fontColor(AppTheme.text('#276EF1'))
+          .enabled(!this.batchSyncing && !this.isTaskExecutionBusy()).onClick(async (): Promise<void> => {
+            if (this.batchSyncing || this.isTaskExecutionBusy()) { return; }
+            this.batchSyncing = true;
+            try { await this.onSyncCollectedTasks(); }
+            catch (error) { showToastSafely((error as Error).message, 2200); }
+            finally { this.batchSyncing = false; }
+          })
+      }`],
+  ['  @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {',
+    `  private androidTaskService(task: WorkflowTask): string {
+    try {
+      let raw = WorkflowStorage.readTaskWorkflowJson(this.filesDir, task);
+      return raw.length <= 256000 ? taskServiceLabel(WorkflowStorage.validateWorkflowJson(raw).steps) : '检查任务配置';
+    } catch (error) { return '检查任务配置'; }
+  }
+
+  @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {`],
+  ["Text(this.runningTaskId === task.id ? '执行中' : task.enabled ? '已开启' : '已关闭')",
+    "Text(this.runningTaskId === task.id ? '执行中' : (task.enabled ? '已开启' : '已关闭') + ' · ' + this.androidTaskService(task))"],
+  ["Text('来源模块：' + task.source)", "Text('来源模块：' + task.source + ' · ' + this.androidTaskService(task))"]
+]);
 taskPage = replaceChecked(taskPage, '  @Builder ToolEditor() {', `  private async pickAndroidWorkflowImage(): Promise<void> {
     let selected = this.selectedPath; let task = this.editingTaskId;
     try {
@@ -278,7 +336,6 @@ taskPage = replaceChecked(taskPage, '  private fileViewerContainsAiGeneratedCont
 // The shared native runner reports GUI/model steps as blocked/not configured.
 taskPage = applyPatches(taskPage, [
   ['AiLoginGuard.ensure(this.getUIContext())', 'true', { all: true }],
-  ['!await PrivacyConsentDialog.show(this.getUIContext())', 'false', { all: true }],
   ["!await SelfHdcSetupGuard.ensure(this.getUIContext(), this.filesDir, 'workflow-start')", 'false', { all: true }],
   ["!await SelfHdcSetupGuard.ensure(this.getUIContext(), this.filesDir, 'workflow-batch-start')", 'false', { all: true }]
 ]);

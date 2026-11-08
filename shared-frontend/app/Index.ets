@@ -40,6 +40,7 @@ import { ChatContext } from '../platform/ChatContext';
 import { CollectionReminderService } from '../utils/CollectionReminderService';
 import { MemoryQuery } from '../platform/MemoryQuery';
 import { AndroidWorkflow } from '../platform/AndroidWorkflow';
+import { ANDROID_PC_TASK_PENDING } from '../platform/TaskServices';
 import { AndroidAvatar } from '../platform/AndroidAvatar';
 import { ChatAvatar } from '../platform/ChatAvatar';
 import { CloudSpeech } from '../platform/CloudSpeech';
@@ -869,9 +870,15 @@ struct Index {
         }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(3))
         TabContent() {
           TaskPage({ taskScene: $taskScene, configViewOpen: $configViewOpen, active: this.tab === MainTabIndex.Task,
-            onEnsureDesktopCompanion: async (): Promise<boolean> => { return true; },
-            onRunWorkflow: async (task: WorkflowTask, cancellation: WorkflowCancellation): Promise<void> => { await AndroidWorkflow.run(this.context().filesDir, task, cancellation, async (): Promise<void> => { await this.authorizeCloud(); }); },
-            onRunPhoneWorkflow: async (task: WorkflowTask, cancellation: WorkflowCancellation): Promise<void> => { await AndroidWorkflow.run(this.context().filesDir, task, cancellation, async (): Promise<void> => { await this.authorizeCloud(); }); }
+            onEnsureDesktopCompanion: async (): Promise<boolean> => {
+              showToastSafely(ANDROID_PC_TASK_PENDING, 3000); return false;
+            },
+            onRunWorkflow: async (): Promise<boolean> => { throw new Error(ANDROID_PC_TASK_PENDING); },
+            onRunPhoneWorkflow: async (task: WorkflowTask, cancellation: WorkflowCancellation): Promise<boolean> => {
+              return await AndroidWorkflow.run(this.context().filesDir, task, cancellation,
+                async (): Promise<void> => { await this.authorizeCloud(); });
+            },
+            onSyncCollectedTasks: async (): Promise<void> => { await this.refreshCollection(); }
           })
         }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(4))
         TabContent() { this.Settings() }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(5))

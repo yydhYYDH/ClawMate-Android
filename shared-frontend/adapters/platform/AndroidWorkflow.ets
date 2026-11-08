@@ -6,14 +6,15 @@ import { DataManagerFacade } from '../datamanager/DataManagerFacade';
 import { CollectionReminderService } from '../utils/CollectionReminderService';
 import { WorkflowVlm, WorkflowVlmRequest } from './WorkflowVlm';
 
-interface ExecutionResult { status: string; message: string; resultSummary: string; steps: Object[]; }
+interface ExecutionStep { id: string; type?: string; status: string; }
+interface ExecutionResult { status: string; message: string; resultSummary: string; steps: ExecutionStep[]; }
 interface ExecutionPoll { v: number; status: string; result: string; tool?: WorkflowVlmRequest; }
 interface SummaryTaskMetadata { name: string; task_scene_id: number; source_kind: string; }
 interface SummaryMetadata { workflow_metadata: SummaryTaskMetadata; latest_entry_index: number; }
 interface SharedRunRecord { source_kind: string; workflow_file: string; run_dir: string; status: string; message: string; result_summary: string; steps: Object[]; }
 export class AndroidWorkflow {
   static async run(filesDir: string, task: WorkflowTask, cancellation: WorkflowCancellation,
-    authorize: () => Promise<void> = async (): Promise<void> => { throw new Error('请在共享任务页确认云端授权'); }): Promise<void> {
+    authorize: () => Promise<void> = async (): Promise<void> => { throw new Error('请在共享任务页确认云端授权'); }): Promise<boolean> {
     let bridge = Bridge.createBridge('ClawMatePlatform');
     let id = '';
     let complete = false;
@@ -53,10 +54,14 @@ export class AndroidWorkflow {
           let runDir = WorkflowStorage.runsDir(filesDir) + '/android-' + Date.now().toString();
           facade.storage.ensureDir(runDir);
           let source = usedModel ? 'android_workflow_model' : 'android_workflow';
+          let gui = result.steps.find((step: ExecutionStep): boolean =>
+            step.status === 'blocked' && (step.type === 'gui_task' || step.type === 'gui_action'));
+          let message = gui === undefined ? result.message : '第 ' + gui.id + ' 步需要自动 GUI，Android 工作流待接入此能力。';
+          let savedSummary = result.status === 'success' && result.resultSummary.trim().length > 0;
           let record: SharedRunRecord = { source_kind: source, workflow_file: task.configFileName, run_dir: runDir,
-            status: result.status, message: result.message, result_summary: result.resultSummary, steps: result.steps };
+            status: result.status, message: message, result_summary: result.resultSummary, steps: result.steps };
           facade.storage.writeJsonAtomic(runDir + '/run_summary.json', record as Object);
-          if (result.status === 'success' && result.resultSummary.trim().length > 0) {
+          if (savedSummary) {
             let day = new Date();
             let date = day.getFullYear().toString() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0');
             let name = task.id.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
@@ -71,11 +76,11 @@ export class AndroidWorkflow {
             facade.storage.writeTextAtomic(path, '<!-- DAILY_LOG_METADATA\n' + metadata + '\n-->\n' + body + '\n' + String(count + 1) + '. ' + result.resultSummary.slice(0, 2000) + '\n\n');
             CollectionReminderService.recordSuccessfulCollection().catch(() => {});
           }
-          WorkflowStorage.updateTaskRun(filesDir, task.id, result.status, result.message +
+          WorkflowStorage.updateTaskRun(filesDir, task.id, result.status, message +
             (result.resultSummary.length > 0 ? '\n' + result.resultSummary : ''));
           complete = true;
-          if (result.status !== 'success') { throw new Error(result.message); }
-          return;
+          if (result.status !== 'success') { throw new Error(message); }
+          return savedSummary;
         }
         if (poll.status !== 'running') { throw new Error('工作流未完成或已取消'); }
         await new Promise<void>((resolve): void => { setTimeout(resolve, 120); });

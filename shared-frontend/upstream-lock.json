@@ -34,8 +34,8 @@
     },
     {
       "path": "entry/src/main/ets/components/TaskDeviceControlPanel.ets",
-      "gitBlob": "52158034f441ce671135364d529019fcc2c2b630",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "7ee3e7c6127ceb14d6eca27e1e1f6c686a15c9b8",
+      "ref": "0bc301573e47e5e6f6d0fd03fdd9f54143f298df"
     },
     {
       "path": "entry/src/main/ets/config/ModelDownloadConfig.ets",
@@ -214,8 +214,8 @@
     },
     {
       "path": "entry/src/main/ets/pages/task/TaskPage.ets",
-      "gitBlob": "ca83fc0e6053e760d59e734d4013d81aec2bf974",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "9776513834e19b32b394fb1dbb1bdb7d2d7ee440",
+      "ref": "0bc301573e47e5e6f6d0fd03fdd9f54143f298df"
     },
     {
       "path": "entry/src/main/ets/pages/task/WorkflowFileViewer.ets",
