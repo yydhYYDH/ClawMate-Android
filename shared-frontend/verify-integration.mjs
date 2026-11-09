@@ -98,12 +98,39 @@ await check('historical image files contain only the decoded byte range and rema
   store.discard(result.paths); assert.equal(written.size, 0);
 });
 
-const { taskServiceLabel } = module('shared-frontend/adapters/platform/TaskServices.ets', 'taskServiceLabel');
+const { taskServiceLabel, isBuiltInAlipayCollection } = module('shared-frontend/adapters/platform/TaskServices.ets',
+  'taskServiceLabel,isBuiltInAlipayCollection');
 await check('task service labels reflect local, visual and nested automatic GUI steps', () => {
   assert.equal(taskServiceLabel([{ type: 'gui_action', action: 'sleep' }, { type: 'tool', tool_name: 'summary' }]), '本机工作流');
   assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'vlm_qa' }]), '视觉问答 · 发送前确认');
   assert.equal(taskServiceLabel([{ type: 'if', else_steps: [{ type: 'loop', steps: [{ type: 'gui_task' }] }] }]), '自动 GUI · 待接入');
   assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'python' }]), '含待适配步骤');
+});
+
+await check('single-run Alipay entry opens only the native consent and respects edited tasks and PC mode', async () => {
+  const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
+  const entry = page.match(/^  private (async runTask\(task: WorkflowTask\): Promise<void> \{[\s\S]*?^  \})/m);
+  assert.ok(entry);
+  const calls = [];
+  const runTask = runInNewContext(stripTypeScriptTypes('({' + entry[1] + '}).runTask'), {
+    isBuiltInAlipayCollection, WorkflowCancellation: class {},
+    WorkflowStorage: { updateTaskRun: () => calls.push('record'), loadTasks: () => [] },
+    Bridge: { createBridge: () => ({ callMethod: async name => calls.push(name) }) }
+  });
+  let task = { id: 'default_alipay_bill', enabled: true };
+  const view = {
+    taskControlMode: 'phone', isTaskExecutionBusy: () => false, flushTaskContextDrafts: () => true,
+    refreshCardContextInputs() {}, findTask: () => task, refreshStatsText() {},
+    runSelectedWorkflow: async () => calls.push('workflow'), onEnsureDesktopCompanion: async () => { calls.push('pc'); return false; }
+  };
+  await runTask.call(view, task);
+  assert.deepEqual(calls.splice(0), ['guiAlipayCollectionOpen']);
+  task = { ...task, isUserModified: true };
+  await runTask.call(view, task);
+  assert.deepEqual(calls.splice(0), ['record', 'workflow']);
+  view.taskControlMode = 'pc'; task = { ...task, isUserModified: false };
+  await runTask.call(view, task);
+  assert.deepEqual(calls, ['pc']);
 });
 
 await check('only a persisted workflow summary makes results ready for sync', async () => {
@@ -113,6 +140,7 @@ await check('only a persisted workflow summary makes results ready for sync', as
   const storage = { ensureDir() {}, readText: path => files.get(path) ?? '',
     writeTextAtomic: (path, value) => files.set(path, value), writeJsonAtomic: (path, value) => files.set(path, JSON.stringify(value)) };
   const { AndroidWorkflow } = module('shared-frontend/adapters/platform/AndroidWorkflow.ets', 'AndroidWorkflow', {
+    isBuiltInAlipayCollection,
     WorkflowStorage: { updateTaskRun: (_, id, status) => statuses.push(status), readTaskWorkflowJson: () => '{"steps":[]}', runsDir: () => '/fixture/runs' },
     DataManagerFacade: class { storage = storage; paths = { dailyLogRoot: '/fixture/daily-log' }; ensureReady() {} },
     CollectionReminderService: { recordSuccessfulCollection: async () => { collectionMarks++; assert.ok([...files.keys()].some(path => path.endsWith('.md'))); } },
@@ -139,6 +167,7 @@ await check('only a persisted workflow summary makes results ready for sync', as
     { id: '1', type: 'gui_task', status: 'blocked' }
   ] };
   await assert.rejects(AndroidWorkflow.run('/fixture', { id: 'gui' }, signal), /第 1 步需要自动 GUI/);
+  await assert.rejects(AndroidWorkflow.run('/fixture', { id: 'default_alipay_bill' }, signal), /单次确认.*采集账单/);
   assert.equal(statuses.at(-1), 'blocked');
   assert.equal([...files.keys()].filter(path => path.endsWith('.md')).length, 1);
   assert.equal(collectionMarks, 1);

@@ -369,6 +369,7 @@ class PlatformBridge(private val activity: StageActivity) :
     fun guiControlSettings(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.settings(activity);true }
     fun guiControlOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.open(activity);true }
     fun guiCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.open(activity, collectOnly = true);true }
+    fun guiAlipayCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.openAlipayCollection(activity);true }
     fun guiCollectionHistory(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.showCollections(activity);true }
     fun guiControlStop(): Boolean = onUi { com.clawmate.platform.gui.GuiControlService.connected?.stop();true }
     fun guiControlStatus(): String = JSONObject().put("v",1)

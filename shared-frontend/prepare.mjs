@@ -255,7 +255,7 @@ overlay('datamanager/DataPipelineModelClient.ets', applyPatches(read('datamanage
 ]));
 let taskPage = read('pages/task/TaskPage.ets');
 taskPage = replaceChecked(taskPage, "import { AppTheme }",
-  "import { taskServiceLabel } from '../../platform/TaskServices';\nimport { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }");
+  "import Bridge from '@arkui-x.bridge';\nimport { isBuiltInAlipayCollection, taskServiceLabel } from '../../platform/TaskServices';\nimport { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }");
 taskPage = applyPatches(taskPage, [
   ['  @State private batchSyncing: boolean = false;', '  @State private batchSyncing: boolean = false;\n  @State private androidCollectedResultsReady: boolean = false;'],
   ['  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {};',
@@ -302,6 +302,7 @@ taskPage = applyPatches(taskPage, [
       }`],
   ['  @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {',
     `  private androidTaskService(task: WorkflowTask): string {
+    if (isBuiltInAlipayCollection(task)) { return '账单采集 · 单独确认'; }
     try {
       let raw = WorkflowStorage.readTaskWorkflowJson(this.filesDir, task);
       return raw.length <= 256000 ? taskServiceLabel(WorkflowStorage.validateWorkflowJson(raw).steps) : '检查任务配置';
@@ -311,6 +312,12 @@ taskPage = applyPatches(taskPage, [
   @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {`],
   ["Text(this.runningTaskId === task.id ? '执行中' : task.enabled ? '已开启' : '已关闭')",
     "Text(this.runningTaskId === task.id ? '执行中' : (task.enabled ? '已开启' : '已关闭') + ' · ' + this.androidTaskService(task))"],
+  ["Text(task.enabled ? task.lastStatus : '已暂停')",
+    "Text(task.enabled ? (isBuiltInAlipayCollection(task) ? '单次采集' : task.lastStatus) : '已暂停')"],
+  ["Text('最近运行：' + task.lastRun)",
+    "Text(isBuiltInAlipayCollection(task) ? '打开支付宝后，请自行进入账单页' : '最近运行：' + task.lastRun)"],
+  ["Text(task.lastMessage)",
+    "Text(isBuiltInAlipayCollection(task) ? '预览确认后，可在本机采集记录中查看' : task.lastMessage)"],
   ["Text('来源模块：' + task.source)", "Text('来源模块：' + task.source + ' · ' + this.androidTaskService(task))"]
 ]);
 taskPage = replaceChecked(taskPage, '  @Builder ToolEditor() {', `  private async pickAndroidWorkflowImage(): Promise<void> {
@@ -350,7 +357,15 @@ taskPage = applyPatches(taskPage, [
   ['  aboutToDisappear(): void {', '  aboutToDisappear(): void {\n    this.batchCancellation?.cancel();']
 ]);
 taskPage = applyPatches(taskPage, [
-  ["Button(this.runningTaskId === task.id ? '执行中' : '运行')", "Button(this.runningTaskId === task.id ? '停止' : '运行')"],
+  ["    this.tasks = WorkflowStorage.updateTaskRun(this.filesDir, currentTask.id, '运行中', 'Workflow 正在执行');\n    try {\n      this.batchCancellation = new WorkflowCancellation();",
+    `    try {
+      if (this.taskControlMode === 'phone' && isBuiltInAlipayCollection(currentTask)) {
+        await Bridge.createBridge('ClawMatePlatform').callMethod('guiAlipayCollectionOpen');
+        return;
+      }
+      this.tasks = WorkflowStorage.updateTaskRun(this.filesDir, currentTask.id, '运行中', 'Workflow 正在执行');
+      this.batchCancellation = new WorkflowCancellation();`],
+  ["Button(this.runningTaskId === task.id ? '执行中' : '运行')", "Button(this.runningTaskId === task.id ? '停止' : this.taskControlMode === 'phone' && isBuiltInAlipayCollection(task) ? '采集账单' : '运行')"],
   ["this.runningTaskId === task.id ? '#A9B7E9' : '#276EF1'", "this.runningTaskId === task.id ? '#B42318' : '#276EF1'"],
   ['            .enabled(!this.isTaskExecutionBusy())\n            .onClick(() => { this.runTask(task); })', '            .enabled(this.runningTaskId === task.id || !this.isTaskExecutionBusy())\n' +
     '            .onClick(() => { if (this.runningTaskId === task.id) { this.batchCancellation?.cancel(); } else { this.runTask(task); } })']
