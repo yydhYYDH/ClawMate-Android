@@ -17,7 +17,7 @@ object GuiControlEntry {
         foreground(activity)
         if(Build.VERSION.SDK_INT<34){AlertDialog.Builder(activity).setMessage("跨应用窗口截图需要Android 14及以上；不必开启无障碍权限。").setPositiveButton("知道了",null).show();return}
         AlertDialog.Builder(activity).setTitle("开启按次界面控制权限？")
-            .setMessage("Android无障碍权限可读取窗口并发送手势。每次需另行选择应用并确认。手动控制会话最长120秒、最多20次动作，截图仅供本机预览。采集会话最长120秒，点击采集后可预览当前页文字，确认后才保存到本机。此功能需要Android 14及以上，可随时在系统设置中关闭。")
+            .setMessage("Android无障碍权限可读取窗口并发送手势。每次需另行选择应用并确认。手动控制会话最长120秒、最多20次动作，截图仅供本机预览。采集会话最长120秒，可采集当前页，也可主动开启最多${GUI_COLLECTION_PAGE_LIMIT}页的自动向下采集。预览后确认才保存到本机。此功能需要Android 14及以上，可随时在系统设置中关闭。")
             .setNegativeButton("取消",null).setPositiveButton("去系统设置"){_,_->
                 activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }.show()
@@ -37,7 +37,7 @@ object GuiControlEntry {
             val selected=apps[index];val label=selected.loadLabel(activity.packageManager).toString();val pkg=selected.activityInfo.packageName
             AlertDialog.Builder(activity).setTitle("本次允许：$label")
                 .setMessage(if (collectOnly)
-                    "仅允许读取 $pkg 当前页的可见无障碍文字，最长120秒。每页由你点击采集并预览，确认后才保存到本机。切换应用、锁屏或到期即停止。"
+                    "仅允许读取 $pkg 的可见无障碍文字，最长120秒。到目标页面后，可主动采集当前页，或选择最多${GUI_COLLECTION_PAGE_LIMIT}页的自动向下采集。自动采集最多滚动${GUI_COLLECTION_PAGE_LIMIT - 1}次，预览确认后才保存到本机。切换应用、锁屏或到期即停止。"
                 else "仅允许 $pkg，最长120秒、最多20次动作。屏幕将显示停止控制入口，每个手势另行确认；切换应用、锁屏或到期即停止。截图只在本机预览，不上传、不写入文件。当前不自动执行模型建议，也不支持文字输入。")
                 .setNegativeButton("取消",null).setPositiveButton("打开并开始会话"){_,_->
                     activity.window.decorView.postDelayed({

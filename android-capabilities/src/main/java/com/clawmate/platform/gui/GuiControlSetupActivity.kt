@@ -7,6 +7,7 @@ import android.os.Looper
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 
 /** System accessibility "Settings" entry; never accepts a target/action intent extra. */
 class GuiControlSetupActivity : Activity() {
@@ -19,8 +20,17 @@ class GuiControlSetupActivity : Activity() {
         setTheme(android.R.style.Theme_Material_Light_NoActionBar);super.onCreate(state)
         val layout=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(24,48,24,24)}
         layout.addView(TextView(this).apply{text="ClawMate 按次界面控制";textSize=22f})
-        layout.addView(TextView(this).apply{text="仅Android 14及以上。每次选择一个应用，最长120秒。采集需逐页预览和保存。手动控制最多20次动作，每次另行确认，截图仅本机预览。";textSize=16f})
-        fun button(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;setOnClickListener{action()}})}
+        layout.addView(TextView(this).apply{text="仅Android 14及以上。每次选择一个应用，最长120秒。可采集当前页或自动向下采集最多${GUI_COLLECTION_PAGE_LIMIT}页，预览确认后保存。手动控制最多20次动作，每次另行确认。";textSize=16f})
+        fun button(label: String, action: () -> Unit) {
+            layout.addView(Button(this).apply {
+                text = label
+                setOnClickListener {
+                    runCatching(action).onFailure {
+                        Toast.makeText(this@GuiControlSetupActivity, it.message ?: "操作失败，请重试", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            })
+        }
         button("无障碍权限说明"){GuiControlEntry.settings(this)}
         button("选择应用并开启手动控制"){GuiControlEntry.open(this)}
         button("选择应用并开始采集"){GuiControlEntry.open(this, collectOnly = true)}

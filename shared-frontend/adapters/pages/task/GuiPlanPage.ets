@@ -98,7 +98,7 @@ struct GuiPlanPage {
         Button(this.busy ? '取消并清除截图' : '清除截图').onClick(() => { this.clear(); this.status = '已取消并清除本页截图，未执行动作。'; })
         Text(this.status).fontSize(14).width('100%').copyOption(CopyOptions.InApp)
         Text('跨应用本机采集').fontSize(18).fontWeight(FontWeight.Bold)
-        Text('Android 14及以上，需开启无障碍权限。选择一个应用，到目标页面后点击浮层的“采集当前页”，预览后可保存。最近10条记录仅存本机。').fontSize(14)
+        Text('Android 14及以上，需开启无障碍权限。到目标页面后，可从浮层采集当前页或自动向下采集最多3页。只读取可见文字，预览确认后保存到本机。').fontSize(14)
         Button('选择应用并开始采集').enabled(!this.busy).onClick(() => { this.control('guiCollectionOpen'); })
         Button('查看本机采集记录').enabled(!this.busy).onClick(() => { this.control('guiCollectionHistory'); })
         Text('跨应用手动控制').fontSize(18).fontWeight(FontWeight.Bold)

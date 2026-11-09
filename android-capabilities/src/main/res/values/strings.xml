@@ -1,4 +1,4 @@
 <resources>
     <string name="clawmate_gui_accessibility_name">ClawMate 按次界面控制</string>
-    <string name="clawmate_gui_accessibility_description">每次只对你选择的一个应用开启最长120秒的会话。手动控制提供本机截图与逐次确认的点按、滑动、返回；本机采集读取你主动选择的当前页可见文字，预览后经确认才保存。屏幕显示停止入口。切换应用、锁屏、断开服务或到期即停止。截图和采集记录留在本机。需要Android 14及以上。</string>
+    <string name="clawmate_gui_accessibility_description">每次只对你选择的一个应用开启最长120秒的会话。手动控制提供本机截图与逐次确认的点按、滑动、返回。可主动采集当前页或自动向下采集最多3页可见文字，预览后经确认才保存。屏幕显示停止入口。切换应用、锁屏、断开服务或到期即停止。截图和采集记录留在本机。需要Android 14及以上。</string>
 </resources>

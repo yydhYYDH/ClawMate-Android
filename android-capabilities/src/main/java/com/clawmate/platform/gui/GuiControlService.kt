@@ -18,21 +18,29 @@ import android.view.View
 import android.view.WindowManager
 import android.view.WindowInsets
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import java.security.MessageDigest
+import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 /** User-operated exact-app session. Shared/model code has no API for reading nodes or dispatching actions. */
 class GuiControlService : AccessibilityService() {
@@ -89,7 +97,10 @@ class GuiControlService : AccessibilityService() {
         check(Build.VERSION.SDK_INT>=34) { "跨应用窗口截图需要Android 14及以上" }
         stop("正在开启新会话")
         check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "请先解锁手机" }
-        grant=GuiControlSession(target,SystemClock.elapsedRealtime());targetLabel=label.take(40);armedUntil=SystemClock.elapsedRealtime()+5000
+        val now = SystemClock.elapsedRealtime()
+        grant=GuiControlSession(target,now);targetLabel=label.take(40)
+        // ColorOS can ask the user to approve opening the selected app.
+        armedUntil = now + if (collectOnly) 20_000 else 5_000
         this.collectOnly = collectOnly
         lastStatus="等待目标应用进入前台：$targetLabel"
         try{startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));handler.post(watchdog)}catch(failure:Exception){stop("无法打开目标应用");throw failure}
@@ -144,7 +155,8 @@ class GuiControlService : AccessibilityService() {
         })
         fun button(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;textSize=12f;minHeight=0;setOnClickListener{if(!busy)runCatching{currentWindow();action()}.onFailure{stop(it.message ?: "目标应用已变化")}}})}
         if (collectOnly) {
-            button("采集当前页"){collectPage()}
+            button("采集当前页"){collectPages(1)}
+            button("采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectPages(GUI_COLLECTION_PAGE_LIMIT)}
         } else {
             button("截图 / 点按"){capturePreview()}
             button("向上滑动"){confirmGesture("向上滑动",null)}
@@ -162,59 +174,139 @@ class GuiControlService : AccessibilityService() {
         getSystemService(WindowManager::class.java).addView(layout,params);panel=layout
         lastStatus=if (collectOnly) "本机采集会话进行中：$targetLabel" else "控制会话进行中：$targetLabel；全部操作由用户逐次确认"
     }
-    private fun collectPage() {
+    private fun collectPages(maxPages: Int) {
         check(Build.VERSION.SDK_INT >= 34 && collectOnly)
-        busy = true
-        val turn = epoch
+        val window = currentWindow()
+        val windowId = window.id
+        val bounds = Rect().also(window::getBoundsInScreen)
         val target = checkNotNull(grant).target
         val label = targetLabel
-        // Require a system-approved window capture before reading its nodes.
-        // The pixels are discarded and never included in a preview or record.
-        screenshot { image, bounds, windowId ->
-            image.recycle()
-            val window = currentWindow()
-            check(window.id == windowId) { "采集前窗口已变化" }
-            val root = checkNotNull(window.root) { "无法读取目标页面" }
-            val area = safeBounds(bounds)
-            collectionJob = collectionScope.launch {
-                try {
-                    val record = withContext(Dispatchers.IO) {
-                        GuiCollection.read(this, root, area, target, label)
-                    }
-                    if (turn != epoch) return@launch
-                    val current = currentWindow()
-                    check(current.id == windowId && Rect().also { current.getBoundsInScreen(it) } == bounds) {
-                        "采集期间窗口已变化，请重新采集"
-                    }
-                    if (record.lines.isEmpty()) {
-                        busy = false
-                        lastStatus = "当前页没有可采集的无障碍文字"
-                        Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
-                        return@launch
-                    }
-                    val previewDialog = overlayDialog(AlertDialog.Builder(this@GuiControlService)
-                        .setTitle("采集预览：$label")
-                        .setMessage(record.description() + "\n保存后仅存于本机，可在采集记录中查看或删除。")
-                        .setView(record.preview(this@GuiControlService))
-                        .setNegativeButton("取消", null)
-                        .setPositiveButton("保存到本机") { _, _ ->
-                            if (turn == epoch) runCatching {
-                                check(currentWindow().id == windowId) { "保存前窗口已变化" }
-                                GuiCollectionHistory.save(this@GuiControlService, record)
-                                lastStatus = "已保存到本机采集记录：$label"
-                                Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
-                            }.onFailure { stop("未保存采集记录，请重新采集") }
-                        }, secure = true)
-                    previewDialog.setOnDismissListener {
-                        if (dialog === previewDialog) dialog = null
-                        if (turn == epoch) busy = false
-                    }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    if (turn == epoch) stop("采集已停止，请确认目标页面仍在前台后重试")
+        val turn = epoch
+        busy = true
+        val job = collectionScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val (record, end) = withTimeout(15_000) {
+                    readCollection(windowId, bounds, target, label, maxPages)
                 }
+                if (turn != epoch) return@launch
+                if (record.lines.isEmpty()) {
+                    busy = false
+                    lastStatus = "当前页没有可采集的无障碍文字"
+                    Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                showCollectionPreview(record, end, turn, windowId, bounds)
+            } catch (_: TimeoutCancellationException) {
+                if (turn == epoch) stop("采集超时，未保存采集内容")
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (turn == epoch) stop(failure.message ?: "采集已停止，请在目标页面重试")
+            } finally {
+                if (turn == epoch) collectionJob = null
             }
+        }
+        collectionJob = job
+        job.start()
+    }
+
+    @RequiresApi(34)
+    private suspend fun readCollection(
+        windowId: Int, bounds: Rect, target: String, label: String, maxPages: Int,
+    ): Pair<GuiCollection, String?> {
+        var page = readCollectionPage(windowId, bounds, target, label, findScroll = maxPages > 1)
+        val first = page.record
+        if (maxPages == 1 || first.lines.isEmpty()) return first to null
+
+        val accumulator = GuiCollectionAccumulator()
+        accumulator.append(first)
+        val initialScrollNode = page.scrollNode
+        var end = "已达到本次采集的 $maxPages 页上限"
+        while (accumulator.pages < maxPages) {
+            if (accumulator.truncated || !accumulator.hasCapacity) {
+                end = "已达到本次文字读取上限"
+                break
+            }
+            val node = page.scrollNode
+            if (node == null || node != initialScrollNode || !scrollCollectionDown(node, windowId, bounds, target)) {
+                end = "没有可继续向下滚动的唯一目标区域"
+                break
+            }
+            delay(1_050)
+            page = readCollectionPage(windowId, bounds, target, label, findScroll = true)
+            if (!accumulator.append(page.record)) {
+                end = if (accumulator.truncated) "已达到本次文字读取上限" else "向下滚动后没有新的可采集文字"
+                break
+            }
+        }
+        return accumulator.record(first, incomplete = true) to end
+    }
+
+    @RequiresApi(34)
+    private suspend fun readCollectionPage(
+        windowId: Int, bounds: Rect, target: String, label: String, findScroll: Boolean,
+    ): GuiCollectionPage {
+        delay((captureAt + 1_050 - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+        collectionWindow(windowId, bounds)
+        // Check that the system permits capture of each window state, then discard the pixels.
+        suspendCancellableCoroutine<Unit> { ready ->
+            screenshot { image, capturedBounds, capturedWindow ->
+                image.recycle()
+                check(capturedWindow == windowId && capturedBounds == bounds) { "采集前窗口已变化" }
+                if (ready.isActive) ready.resume(Unit)
+            }
+        }
+        // A scroll may change only child nodes while leaving the active window ID unchanged.
+        clearCache()
+        val root = checkNotNull(collectionWindow(windowId, bounds).root) { "无法读取目标页面" }
+        val area = safeBounds(bounds)
+        val page = withContext(Dispatchers.IO) {
+            GuiCollection.read(this, root, area, target, label, findScroll)
+        }
+        collectionWindow(windowId, bounds)
+        return page
+    }
+
+    private fun collectionWindow(windowId: Int, bounds: Rect): AccessibilityWindowInfo =
+        currentWindow().also { window ->
+            check(window.id == windowId && Rect().also(window::getBoundsInScreen) == bounds) {
+                "采集期间窗口已变化，请重新采集"
+            }
+        }
+
+    @RequiresApi(34)
+    private fun scrollCollectionDown(node: AccessibilityNodeInfo, windowId: Int, bounds: Rect, target: String): Boolean {
+        collectionWindow(windowId, bounds)
+        if (node.windowId != windowId || !node.refresh() || !node.canScrollCollectionDown(target, safeBounds(bounds))) {
+            return false
+        }
+        collectionWindow(windowId, bounds)
+        checkNotNull(grant).consume(
+            SystemClock.elapsedRealtime(), target, !getSystemService(KeyguardManager::class.java).isKeyguardLocked, 1,
+        )
+        return node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id)
+    }
+
+    private fun showCollectionPreview(record: GuiCollection, end: String?, turn: Int, windowId: Int, bounds: Rect) {
+        val message = listOfNotNull(
+            record.description(), end, "保存后仅存于本机，可在采集记录中查看或删除。",
+        ).joinToString("\n")
+        val previewDialog = overlayDialog(AlertDialog.Builder(this)
+            .setTitle("采集预览：${record.sourceLabel}")
+            .setMessage(message)
+            .setView(record.preview(this))
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存到本机") { _, _ ->
+                if (turn == epoch) runCatching {
+                    collectionWindow(windowId, bounds)
+                    GuiCollectionHistory.save(this, record)
+                    lastStatus = "已保存到本机采集记录：${record.sourceLabel}"
+                    Toast.makeText(this, lastStatus, Toast.LENGTH_LONG).show()
+                }.onFailure { stop("未保存采集记录，请重新采集") }
+            }, secure = true)
+        previewDialog.setOnDismissListener {
+            if (dialog === previewDialog) dialog = null
+            if (turn == epoch) busy = false
         }
     }
     private fun screenshot(receive:(Bitmap,Rect,Int)->Unit) {

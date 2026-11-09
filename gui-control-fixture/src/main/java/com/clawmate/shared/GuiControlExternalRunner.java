@@ -11,6 +11,10 @@ import android.util.Log;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,12 +23,24 @@ import java.util.regex.Pattern;
 public class GuiControlExternalRunner extends Instrumentation {
     private UiAutomation ui;
     private boolean collectOnly;
-    private static final String HOST="com.clawmate.shared", FIXTURE="com.clawmate.gui.fixture";
+    private boolean collectBatch;
+    private static final String DEFAULT_HOST = "com.clawmate.shared";
+    private static final String ISOLATED_HOST = "com.clawmate.shared.guicollect";
+    private static final String FIXTURE = "com.clawmate.gui.fixture";
+    private String host;
     private void progress(String stage){Log.i("ClawMateGuiActor",stage);Bundle value=new Bundle();value.putString("guiControlStage",stage);sendStatus(2,value);}
     @Override public void onCreate(Bundle args) {
         super.onCreate(args);
-        if(args==null || !"true".equals(args.getString("guiControlGranted"))){Bundle result=new Bundle();result.putString("scenarioPassed","false");finish(Activity.RESULT_CANCELED,result);return;}
+        host = args == null ? DEFAULT_HOST : args.getString("guiControlHost", DEFAULT_HOST);
+        if (args == null || !"true".equals(args.getString("guiControlGranted")) ||
+                !(DEFAULT_HOST.equals(host) || ISOLATED_HOST.equals(host))) {
+            Bundle result = new Bundle();
+            result.putString("scenarioPassed", "false");
+            finish(Activity.RESULT_CANCELED, result);
+            return;
+        }
         collectOnly = "true".equals(args.getString("guiCollectionFixture"));
+        collectBatch = "true".equals(args.getString("guiCollectionBatch"));
         start();
     }
     private void check(boolean value,String message){if(!value)throw new AssertionError(message);}
@@ -32,7 +48,7 @@ public class GuiControlExternalRunner extends Instrumentation {
         try(ParcelFileDescriptor.AutoCloseInputStream input=new ParcelFileDescriptor.AutoCloseInputStream(ui.executeShellCommand(command))){byte[] bytes=new byte[4096];while(input.read(bytes)!=-1){}}
         catch(Exception failure){throw new RuntimeException(failure);}
     }
-    private boolean allowed(AccessibilityNodeInfo root){if(root==null)return false;String pkg=String.valueOf(root.getPackageName());return HOST.equals(pkg)||FIXTURE.equals(pkg);}
+    private boolean allowed(AccessibilityNodeInfo root){if(root==null)return false;String pkg=String.valueOf(root.getPackageName());return host.equals(pkg)||FIXTURE.equals(pkg);}
     private boolean matches(AccessibilityNodeInfo node,String text,boolean exact) {
         String label=String.valueOf(node.getText()),description=String.valueOf(node.getContentDescription());
         return node.isVisibleToUser() && (exact?(text.equals(label)||text.equals(description)):(label.contains(text)||description.contains(text)));
@@ -78,16 +94,45 @@ public class GuiControlExternalRunner extends Instrumentation {
         return null;
     }
     private String fixtureState(){AccessibilityWindowInfo window=fixtureWindow();AccessibilityNodeInfo node=window==null?null:find(window.getRoot(),"Fixture scroll offset:",false);return node==null?"":String.valueOf(node.getContentDescription());}
-    private void setup(){shell("am start -W -n com.clawmate.shared/com.clawmate.platform.gui.GuiControlSetupActivity");await("Native control settings did not open",()->owned("ClawMate control status",true)!=null);}
-    private void verifyCollection() {
+    private void setup() {
+        shell("am start -n " + host + "/com.clawmate.platform.gui.GuiControlSetupActivity");
+        SystemClock.sleep(750);
+        await("Native control settings did not open", () -> owned("ClawMate control status", true) != null);
+    }
+    private void waitForPanel(String label) {
+        await("Fixture control panel missing", () -> {
+            AccessibilityNodeInfo root = ui.getRootInActiveWindow();
+            if (root != null && "com.oplus.securitypermission".equals(String.valueOf(root.getPackageName())) &&
+                    find(root, "ClawMate 共享前端", false) != null && find(root, "ClawMate GUI Fixture", false) != null) {
+                AccessibilityNodeInfo allow = find(root, "仅本次允许", true);
+                if (allow != null) {
+                    if (!allow.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        Rect bounds = new Rect();
+                        allow.getBoundsInScreen(bounds);
+                        check(!bounds.isEmpty(), "ColorOS fixture launch confirmation has no visible bounds");
+                        shell("input tap " + bounds.centerX() + " " + bounds.centerY());
+                    }
+                    SystemClock.sleep(300);
+                }
+            }
+            return owned(label, true) != null;
+        });
+    }
+    private void verifyEmptyHistory() {
         click("查看本机采集记录", true);
-        await("Collection fixture requires empty history", () -> owned("暂无记录。", false) != null);
+        await("Expected empty collection history", () -> owned("暂无记录。", false) != null);
         click("关闭", true);
+    }
+    private void beginCollection() {
         click("选择应用并开始采集", true);
         click("ClawMate GUI Fixture\ncom.clawmate.gui.fixture", true);
         click("打开并开始会话", true);
-        await("Collection panel missing", () -> owned("停止采集", true) != null);
+        waitForPanel("停止采集");
         SystemClock.sleep(1500);
+    }
+    private void verifyCollection() {
+        verifyEmptyHistory();
+        beginCollection();
         AccessibilityWindowInfo target = fixtureWindow();
         check(target != null, "Fixture window missing");
         AccessibilityNodeInfo edit = find(target.getRoot(), "Fixture editable value", true);
@@ -96,29 +141,62 @@ public class GuiControlExternalRunner extends Instrumentation {
         await("Collection preview missing", () -> owned("采集预览：ClawMate GUI Fixture", true) != null);
         click("取消", true);
         setup();
-        click("查看本机采集记录", true);
-        await("Cancelled capture was saved", () -> owned("暂无记录。", false) != null);
-        click("关闭", true);
-        click("选择应用并开始采集", true);
-        click("ClawMate GUI Fixture\ncom.clawmate.gui.fixture", true);
-        click("打开并开始会话", true);
-        await("Second collection panel missing", () -> owned("停止采集", true) != null);
-        SystemClock.sleep(1500);
+        verifyEmptyHistory();
+        beginCollection();
         click("采集当前页", true);
         click("保存到本机", true);
         setup();
         click("查看本机采集记录", true);
         click("ClawMate GUI Fixture · ", false);
         AccessibilityNodeInfo hostRoot = ui.getRootInActiveWindow();
-        check(hostRoot != null && HOST.equals(String.valueOf(hostRoot.getPackageName())), "History window missing");
+        check(hostRoot != null && host.equals(String.valueOf(hostRoot.getPackageName())), "History window missing");
         check(find(hostRoot, "Fixture row 0", false) != null, "Saved text missing");
         check(find(hostRoot, "Fixture editable value", false) == null, "Editable text was saved");
         check(find(hostRoot, "Fixture row 39", false) == null, "Offscreen text was saved");
         click("删除记录", true);
         click("删除", true);
+        verifyEmptyHistory();
+    }
+    private void verifyBatchCollection() {
+        verifyEmptyHistory();
+        beginCollection();
+        AccessibilityWindowInfo target = fixtureWindow();
+        check(target != null, "Fixture window missing");
+        Set<String> initialRows = new HashSet<>();
+        for (AccessibilityNodeInfo row : target.getRoot().findAccessibilityNodeInfosByText("Fixture row ")) {
+            if (row.isVisibleToUser() && row.getText() != null) initialRows.add(row.getText().toString());
+        }
+        check(initialRows.contains("Fixture row 0"), "Fixture must start at the top");
+
+        click("采集最多3页", true);
+        await("Batch preview did not show three pages", () -> owned("3 页 · ", false) != null);
+        AccessibilityNodeInfo body = owned("Fixture row 0", false);
+        check(body != null && body.getText() != null, "Batch preview text missing");
+        List<String> lines = Arrays.asList(body.getText().toString().split("\n"));
+        check(new HashSet<>(lines).size() == lines.size(), "Batch preview contains duplicate lines");
+        check(lines.stream().anyMatch(line -> line.startsWith("Fixture row ") && !initialRows.contains(line)),
+                "Batch preview did not include rows beyond the starting screen");
+        check(!lines.contains("Fixture editable value"), "Batch included editable text");
+        check(fixtureState().matches("Fixture scroll offset: [1-9][0-9]*, count: 0"),
+                "Batch must scroll without clicking fixture controls");
+        click("保存到本机", true);
+        setup();
         click("查看本机采集记录", true);
-        await("Record was not deleted", () -> owned("暂无记录。", false) != null);
-        click("关闭", true);
+        click("ClawMate GUI Fixture · ", false);
+        await("Saved batch lost its page count", () -> owned("3 页 · ", false) != null);
+        AccessibilityNodeInfo saved = owned("Fixture row 0", false);
+        check(saved != null && lines.equals(Arrays.asList(String.valueOf(saved.getText()).split("\n"))),
+                "Saved batch differs from the confirmed preview");
+        click("删除记录", true);
+        click("删除", true);
+        verifyEmptyHistory();
+
+        beginCollection();
+        click("采集最多3页", true);
+        shell("input keyevent KEYCODE_HOME");
+        await("Leaving the fixture did not stop collection", () -> owned("停止采集", true) == null);
+        setup();
+        verifyEmptyHistory();
     }
     @Override public void onStart() {
         Thread scenario=Thread.currentThread();
@@ -130,11 +208,13 @@ public class GuiControlExternalRunner extends Instrumentation {
             progress("Connected automation; opening native settings");
             AccessibilityServiceInfo info=ui.getServiceInfo();info.flags|=AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;ui.setServiceInfo(info);
             setup();await("Real service did not connect",()->{AccessibilityNodeInfo status=owned("ClawMate control status",true);return status!=null && String.valueOf(status.getText()).contains("无障碍服务已连接");});
-            if (collectOnly) {
-                verifyCollection();
+            if (collectOnly || collectBatch) {
+                if (collectBatch) verifyBatchCollection(); else verifyCollection();
                 passed = true;
                 result.putString("scenarioPassed", "true");
-                result.putString("guiCollectionFixture", "Real exact-app text preview, cancel, save, filtering and deletion");
+                result.putString("guiCollectionFixture", collectBatch
+                        ? "Three-page real scrolling, deduplicated preview and save, deletion, and Home cancellation"
+                        : "Real exact-app text preview, cancel, save, filtering and deletion");
                 sendStatus(2, result);
                 return;
             }
@@ -142,7 +222,7 @@ public class GuiControlExternalRunner extends Instrumentation {
             SystemClock.sleep(1000);click("选择应用并开启手动控制",true);
             click("ClawMate GUI Fixture\ncom.clawmate.gui.fixture",true);
             check(owned("仅允许 com.clawmate.gui.fixture，",false)!=null,"Picker did not select exact fixture package");click("打开并开始会话",true);
-            await("Visible exact-app control panel missing",()->owned("停止控制",true)!=null);
+            waitForPanel("停止控制");
             progress("Exact fixture foreground with visible control panel");
             // Let the system launch animation finish before recording screen geometry.
             SystemClock.sleep(1500);

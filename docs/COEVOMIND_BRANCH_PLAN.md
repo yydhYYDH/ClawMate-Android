@@ -130,6 +130,8 @@ GitHub 分支 API 返回 [`0bc30157`](https://github.com/doulujiyao12/mobiinfra-
 | `PhoneHdcWorkflowBridge` 提供启动、截图、UI 树和动作。PC 的 `/api/workflow` 另提供 `screenshot`、`gui_action`、`execute_decider_action`、`uidump`、`wechat_collect`。 | Kotlin `GuiControlService` 提供单应用授权、窗口校验及用户确认的手动控制。`GuiCollection` 从同一授权窗口读取文字。 [手机 HDC](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/ets/utils/selfhdc/PhoneHdcWorkflowBridge.ets) · [PC HDC](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/python/hdc_server.py) |
 | `PhoneWechatAutoSummaryClient` 通过 `WechatPhoneDevice.openWechat/dump/action` 定位联系人，逐页解析聊天、合并时间边界并写检查点。 | U06 可沿用独立设备接口和结果语义，需按 Android 微信节点重新实现选择器并验证，尤其是同名联系人、日期边界和部分覆盖。 [手机微信采集](https://github.com/doulujiyao12/mobiinfra-oh/blob/0bc301573e47e5e6f6d0fd03fdd9f54143f298df/entry/src/main/ets/utils/wechat/PhoneWechatAutoSummaryClient.ets) |
 
+2026-11-09 共享版的 `GuiCollection` 增加自动向下采集。在已选应用的同一窗口内，仅当存在唯一的纵向滚动区域时继续，最多读取 3 页并合并重复文字。确认后保存本机记录。真实业务页面的采集和结果结构化仍在 P01/P04 后续验收。
+
 ### GUI 模型接口
 
 | 服务 | 申请与调用 |
