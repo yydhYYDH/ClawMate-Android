@@ -105,6 +105,7 @@ await check('task service labels reflect local, visual and nested automatic GUI 
   assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'vlm_qa' }]), '视觉问答 · 发送前确认');
   assert.equal(taskServiceLabel([{ type: 'if', else_steps: [{ type: 'loop', steps: [{ type: 'gui_task' }] }] }]), '自动 GUI · 待接入');
   assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'python' }]), '含待适配步骤');
+  assert.equal(taskServiceLabel([{ type: 'android_accessibility' }]), '无障碍采集 · 单次确认');
 });
 
 await check('single-run Alipay entry opens only the native consent and respects edited tasks and PC mode', async () => {
@@ -121,7 +122,9 @@ await check('single-run Alipay entry opens only the native consent and respects 
   const view = {
     taskControlMode: 'phone', isTaskExecutionBusy: () => false, flushTaskContextDrafts: () => true,
     refreshCardContextInputs() {}, findTask: () => task, refreshStatsText() {},
-    runSelectedWorkflow: async () => calls.push('workflow'), onEnsureDesktopCompanion: async () => { calls.push('pc'); return false; }
+    runSelectedWorkflow: async (_task, _cancel, interactive) => {
+      assert.equal(interactive, true); calls.push('workflow');
+    }, onEnsureDesktopCompanion: async () => { calls.push('pc'); return false; }
   };
   await runTask.call(view, task);
   assert.deepEqual(calls.splice(0), ['guiAlipayCollectionOpen']);
@@ -131,6 +134,22 @@ await check('single-run Alipay entry opens only the native consent and respects 
   view.taskControlMode = 'pc'; task = { ...task, isUserModified: false };
   await runTask.call(view, task);
   assert.deepEqual(calls, ['pc']);
+});
+
+await check('the generated Weibo graph exposes an editable read limit and the four native actions', () => {
+  const resources = generated.replace(/ets\/$/, 'resources/rawfile/workflows/configs/');
+  const graph = JSON.parse(fs.readFileSync(resources + 'default_weibo_hot_search.json', 'utf8'));
+  assert.deepEqual(graph.steps.map(step => step.action), ['weibo_open_board', 'weibo_select_hot', 'weibo_read_hot', 'weibo_preview']);
+  assert.ok(graph.steps.every(step => step.type === 'android_accessibility'));
+  assert.equal(graph.steps[2].item_limit, 3);
+  const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
+  const method = page.match(/^  private (updateWeiboItemLimit\(limit: number\): void \{[\s\S]*?^  \})/m);
+  assert.ok(method);
+  const update = runInNewContext(stripTypeScriptTypes('({' + method[1] + '}).updateWeiboItemLimit'));
+  let changes = 0;
+  update.call({ selectedStep: () => graph.steps[2], markWorkflowChanged: () => changes++ }, 1);
+  assert.equal(graph.steps[2].item_limit, 1);
+  assert.equal(changes, 1);
 });
 
 await check('only a persisted workflow summary makes results ready for sync', async () => {

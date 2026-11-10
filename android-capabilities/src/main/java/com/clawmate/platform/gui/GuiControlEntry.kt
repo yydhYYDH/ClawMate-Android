@@ -7,6 +7,14 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import com.clawmate.app.task.model.WorkflowStep
+import com.clawmate.app.task.runner.RunStatus
+import com.clawmate.app.task.runner.WorkflowRunResult
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Native user choice; no caller can supply a package, launch intent or gesture. */
 object GuiControlEntry {
@@ -75,6 +83,55 @@ object GuiControlEntry {
             .setNegativeButton("取消", null).setPositiveButton("打开支付宝") { _, _ ->
                 beginAfterConfirmation(activity, launch, "支付宝", collectOnly = true)
             }.show()
+    }
+
+    suspend fun runWeiboWorkflow(activity: Activity, steps: List<WorkflowStep>): WorkflowRunResult {
+        val limit = try {
+            WeiboGuiWorkflow.validate(steps)
+        } catch (failure: IllegalArgumentException) {
+            return WorkflowRunResult(RunStatus.BLOCKED, failure.message ?: "微博采集图配置有误")
+        }
+        return withContext(Dispatchers.Main.immediate) {
+            try {
+                foreground(activity)
+            } catch (failure: IllegalStateException) {
+                return@withContext WorkflowRunResult(RunStatus.BLOCKED, failure.message.orEmpty())
+            }
+            if (Build.VERSION.SDK_INT < 34) return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "微博采集需要 Android 14 及以上")
+            val launch = WeiboGuiWorkflow.launchIntent()
+            if (launch.resolveActivity(activity.packageManager)?.packageName != WeiboGuiWorkflow.PACKAGE) {
+                return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "找不到可打开热搜榜的微博，请确认微博已安装")
+            }
+            val service = GuiControlService.connected
+            if (service == null) {
+                settings(activity)
+                return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "请开启 ClawMate 无障碍服务后重新运行")
+            }
+            val run = WeiboGuiRun(steps, limit)
+            val consent = CompletableDeferred<Boolean>()
+            val prompt = AlertDialog.Builder(activity).setTitle("运行微博热搜采集？")
+                .setMessage("本次只打开微博、切换到公开热搜标签并读取最多 $limit 条可见标题及热度。预览确认后保存到本机。切出应用或锁屏会停止。")
+                .setNegativeButton("取消") { _, _ -> consent.complete(false) }
+                .setPositiveButton("运行采集") { _, _ -> consent.complete(true) }
+                .setOnCancelListener { consent.complete(false) }.show()
+            try {
+                withTimeoutOrNull(55_000) {
+                    if (!consent.await()) return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消微博采集")
+                    delay(250)
+                    foreground(activity)
+                    check(GuiControlService.connected === service) { "无障碍服务已断开" }
+                    service.beginWeibo(launch, run)
+                    run.result.await()
+                } ?: WorkflowRunResult(RunStatus.CANCELLED, "微博采集已超时")
+            } catch (failure: IllegalStateException) {
+                WorkflowRunResult(RunStatus.FAILED, failure.message ?: "无法开启微博采集")
+            } catch (failure: android.content.ActivityNotFoundException) {
+                WorkflowRunResult(RunStatus.NOT_CONFIGURED, "无法打开微博热搜榜")
+            } finally {
+                prompt.dismiss()
+                service.cancelWeibo(run)
+            }
+        }
     }
 
     private fun beginAfterConfirmation(activity: Activity, launch: Intent, label: String, collectOnly: Boolean) {

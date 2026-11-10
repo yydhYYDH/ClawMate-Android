@@ -311,11 +311,20 @@ class PlatformBridge(private val activity: StageActivity) :
             .put("error", if (result.state == "failed") "人物分割未完成，请换用人物清晰的分身图片；原图已保留" else "").toString()
     }
     fun avatarForegroundCancel(id: String): Boolean { avatarJobs.cancel(id); return true }
-    fun workflowStart(raw: String): String {
+    fun workflowStart(raw: String): String = startWorkflow(raw, interactive = false)
+    fun workflowStartInteractive(raw: String): String = startWorkflow(raw, interactive = true)
+
+    private fun startWorkflow(raw: String, interactive: Boolean): String {
         require(raw.length <= 256000) { "工作流配置过长" }
         val mailbox = WorkflowModelMailbox()
         return try {
-            val id = workflowJobs.start { try { SharedNativeWork.runWorkflow(raw, mailbox) } finally { mailbox.close() } }
+            val id = workflowJobs.start {
+                try {
+                    if (interactive) SharedNativeWork.runWorkflow(raw, mailbox) { steps ->
+                        com.clawmate.platform.gui.GuiControlEntry.runWeiboWorkflow(activity, steps)
+                    } else SharedNativeWork.runWorkflow(raw, mailbox)
+                } finally { mailbox.close() }
+            }
             workflowModels.keys.filter { it != id }.forEach { workflowModels.remove(it)?.close() }
             workflowModels[id] = mailbox
             id

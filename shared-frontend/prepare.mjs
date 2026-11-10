@@ -4,6 +4,7 @@ import { buildChatContextSource } from './context-source.mjs';
 import { buildAndroidGallerySource } from './gallery-source.mjs';
 import { buildChatAvatarView, buildChatAvatarPage, buildChatAvatarMessages } from './chat-avatar-source.mjs';
 import { buildMimoProtocol } from './voice-source.mjs';
+import { patchWeiboTaskPage } from './weibo-workflow-source.mjs';
 import { verifySources, toolchainPaths, checkedPath } from './bootstrap.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -43,6 +44,9 @@ for (const input of sourceInputs.files.filter(file => !file.path.includes('/ets/
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, input.bytes);
 }
+const weiboConfig = 'entry/src/main/resources/rawfile/workflows/configs/default_weibo_hot_search.json';
+const androidWeibo = fs.readFileSync(path.join(template, weiboConfig), 'utf8');
+fs.writeFileSync(checkedPath(repo, '.arkui-x-validation/application/project/' + weiboConfig), androidWeibo);
 for (const item of ['hvigorfile.ts', 'oh-package.json5', 'entry/oh-package.json5', 'entry/hvigorfile.ts', 'entry/src/main/module.json5']) {
   fs.copyFileSync(path.join(template, item), checkedPath(repo, '.arkui-x-validation/application/project/' + item));
 }
@@ -73,6 +77,18 @@ const overlay = (name, value) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, value);
 };
+overlay('utils/WorkflowTypes.ets', replaceChecked(read('utils/WorkflowTypes.ets'), '  action?: string;\n  x?: number;',
+  '  action?: string;\n  item_limit?: number;\n  x?: number;'));
+overlay('utils/WorkflowStorage.ets', applyPatches(read('utils/WorkflowStorage.ets'), [
+  [/  static defaultWeiboWorkflow\(\): string \{[^]*?\n  \}/,
+    '  static defaultWeiboWorkflow(): string { return ' + JSON.stringify(androidWeibo) + '; }'],
+  ["stepType === 'loop' || stepType === 'if';", "stepType === 'loop' || stepType === 'if' || stepType === 'android_accessibility';"],
+  ['      title: WorkflowStorage.nonEmptyOrDefault(storedTask.title, defaultTask.title),\n      source: WorkflowStorage.nonEmptyOrDefault(storedTask.source, defaultTask.source),',
+    `      title: defaultTask.id === 'default_weibo_hot_search' && !userModified ? defaultTask.title :
+        WorkflowStorage.nonEmptyOrDefault(storedTask.title, defaultTask.title),
+      source: defaultTask.id === 'default_weibo_hot_search' && !userModified ? defaultTask.source :
+        WorkflowStorage.nonEmptyOrDefault(storedTask.source, defaultTask.source),`]
+]));
 const mainTabs = read('pages/main/FloatingMainTabs.ets');
 const navigationConstants = ['TAB_BAR_HEIGHT', 'TAB_BAR_BOTTOM_MARGIN', 'TAB_BAR_SIDE_MARGIN'].map(name => {
   const match = mainTabs.match(new RegExp(`const ${name}: number = \\d+;`));
@@ -261,13 +277,13 @@ taskPage = applyPatches(taskPage, [
   ['  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {};',
     '  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<boolean> = async (): Promise<boolean> => false;'],
   ['  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {',
-    '  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<boolean> =\n    async (): Promise<boolean> => {'],
+    '  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation, interactive: boolean) => Promise<boolean> =\n    async (): Promise<boolean> => {'],
   ['    cancellation: WorkflowCancellation = new WorkflowCancellation()): Promise<void> {\n    cancellation.throwIfCancelled();\n    if (this.taskControlMode',
-    '    cancellation: WorkflowCancellation = new WorkflowCancellation()): Promise<boolean> {\n    cancellation.throwIfCancelled();\n    if (this.taskControlMode'],
+    '    cancellation: WorkflowCancellation = new WorkflowCancellation(), interactive: boolean = false): Promise<boolean> {\n    cancellation.throwIfCancelled();\n    if (this.taskControlMode'],
   [`    if (this.taskControlMode === 'phone') {
       await this.onRunPhoneWorkflow(task, cancellation);
     } else { await this.onRunWorkflow(task, cancellation); }`,
-   `    let savedSummary = this.taskControlMode === 'phone' ? await this.onRunPhoneWorkflow(task, cancellation) :
+   `    let savedSummary = this.taskControlMode === 'phone' ? await this.onRunPhoneWorkflow(task, cancellation, interactive) :
       await this.onRunWorkflow(task, cancellation);
     if (savedSummary) { this.androidCollectedResultsReady = true; }`],
   ["        AppLogger.errorCause('CollectionReminder', 'Collection history save failed', e);\n      });\n    }\n  }",
@@ -348,7 +364,7 @@ taskPage = applyPatches(taskPage, [
 ]);
 taskPage = applyPatches(taskPage, [
   ['      await this.runSelectedWorkflow(currentTask);', '      this.batchCancellation = new WorkflowCancellation();\n      await this.runSelectedWorkflow(currentTask, this.batchCancellation);'],
-  ['      await this.runSelectedWorkflow(currentTask, this.batchCancellation);\n    } finally {', "      await this.runSelectedWorkflow(currentTask, this.batchCancellation);\n    } catch (error) {\n      showToastSafely((error as Error).message, 2500);\n    } finally {"],
+  ['      await this.runSelectedWorkflow(currentTask, this.batchCancellation);\n    } finally {', "      await this.runSelectedWorkflow(currentTask, this.batchCancellation, true);\n    } catch (error) {\n      showToastSafely((error as Error).message, 2500);\n    } finally {"],
   ["      this.runningTaskId = '';\n      this.tasks = WorkflowStorage.loadTasks(this.filesDir);", "      this.runningTaskId = ''; this.batchCancellation = null;\n      this.tasks = WorkflowStorage.loadTasks(this.filesDir);"],
   ['  private batchRunButtonText(): string {', "  private batchRunButtonText(): string {\n    if (!this.batchRunning && this.runningTaskId.length > 0) { return '停止当前任务'; }"],
   ['  private batchRunButtonEnabled(): boolean {', '  private batchRunButtonEnabled(): boolean {\n    if (!this.batchRunning && this.runningTaskId.length > 0) { return true; }'],
@@ -384,7 +400,7 @@ taskPage = replaceChecked(taskPage, '  private closeConfigView(): void {\n    th
 taskPage = replaceChecked(taskPage, '.onClick(() => { this.editorOpen = false; })', '.onClick(() => { this.requestCloseEditor(); })');
 taskPage = replaceChecked(taskPage, "Text(subtitle + ' · ' + files.length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(files)))",
   "Text(subtitle + ' · ' + this.androidManagedFiles(category).length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(this.androidManagedFiles(category))))");
-overlay('pages/task/TaskPage.ets', taskPage);
+overlay('pages/task/TaskPage.ets', patchWeiboTaskPage(taskPage));
 writeJson('entry/src/main/resources/base/profile/main_pages.json', { src: [
   'pages/Index', 'pages/gallery/GalleryPage', 'pages/collection/CollectionGroupDetailPage',
   'pages/task/WorkflowFileViewer', 'pages/settings/DesktopCompanionPage', 'pages/settings/SelfHdcTestPage',

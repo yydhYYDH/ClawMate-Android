@@ -11,6 +11,7 @@ export function taskServiceLabel(steps: WorkflowStep[]): string {
   let pending: WorkflowStep[][] = [steps];
   let visual = false;
   let other = false;
+  let accessibility = false;
   let count = 0;
   while (pending.length > 0) {
     let group = pending.pop();
@@ -20,7 +21,9 @@ export function taskServiceLabel(steps: WorkflowStep[]): string {
       if (step.type === 'gui_task' || (step.type === 'gui_action' && step.action !== 'sleep')) {
         return '自动 GUI · 待接入';
       }
-      if (step.type === 'tool') {
+      if (step.type === 'android_accessibility') {
+        accessibility = true;
+      } else if (step.type === 'tool') {
         if (step.tool_name === 'vlm_qa') { visual = true; }
         else if (step.tool_name !== 'echo' && step.tool_name !== 'summary') { other = true; }
       } else if (step.type !== 'gui_action' && step.type !== 'loop' && step.type !== 'if') {
@@ -32,5 +35,6 @@ export function taskServiceLabel(steps: WorkflowStep[]): string {
     }
   }
   if (other) { return '含待适配步骤'; }
+  if (accessibility) { return '无障碍采集 · 单次确认'; }
   return visual ? '视觉问答 · 发送前确认' : '本机工作流';
 }

@@ -15,7 +15,8 @@ interface SummaryMetadata { workflow_metadata: SummaryTaskMetadata; latest_entry
 interface SharedRunRecord { source_kind: string; workflow_file: string; run_dir: string; status: string; message: string; result_summary: string; steps: Object[]; }
 export class AndroidWorkflow {
   static async run(filesDir: string, task: WorkflowTask, cancellation: WorkflowCancellation,
-    authorize: () => Promise<void> = async (): Promise<void> => { throw new Error('请在共享任务页确认云端授权'); }): Promise<boolean> {
+    authorize: () => Promise<void> = async (): Promise<void> => { throw new Error('请在共享任务页确认云端授权'); },
+    interactive: boolean = false): Promise<boolean> {
     let bridge = Bridge.createBridge('ClawMatePlatform');
     let id = '';
     let complete = false;
@@ -24,7 +25,8 @@ export class AndroidWorkflow {
     WorkflowStorage.updateTaskRun(filesDir, task.id, '运行中', '正在执行 Android 有界工作流');
     try {
       cancellation.throwIfCancelled();
-      id = await bridge.callMethod('workflowStart', WorkflowStorage.readTaskWorkflowJson(filesDir, task)) as string;
+      id = await bridge.callMethod(interactive ? 'workflowStartInteractive' : 'workflowStart',
+        WorkflowStorage.readTaskWorkflowJson(filesDir, task)) as string;
       cancellation.setHandler((): void => { model?.cancel(); bridge.callMethod('workflowCancel', id).catch(() => {}); });
       let deadline = Date.now() + 65000;
       while (Date.now() < deadline) {

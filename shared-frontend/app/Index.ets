@@ -874,9 +874,9 @@ struct Index {
               showToastSafely(ANDROID_PC_TASK_PENDING, 3000); return false;
             },
             onRunWorkflow: async (): Promise<boolean> => { throw new Error(ANDROID_PC_TASK_PENDING); },
-            onRunPhoneWorkflow: async (task: WorkflowTask, cancellation: WorkflowCancellation): Promise<boolean> => {
+            onRunPhoneWorkflow: async (task: WorkflowTask, cancellation: WorkflowCancellation, interactive: boolean): Promise<boolean> => {
               return await AndroidWorkflow.run(this.context().filesDir, task, cancellation,
-                async (): Promise<void> => { await this.authorizeCloud(); });
+                async (): Promise<void> => { await this.authorizeCloud(); }, interactive);
             },
             onSyncCollectedTasks: async (): Promise<void> => { await this.refreshCollection(); }
           })
