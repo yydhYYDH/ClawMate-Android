@@ -88,5 +88,14 @@
     "capturePhase": "harmony-source-ui-oppo",
     "sha256": "83d7c674383d3a321c00ec1e74ca989413af96bb7630824d6735bd193b61b0a3",
     "limitations": "已核看OPPO Android 16当前界面：无私人日程、邮件正文、账号或凭据；日历仅显示厂商通用来源名称，汇总无记录，含通用系统状态栏。来源APK SHA256 e57cb57c00ae9734d4681404b082fab3fe09cedd6dfeafaaf9a1c5195c684a4f。此图早于语音纪要移入同一组列表，用于说明日历和邮箱布局。"
+  },
+  {
+    "file": "assets/weibo-consent.png",
+    "source": ".arkui-x-validation/weibo-full/v3-consent.png",
+    "reviewed": true,
+    "reviewedDate": "2026-11-10",
+    "capturePhase": "android-weibo-full-board",
+    "sha256": "f7ef4e53e86853f21fc83d5c561795203571643cb7eaf69f33b769731ba88a36",
+    "limitations": "OPPO PKB110 Android 16 隔离共享版的真机采集确认窗口。只有系统状态栏和任务页，没有账号、私人记录或预览数据。来源 APK SHA-256 为 7cfa30bbbe91d782472f73dfdd003a818c48affdc0a07e450c5be597fb609e42。"
   }
 ]

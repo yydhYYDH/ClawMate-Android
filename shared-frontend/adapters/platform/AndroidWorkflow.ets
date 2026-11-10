@@ -25,10 +25,10 @@ export class AndroidWorkflow {
     WorkflowStorage.updateTaskRun(filesDir, task.id, '运行中', '正在执行 Android 有界工作流');
     try {
       cancellation.throwIfCancelled();
-      id = await bridge.callMethod(interactive ? 'workflowStartInteractive' : 'workflowStart',
-        WorkflowStorage.readTaskWorkflowJson(filesDir, task)) as string;
+      let raw = WorkflowStorage.readTaskWorkflowJson(filesDir, task);
+      id = await bridge.callMethod(interactive ? 'workflowStartInteractive' : 'workflowStart', raw) as string;
       cancellation.setHandler((): void => { model?.cancel(); bridge.callMethod('workflowCancel', id).catch(() => {}); });
-      let deadline = Date.now() + 65000;
+      let deadline = Date.now() + (/"type"\s*:\s*"android_accessibility"/.test(raw) ? 110000 : 65000);
       while (Date.now() < deadline) {
         cancellation.throwIfCancelled();
         let poll = JSON.parse(await bridge.callMethod('workflowPoll', id) as string) as ExecutionPoll;
@@ -92,7 +92,7 @@ export class AndroidWorkflow {
         if (poll.status !== 'running') { throw new Error('工作流未完成或已取消'); }
         await new Promise<void>((resolve): void => { setTimeout(resolve, 120); });
       }
-      throw new Error('工作流超过60秒执行上限');
+      throw new Error('工作流超过执行时限');
     } catch (error) {
       if (!complete) { WorkflowStorage.updateTaskRun(filesDir, task.id, cancellation.isCancelled() ? 'cancelled' : 'failed', (error as Error).message); }
       throw error as Error;

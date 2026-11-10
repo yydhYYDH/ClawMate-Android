@@ -3,6 +3,7 @@ package com.clawmate.platform.gui
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.app.AlertDialog
+import android.app.Dialog
 import android.app.KeyguardManager
 import android.content.Intent
 import android.graphics.Bitmap
@@ -28,12 +29,15 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.clawmate.app.task.runner.RunStatus
 import java.security.MessageDigest
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
@@ -43,7 +47,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 
 /** User-operated exact-app session. Shared/model code has no API for reading nodes or dispatching actions. */
 class GuiControlService : AccessibilityService() {
@@ -56,7 +59,7 @@ class GuiControlService : AccessibilityService() {
     private val handler=Handler(Looper.getMainLooper())
     private var grant: GuiControlSession?=null
     private var panel: LinearLayout?=null
-    private var dialog: AlertDialog?=null
+    private var dialog: Dialog?=null
     private var preview: Bitmap?=null
     private val overlayOwnership=GuiOverlayOwnership()
     private var busy=false
@@ -173,13 +176,15 @@ class GuiControlService : AccessibilityService() {
     }
     private fun showPanel() {
         if(panel!=null)return
-        val layout=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8,8,8,8);setBackgroundColor(0xee18304f.toInt())}
-        val status = TextView(this).apply{
+        val weibo = weiboRun
+        val style = if (weibo == null) null else GuiCollectionStyle(this)
+        val layout = style?.card(compact = true) ?: LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8,8,8,8);setBackgroundColor(0xee18304f.toInt())}
+        val status = style?.label("准备采集…", 12, true) ?: TextView(this).apply{
             text=if (collectOnly) "ClawMate · $targetLabel\n本机采集 / 120秒" else "ClawMate · $targetLabel\n120秒 / 最多20次动作"
             setTextColor(-1);textSize=11f
         }
+        style?.let { layout.addView(it.badge("ClawMate · 微博热搜")) }
         layout.addView(status)
-        val weibo = weiboRun
         fun button(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;textSize=12f;minHeight=0;setOnClickListener{if(!busy)runCatching{currentWindow();action()}.onFailure{stop(it.message ?: "目标应用已变化")}}})}
         if (weibo != null) {
             status.text = "ClawMate · 微博热搜\n准备采集"
@@ -192,14 +197,16 @@ class GuiControlService : AccessibilityService() {
             button("向下滑动"){confirmGesture("向下滑动",null)}
             button("返回"){confirmGesture("返回",null)}
         }
-        layout.addView(Button(this).apply{
+        val stopButton = style?.action("停止采集") { stop("用户停止采集") } ?: Button(this).apply{
             text=if (collectOnly) "停止采集" else "停止控制"
             setOnClickListener{if (collectOnly) stop("用户停止采集") else stop()}
-        })
+        }
+        layout.addView(stopButton, LinearLayout.LayoutParams(-1, -2).apply { if (style != null) topMargin = style.dp(8) })
         val params=WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT,WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,android.graphics.PixelFormat.TRANSLUCENT)
         params.gravity=Gravity.TOP or Gravity.END;params.x=8;params.y=80
         params.width=minOf((150*resources.displayMetrics.density).toInt(),resources.displayMetrics.widthPixels/3)
+        if (style != null) { params.width = minOf(style.dp(172), resources.displayMetrics.widthPixels / 2); params.x = style.dp(12); params.y = style.dp(12) }
         getSystemService(WindowManager::class.java).addView(layout,params);panel=layout
         lastStatus=if (collectOnly) "本机采集会话进行中：$targetLabel" else "控制会话进行中：$targetLabel；全部操作由用户逐次确认"
         if (weibo != null && Build.VERSION.SDK_INT >= 34) startWeiboSteps(weibo, status)
@@ -228,7 +235,13 @@ class GuiControlService : AccessibilityService() {
             try {
                 for (step in run.steps) {
                     run.current = step
-                    status.text = "ClawMate · 微博热搜\n第 ${step.id} 步"
+                    status.text = when (step.action) {
+                        WeiboGuiWorkflow.OPEN -> "正在打开微博榜单"
+                        WeiboGuiWorkflow.SELECT -> "正在切换到公开热搜"
+                        WeiboGuiWorkflow.READ -> "正在读取公开主榜"
+                        WeiboGuiWorkflow.PREVIEW -> "等待核对与保存"
+                        else -> "等待页面加载"
+                    }
                     collectionWindow(id, bounds)
                     val note = when (step.action) {
                         WeiboGuiWorkflow.OPEN -> {
@@ -248,25 +261,13 @@ class GuiControlService : AccessibilityService() {
                             "已进入公开热搜标签"
                         }
                         WeiboGuiWorkflow.READ -> {
-                            checkCollectionCapture(id, bounds)
-                            val lines = withTimeoutOrNull(9_000) {
-                                repeat(24) {
-                                    clearCache()
-                                    val root = checkNotNull(collectionWindow(id, bounds).root) { "无法读取微博榜单" }
-                                    val found = withContext(Dispatchers.IO) { WeiboGuiWorkflow.read(root, area, run.limit) }
-                                    collectionWindow(id, bounds)
-                                    if (found.isNotEmpty()) return@withTimeoutOrNull found
-                                    delay(350)
-                                }
-                                emptyList<String>()
-                            }.orEmpty()
-                            check(lines.isNotEmpty()) { "未读到公开热搜中带热度值的标题，请检查网络或微博界面" }
-                            record = GuiCollection(WeiboGuiWorkflow.PACKAGE, "微博热搜", System.currentTimeMillis(), lines, partial = true)
-                            "读取 ${lines.size} 条标题及热度"
+                            val collected = readWeiboBoard(id, bounds, area, run.limit, status)
+                            record = collected
+                            "读取 ${collected.lines.size} 条微博热搜"
                         }
                         WeiboGuiWorkflow.PREVIEW -> {
                             val preview = CompletableDeferred<Boolean>()
-                            showCollectionPreview(checkNotNull(record), "仅含当前屏幕中可读取的标题和热度，按屏幕顺序展示。",
+                            showCollectionPreview(checkNotNull(record), "热度按微博显示保存。缺失或有冲突的名次留空。",
                                 turn, id, bounds) { preview.complete(it) }
                             if (!preview.await()) {
                                 run.finish(RunStatus.CANCELLED, "已取消预览，未保存微博采集记录")
@@ -282,7 +283,9 @@ class GuiControlService : AccessibilityService() {
                     }
                     run.record(step, note)
                 }
-                run.finish(RunStatus.SUCCESS, "已保存 ${checkNotNull(record).lines.size} 条微博热搜，见本机采集记录")
+                val saved = checkNotNull(record)
+                val coverage = if (saved.partial) "部分榜单" else "完整主榜"
+                run.finish(RunStatus.SUCCESS, "已保存 $coverage · ${saved.lines.size} 条微博热搜，见本机采集记录")
                 stop("微博热搜已保存到本机")
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -296,6 +299,98 @@ class GuiControlService : AccessibilityService() {
         }
         collectionJob = job
         job.start()
+    }
+
+    @RequiresApi(34)
+    private suspend fun readWeiboBoard(id: Int, bounds: Rect, area: Rect, limit: Int, status: TextView): GuiCollection {
+        val capturedAt = System.currentTimeMillis()
+        val timezone = ZoneId.systemDefault()
+        val date = Instant.ofEpochMilli(capturedAt).atZone(timezone).toLocalDate().toString()
+        val board = WeiboBoardAccumulator()
+        val deadline = SystemClock.elapsedRealtime() + 65_000
+        var pages = 0
+        var reason = if (limit == 0) "达到翻页上限" else "按工作流设置读取部分条目"
+        val reader = withContext(Dispatchers.IO) { runCatching { WeiboRankReader() }.getOrNull() }
+        try {
+            while (pages < 14 && SystemClock.elapsedRealtime() < deadline) {
+                status.text = "正在扫描第 ${pages + 1} 页\n已读取 ${board.size} 条"
+                val page = readStableWeiboPage(id, bounds, area, reader)
+                collectionWindow(id, bounds)
+                if ((page == null || page.second.isEmpty()) && board.size == 0 && SystemClock.elapsedRealtime() < deadline - 55_000) continue
+                if (page == null) {
+                    reason = "无法识别公开热搜列表"
+                    break
+                }
+                pages++
+                val advanced = board.append(if (limit == 0) page.second else page.second.take(limit))
+                if (limit != 0) break
+                if (board.reachedLastRank || page.first.sectionEnded) {
+                    reason = "已到主榜边界，部分名次未能核对"
+                    break
+                }
+                if (!advanced) {
+                    reason = "翻页后未发现新词条"
+                    break
+                }
+                val list = page.first.list ?: break
+                if (!scrollWeibo(id, bounds, list)) {
+                    reason = "微博未接受继续滚动"
+                    break
+                }
+                delay(650)
+            }
+        } finally { reader?.close() }
+        if (SystemClock.elapsedRealtime() >= deadline) reason = "达到扫描时限"
+        val complete = limit == 0 && board.complete
+        val entries = board.entries().let { rows -> if (complete) rows.filter { it.rank != null }.sortedBy { it.rank } else rows }
+        check(entries.isNotEmpty()) { "未读到公开热搜词条，请检查微博页面或网络" }
+        val snapshot = WeiboSnapshot(date, timezone.id, entries, complete, if (complete) "已核对全部主榜名次" else reason)
+        return GuiCollection(WeiboGuiWorkflow.PACKAGE, "微博热搜", capturedAt, entries.map(WeiboTopic::display),
+            partial = !complete, pages = pages.coerceAtLeast(1), weibo = snapshot)
+    }
+
+    @RequiresApi(34)
+    private suspend fun readStableWeiboPage(id: Int, bounds: Rect, area: Rect, reader: WeiboRankReader?):
+        Pair<WeiboVisiblePage, List<WeiboTopic>>? {
+        suspend fun readTree(): WeiboVisiblePage? {
+            clearCache()
+            val root = checkNotNull(collectionWindow(id, bounds).root) { "无法读取微博榜单" }
+            return withContext(Dispatchers.IO) { WeiboGuiWorkflow.read(root, area) }
+        }
+        repeat(3) {
+            val before = readTree()
+            if (before == null || before.rows.isEmpty()) {
+                delay(250)
+                return@repeat
+            }
+            val frame = captureCollectionFrame(id, bounds)
+            try {
+                val after = readTree()
+                if (before == after) return withContext(Dispatchers.IO) {
+                    val ranks = runCatching { reader?.ranks(frame, bounds, before.rows).orEmpty() }.getOrDefault(emptyMap())
+                    before to before.rows.mapIndexed { index, row -> WeiboTopic(row.title, ranks[index], row.heat) }
+                }
+            } finally { frame.recycle() }
+        }
+        return null
+    }
+
+    private suspend fun scrollWeibo(id: Int, bounds: Rect, list: Rect): Boolean {
+        collectionWindow(id, bounds)
+        val height = list.height()
+        if (height < 200) return false
+        val start = list.bottom - height * .22f
+        val end = list.top + height * .34f
+        checkNotNull(grant).consume(SystemClock.elapsedRealtime(), WeiboGuiWorkflow.PACKAGE, true, 1)
+        val stroke = Path().apply { moveTo(list.centerX().toFloat(), start); lineTo(list.centerX().toFloat(), end) }
+        return suspendCancellableCoroutine { ready ->
+            val gesture = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(stroke, 0, 830)).build()
+            val callback = object : GestureResultCallback() {
+                override fun onCompleted(description: GestureDescription?) { if (ready.isActive) ready.resume(true) }
+                override fun onCancelled(description: GestureDescription?) { if (ready.isActive) ready.resume(false) }
+            }
+            if (!dispatchGesture(gesture, callback, handler) && ready.isActive) ready.resume(false)
+        }
     }
 
     @RequiresApi(34)
@@ -395,14 +490,21 @@ class GuiControlService : AccessibilityService() {
 
     @RequiresApi(34)
     private suspend fun checkCollectionCapture(windowId: Int, bounds: Rect) {
+        captureCollectionFrame(windowId, bounds).recycle()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @RequiresApi(34)
+    private suspend fun captureCollectionFrame(windowId: Int, bounds: Rect): Bitmap {
         delay((captureAt + 1_050 - SystemClock.elapsedRealtime()).coerceAtLeast(0))
         collectionWindow(windowId, bounds)
-        // Check that the system permits capture of each window state, then discard the pixels.
-        suspendCancellableCoroutine<Unit> { ready ->
+        return suspendCancellableCoroutine { ready ->
             screenshot { image, capturedBounds, capturedWindow ->
-                image.recycle()
-                check(capturedWindow == windowId && capturedBounds == bounds) { "采集前窗口已变化" }
-                if (ready.isActive) ready.resume(Unit)
+                if (capturedWindow != windowId || capturedBounds != bounds) {
+                    image.recycle()
+                    error("采集前窗口已变化")
+                }
+                if (ready.isActive) ready.resume(image) { image.recycle() } else image.recycle()
             }
         }
     }
@@ -434,20 +536,25 @@ class GuiControlService : AccessibilityService() {
         val message = listOfNotNull(
             record.description(), end, "保存后仅存于本机，可在采集记录中查看或删除。",
         ).joinToString("\n")
-        val previewDialog = overlayDialog(AlertDialog.Builder(this)
-            .setTitle("采集预览：${record.sourceLabel}")
-            .setMessage(message)
-            .setView(record.preview(this))
-            .setNegativeButton("取消", null)
-            .setPositiveButton("保存到本机") { _, _ ->
-                if (turn == epoch) runCatching {
-                    collectionWindow(windowId, bounds)
-                    GuiCollectionHistory.save(this, record)
-                    saved = true
-                    lastStatus = "已保存到本机采集记录：${record.sourceLabel}"
-                    Toast.makeText(this, lastStatus, Toast.LENGTH_LONG).show()
-                }.onFailure { stop("未保存采集记录，请重新采集") }
-            }, secure = true)
+        val save = {
+            if (turn == epoch) runCatching {
+                collectionWindow(windowId, bounds)
+                GuiCollectionHistory.save(this, record)
+                saved = true
+                lastStatus = "已保存到本机采集记录：${record.sourceLabel}"
+                Toast.makeText(this, lastStatus, Toast.LENGTH_LONG).show()
+            }.onFailure { stop(it.message ?: "未保存采集记录，请重新采集") }
+            Unit
+        }
+        val previewDialog = if (record.weibo != null) {
+            val style = GuiCollectionStyle(this)
+            style.sheet("微博热搜预览", message, "保存到本机", content = style.recordContent(record),
+                overlay = true, secure = true, confirm = save).also { dialog = it }
+        } else {
+            overlayDialog(AlertDialog.Builder(this).setTitle("采集预览：${record.sourceLabel}")
+                .setMessage(message).setView(record.preview(this)).setNegativeButton("取消", null)
+                .setPositiveButton("保存到本机") { _, _ -> save() }, secure = true)
+        }
         previewDialog.setOnDismissListener {
             if (dialog === previewDialog) dialog = null
             if (turn == epoch) busy = false

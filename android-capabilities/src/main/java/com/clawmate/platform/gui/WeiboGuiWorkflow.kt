@@ -24,7 +24,9 @@ internal object WeiboGuiWorkflow {
     private const val TAB_BUTTON = "$PACKAGE:id/root"
     private const val TITLE = "$PACKAGE:id/tv_coupon_des"
     private const val HEAT = "$PACKAGE:id/tv_coupon_des_extr"
-    private val heatDigits = Regex("[0-9]{1,12}")
+    private const val RANK = "$PACKAGE:id/iv_coupon_icon"
+    private const val LIST = "$PACKAGE:id/view_recycler"
+    private val sectionHeaders = listOf("实时上升热点", "文娱热搜", "同城热搜", "好友热搜", "热搜榜规则说明")
 
     fun launchIntent(): Intent = Intent(Intent.ACTION_VIEW,
         Uri.parse("sinaweibo://pageinfo?containerid=106003_-_type%3A25_-_filter_type%3Aband")).setPackage(PACKAGE)
@@ -50,9 +52,9 @@ internal object WeiboGuiWorkflow {
                 (step.onError == null || step.onError == "stop")) { "第 ${step.id} 步含有不支持的参数或错误策略" }
             if (step.action == "sleep") require((step.seconds ?: 0) in 1L..5L) { "等待时间须为 1 至 5 秒" }
         }
-        val limit = sequence[2].raw["item_limit"] as? JsonPrimitive
-        require(limit != null && !limit.isString && (limit.intOrNull ?: 0) in 1..5) { "读取热搜数量须为 1 至 5 条" }
-        return checkNotNull(limit.intOrNull)
+        val field = sequence[2].raw["item_limit"] ?: return 0
+        require(field is JsonPrimitive && !field.isString && (field.intOrNull ?: -1) in 0..5) { "读取范围请选择整榜或 1 至 5 条" }
+        return checkNotNull(field.intOrNull)
     }
 
     @RequiresApi(34)
@@ -69,29 +71,40 @@ internal object WeiboGuiWorkflow {
         tab.parent?.parent?.takeIf { it.viewIdResourceName == TAB_BUTTON && it.isEnabled && it.isClickable && readable(it, area) }
 
     @RequiresApi(34)
-    fun read(root: AccessibilityNodeInfo, area: Rect, limit: Int): List<String> {
-        if (hotTab(root, area)?.isSelected != true) return emptyList()
+    fun read(root: AccessibilityNodeInfo, area: Rect): WeiboVisiblePage? {
+        if (hotTab(root, area)?.isSelected != true) return null
         // The selected state can update just before the previous tab's rows leave the screen.
         if (root.findAccessibilityNodeInfosByText("热搜雷达").any {
                 it.text?.toString() == "热搜雷达，发现你关心的热点" && readable(it, area)
-            }) return emptyList()
+            }) return null
+        val list = root.findAccessibilityNodeInfosByViewId(LIST).singleOrNull { readable(it, area) } ?: return null
+        val listBounds = list.weiboBounds().apply { if (!intersect(area)) setEmpty() }
+        if (listBounds.isEmpty) return null
+        val boundary = sectionHeaders.asSequence().flatMap { label ->
+            root.findAccessibilityNodeInfosByText(label).asSequence().filter { it.text?.toString() == label }
+        }.filter { readable(it, listBounds) }.minOfOrNull { it.weiboBounds().top }
         // Some client versions place the title and heat under different wrappers.
         // Pair the two known resource IDs only when they share the same row geometry.
         val heats = root.findAccessibilityNodeInfosByViewId(HEAT).mapNotNull { node ->
-            val number = node.text?.toString()?.takeIf(heatDigits::matches)
-            if (number == null || !readable(node, area)) null else Rect().also(node::getBoundsInScreen) to number
+            val number = node.text?.toString()?.trim()?.takeIf { it.length in 1..40 }
+            if (number == null || !readable(node, listBounds)) null else node.weiboBounds() to number
         }
-        return root.findAccessibilityNodeInfosByViewId(TITLE)
-            .filter { readable(it, area) }.map { Rect().also(it::getBoundsInScreen) to it }
+        val icons = root.findAccessibilityNodeInfosByViewId(RANK)
+            .filter { readable(it, listBounds) }.map { it.weiboBounds() }.filter(listBounds::contains)
+        val rows = root.findAccessibilityNodeInfosByViewId(TITLE)
+            .filter { readable(it, listBounds) }.map { it.weiboBounds() to it }
             .sortedBy { it.first.top }
+            .filter { (bounds, _) -> boundary == null || bounds.top < boundary }
+            .take(24)
             .mapNotNull { (bounds, node) ->
                 val title = node.text?.toString()?.trim()?.takeIf { it.length in 1..150 } ?: return@mapNotNull null
-                // Only collect rows with a separate, numeric heat field. Rank icons expose no text.
                 val heat = heats.singleOrNull { (other, _) ->
                     other.top == bounds.top && other.bottom == bounds.bottom && other.left >= bounds.right
-                }?.second ?: return@mapNotNull null
-                "$title · 热度 $heat"
-            }.distinct().take(limit)
+                }?.second.orEmpty()
+                val icon = icons.singleOrNull { it.left < bounds.left && it.centerY() in bounds.top until bounds.bottom }
+                WeiboVisibleRow(title, heat, icon)
+            }
+        return WeiboVisiblePage(rows, listBounds, boundary != null)
     }
 }
 

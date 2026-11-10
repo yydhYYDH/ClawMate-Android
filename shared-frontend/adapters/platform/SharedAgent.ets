@@ -1,6 +1,7 @@
 import { CloudModelClient, CloudChatCompletionOptions, CloudChatMessage } from '../utils/CloudModelClient';
 import { MemoryQuery } from './MemoryQuery';
 import { PersonalSources } from './PersonalSources';
+import { CollectedMemory } from './CollectedMemory';
 import { runCodexTaskDefinition, parseCodexTaskArguments, codexTaskToolPayload, CodexRunOutcome, CodexToolRequest } from './CodexTool';
 
 /**
@@ -29,8 +30,10 @@ export class SharedAgent {
   static async run(client: CloudModelClient, options: CloudChatCompletionOptions,
     query: (raw: string) => string, active: () => boolean,
     delta: (text: string) => void, trace: (message: string) => void,
-    codex?: CodexDelegation, budgets: SharedAgentBudgets = DEFAULT_SHARED_AGENT_BUDGETS): Promise<void> {
+    codex?: CodexDelegation, budgets: SharedAgentBudgets = DEFAULT_SHARED_AGENT_BUDGETS,
+    collections?: (raw: string) => Promise<string>): Promise<void> {
     options.tools = [MemoryQuery.definition(), PersonalSources.definition('calendar'), PersonalSources.definition('mail')];
+    if (collections !== undefined) { options.tools.push(CollectedMemory.definition()); }
     // The tool is only advertised when a delegation sink exists, so the model cannot call
     // something that would fail.
     if (codex !== undefined) { options.tools.push(runCodexTaskDefinition()); }
@@ -64,10 +67,12 @@ export class SharedAgent {
         // Memory, calendar and mail share one allowance; Codex has its own.
         if (++queries > budgets.maxQueries) { throw new Error('已达到本轮' + budgets.maxQueries.toString() + '次记忆查询上限，请缩小范围后重试'); }
         let source = call.function.name === 'query_calendar' ? 'calendar' : (call.function.name === 'query_mail' ? 'mail' : '');
+        let collectionQuery = call.function.name === 'query_collections' && collections !== undefined;
         let result = source ? await PersonalSources.query(source, call.function.arguments, active, options) : call.function.name === 'query_events' ? query(call.function.arguments) :
+          collectionQuery && collections !== undefined ? await collections(call.function.arguments) :
           JSON.stringify({ ok: false, error: '此工具未注册，未执行' });
         if (!active()) { throw new Error('用户取消请求'); }
-        trace(source ? '已处理' + (source === 'calendar' ? '日历' : '邮箱') + '只读查询；授权与覆盖情况见工具结果' : call.function.name === 'query_events' ? '已查询本机记忆；仅将有界事实返回配置的模型' : '拒绝未注册工具：' + call.function.name.slice(0, 60));
+        trace(collectionQuery ? '已处理本机采集查询，授权与覆盖情况见工具结果' : source ? '已处理' + (source === 'calendar' ? '日历' : '邮箱') + '只读查询；授权与覆盖情况见工具结果' : call.function.name === 'query_events' ? '已查询本机记忆；仅将有界事实返回配置的模型' : '拒绝未注册工具：' + call.function.name.slice(0, 60));
         options.messages.push({ role: 'tool', content: result, tool_call_id: call.id });
       }
     }

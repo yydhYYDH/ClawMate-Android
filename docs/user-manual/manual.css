@@ -45,3 +45,5 @@ h1:focus, h2:focus { outline: none; }
   .manual-enhanced section { scroll-margin-top: 120px; }
 }
 @media print{@page{size:A4;margin:16mm}body{background:white;font-size:10pt}.layout{display:block}aside,.skip,.back,#image-viewer,#empty,.mobile-bar,.reader-toolbar,.guide-directory,.chapter-pager,#search-page,#not-found{display:none!important}#home-page,#chapters{display:block!important}.hero{background:white;padding:0 0 18px}h1{font-size:30pt}h1 br{display:none}#chapters>section{padding:18px 0;break-before:page;display:block!important}section header{break-after:avoid}h2{font-size:19pt}.illustrated{display:grid;grid-template-columns:155px minmax(0,1fr);gap:20px}figure{position:static;max-width:none;break-inside:avoid}figure img{box-shadow:none}figcaption{font-size:8pt}p,li{orphans:3;widows:3}table{font-size:9pt}tr,.note,.success,details{break-inside:avoid}a{color:#19263a}footer{padding:20px 0}.quick,.version-note{font-size:9pt}.flow span{background:white}}
+
+.instructions .weibo-example{position:static;max-width:225px;margin:0 auto 22px}

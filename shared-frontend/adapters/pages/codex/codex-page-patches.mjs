@@ -137,7 +137,28 @@ export function adaptCodexPage(source) {
 
   out = replaceChecked(out,
     "    import { CodexPickers } from '../../platform/CodexPickers';",
-    "    import { CodexPickers } from '../../platform/CodexPickers';\n    import { CodexConfirm } from '../../platform/CodexConfirm';");
+    "    import { CodexPickers } from '../../platform/CodexPickers';\n    import { CodexConfirm } from '../../platform/CodexConfirm';\n    import { CollectedMemory } from '../../platform/CollectedMemory';");
+
+  out = replaceChecked(out, "  private pendingRequestId: string = '';",
+    "  private pendingRequestId: string = '';\n  private pendingTurnText: string = '';");
+  out = replaceChecked(out, "this.pendingRequestId = '';", "this.pendingRequestId = ''; this.pendingTurnText = '';", { all: true });
+  out = replaceChecked(out,
+    `      if (!this.pendingRequestId) { this.pendingRequestId = util.generateRandomUUID(true); }
+      const result = await this.client.call('/v1/tasks/' + this.task.id + '/turns', {
+        requestId: this.pendingRequestId, text: this.draft, attachments:`,
+    `      if (!this.pendingRequestId) {
+        const origin = this.connectedOrigin;
+        const taskId = this.task.id;
+        const context = this.getUIContext().getHostContext();
+        const text = await CollectedMemory.attachForCodex(this.draft, this.draft, context?.filesDir || '',
+          (this.serverName || 'Codex 电脑') + '（' + origin + '）',
+          (): boolean => epoch === this.epoch && origin === this.connectedOrigin && this.task?.id === taskId);
+        if (epoch !== this.epoch || origin !== this.connectedOrigin || this.task?.id !== taskId) { return; }
+        this.pendingTurnText = text;
+        this.pendingRequestId = util.generateRandomUUID(true);
+      }
+      const result = await this.client.call('/v1/tasks/' + this.task.id + '/turns', {
+        requestId: this.pendingRequestId, text: this.pendingTurnText, attachments:`);
 
   return out;
 }

@@ -19,7 +19,7 @@ ${templates}
   { key: 'wait', label: '等待', shortLabel: '等待', group: '控制流', accentColor: '#7C4DFF', backgroundColor: '#F0EAFF' },`],
     ["    if (templateKey === 'open_app') {", `    if (${actions.map(([key]) => `templateKey === '${key}'`).join(' || ')}) {
       let step: WorkflowStep = { id: id, type: 'android_accessibility', action: templateKey };
-      if (templateKey === 'weibo_read_hot') { step.item_limit = 3; }
+      if (templateKey === 'weibo_read_hot') { step.item_limit = 0; }
       return step;
     }
     if (templateKey === 'open_app') {`],
@@ -31,7 +31,7 @@ ${actionLabels}
     ["  private nodeSummary(step: WorkflowStep, path: string): string {", `  private nodeSummary(step: WorkflowStep, path: string): string {
     if (step.type === 'android_accessibility') {
 ${summaries}
-      if (step.action === 'weibo_read_hot') { return '最多 ' + String(step.item_limit || 3) + ' 条可见标题及热度'; }
+      if (step.action === 'weibo_read_hot') { return step.item_limit ? '最多 ' + String(step.item_limit) + ' 条' : '逐页读取公开热搜主榜'; }
       return '检查无障碍节点';
     }`],
     ["          if (this.selectedStepType() === 'gui_action') {\n            this.GuiActionEditor()\n          }", `          if (this.selectedStepType() === 'gui_action') {
@@ -51,14 +51,16 @@ ${summaries}
   @Builder WeiboActionEditor() {
     Column({ space: 8 }) {
       if (this.selectedStepAction() === 'weibo_read_hot') {
-        this.FieldLabel('最多读取条数')
+        this.FieldLabel('读取范围')
+        this.SegmentButton('整榜', '0', String(this.selectedStep()?.item_limit ?? 0), '#148F73',
+          () => { this.updateWeiboItemLimit(0); })
         Row({ space: 6 }) {
           ForEach([1, 2, 3, 4, 5], (limit: number) => {
-            this.SegmentButton(String(limit), String(limit), String(this.selectedStep()?.item_limit || 3),
+            this.SegmentButton(String(limit), String(limit), String(this.selectedStep()?.item_limit ?? 0),
               '#148F73', () => { this.updateWeiboItemLimit(limit); })
           }, (limit: number) => String(limit))
         }
-        Text('读取当前屏幕中带热度值的标题，按屏幕顺序展示。').fontSize(11).fontColor(AppTheme.text('#6F7584'))
+        Text('整榜会自动翻页。保存标题、采集日期、可核对的名次和热度。').fontSize(11).fontColor(AppTheme.text('#6F7584'))
       } else {
         Text('此节点使用微博的固定操作。可在节点之间插入等待。').fontSize(11).fontColor(AppTheme.text('#6F7584'))
       }

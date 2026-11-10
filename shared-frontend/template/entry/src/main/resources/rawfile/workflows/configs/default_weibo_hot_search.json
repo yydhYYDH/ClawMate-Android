@@ -6,7 +6,7 @@
   "steps": [
     { "id": 1, "type": "android_accessibility", "action": "weibo_open_board" },
     { "id": 2, "type": "android_accessibility", "action": "weibo_select_hot" },
-    { "id": 3, "type": "android_accessibility", "action": "weibo_read_hot", "item_limit": 3 },
+    { "id": 3, "type": "android_accessibility", "action": "weibo_read_hot", "item_limit": 0 },
     { "id": 4, "type": "android_accessibility", "action": "weibo_preview" }
   ]
 }

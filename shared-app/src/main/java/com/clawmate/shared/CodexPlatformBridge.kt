@@ -258,12 +258,16 @@ class CodexPlatformBridge(private val context: Context) {
         }
         val continueRunId = request.text("continueRunId")
         val sessionId = request.text("sessionId").ifEmpty { "chat" }
+        val expectedOrigin = request.text("expectedOrigin")
+        if (expectedOrigin.isNotEmpty() && continueRunId.isNotEmpty()) {
+            return buildJsonObject { put("id", ""); put("failure", "请在 Codex 直接提问以附加新的本机记录") }.toString()
+        }
         val runId = java.util.UUID.randomUUID().toString()
         codexRuns[runId] = CodexRunState(running = true)
         scope.launch {
             val state = codexRuns[runId] ?: return@launch
             val result = try {
-                executeDelegation(text, continueRunId, sessionId, runId)
+                executeDelegation(text, continueRunId, sessionId, runId, expectedOrigin)
             } catch (e: Exception) {
                 outcome("failed", runId, "", e.message ?: "Codex 委托失败")
             }
@@ -310,6 +314,7 @@ class CodexPlatformBridge(private val context: Context) {
         continueRunId: String,
         sessionId: String,
         runId: String,
+        expectedOrigin: String,
     ): String {
         val store = runStore
         val backend = CodexBackend(
@@ -317,7 +322,10 @@ class CodexPlatformBridge(private val context: Context) {
             credentials = credentials,
             artifacts = CodexArtifactStore(File(context.filesDir, "codex/sessions")),
         ).apply {
-            selector = CodexBackend.TargetSelector { saved, _, _ -> CodexBackend.Target(saved.id, "") }
+            selector = CodexBackend.TargetSelector { saved, _, _ ->
+                check(expectedOrigin.isEmpty() || saved.origin == expectedOrigin) { "Codex 电脑已变化，本机记录未发送" }
+                CodexBackend.Target(saved.id, "")
+            }
             runStore = store
             defaultWorkspace = { envelope -> envelope.workspaces.firstOrNull()?.id.orEmpty() }
         }

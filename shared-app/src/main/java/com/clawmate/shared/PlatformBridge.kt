@@ -380,6 +380,7 @@ class PlatformBridge(private val activity: StageActivity) :
     fun guiCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.open(activity, collectOnly = true);true }
     fun guiAlipayCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.openAlipayCollection(activity);true }
     fun guiCollectionHistory(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.showCollections(activity);true }
+    fun guiCollectionQuery(raw: String): String = com.clawmate.platform.gui.GuiCollectionSearch.query(activity.applicationContext, raw)
     fun guiControlStop(): Boolean = onUi { com.clawmate.platform.gui.GuiControlService.connected?.stop();true }
     fun guiControlStatus(): String = JSONObject().put("v",1)
         .put("supported",android.os.Build.VERSION.SDK_INT>=34)

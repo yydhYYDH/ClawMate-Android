@@ -104,18 +104,19 @@ object GuiControlEntry {
             }
             val service = GuiControlService.connected
             if (service == null) {
-                settings(activity)
+                GuiCollectionStyle(activity).sheet("开启无障碍服务", "请在系统设置中启用 ClawMate 按次界面控制。返回任务页后重新运行。", "去系统设置") {
+                    activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
                 return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "请开启 ClawMate 无障碍服务后重新运行")
             }
             val run = WeiboGuiRun(steps, limit)
             val consent = CompletableDeferred<Boolean>()
-            val prompt = AlertDialog.Builder(activity).setTitle("运行微博热搜采集？")
-                .setMessage("本次只打开微博、切换到公开热搜标签并读取最多 $limit 条可见标题及热度。预览确认后保存到本机。切出应用或锁屏会停止。")
-                .setNegativeButton("取消") { _, _ -> consent.complete(false) }
-                .setPositiveButton("运行采集") { _, _ -> consent.complete(true) }
-                .setOnCancelListener { consent.complete(false) }.show()
+            val range = if (limit == 0) "逐页读取整个公开热搜榜" else "读取最多 $limit 条可见热搜"
+            val prompt = GuiCollectionStyle(activity).sheet("采集微博热搜", "ClawMate 将打开微博，$range。标题、日期、排名和可读取的热度会先在本机预览。切出应用或锁屏会停止。", "运行采集") {
+                consent.complete(true)
+            }.apply { setOnDismissListener { consent.complete(false) } }
             try {
-                withTimeoutOrNull(55_000) {
+                withTimeoutOrNull(105_000) {
                     if (!consent.await()) return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消微博采集")
                     delay(250)
                     foreground(activity)

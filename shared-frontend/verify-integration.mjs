@@ -64,6 +64,31 @@ await check('unregistered tools cannot execute and repeated tool calls stop at t
   assert.equal(reads, 0); assert.equal(requests, 4);
 });
 
+await check('collection context is read locally, scoped to the question, and shared only after confirmation', async () => {
+  let allow = false, reads = 0, prompts = 0, changed = false;
+  const args = [];
+  const { CollectedMemory } = module('shared-frontend/adapters/platform/CollectedMemory.ets', 'CollectedMemory', {
+    MemoryQuery, AiServiceAccess: { requireAllowed() {} }, PrivacyConsent: { requireAccepted() {} },
+    AppStorage: { get: key => ({ cloudPlannerBaseUrl: 'https://fixture.invalid', cloudPlannerModel: 'fixture-model' })[key] },
+    promptAction: { async showDialog() { prompts++; return { index: allow ? 1 : 0 }; } },
+    Bridge: { createBridge: () => ({ async callMethod(name, raw) {
+      assert.equal(name, 'guiCollectionQuery'); reads++; args.push(JSON.parse(raw));
+      return JSON.stringify({ ok: true, records: [{ source: '微博热搜', date: '2026-11-10', rank: 3,
+        title: changed && reads % 2 === 0 ? '变化后' : '合成标题', partial: false }] });
+    } }) }
+  });
+  assert.equal(await CollectedMemory.forQuestion('普通问答', ''), '');
+  assert.match(await CollectedMemory.forQuestion('2026-11-10 微博热搜第 3 名', ''), /第3名.*合成标题/);
+  assert.deepEqual(args[0], { source: 'weibo', date: '2026-11-10', keyword: '', rank: 3, limit: 8 });
+  assert.equal(prompts, 0);
+  assert.equal(JSON.parse(await CollectedMemory.share('{}', options(), () => true)).ok, false);
+  await assert.rejects(CollectedMemory.attachForCodex('微博热搜', '回答问题', '', '测试电脑', () => true), /取消/);
+  allow = true; changed = true; reads = 0;
+  assert.equal(JSON.parse(await CollectedMemory.share('{}', options(), () => true)).ok, false);
+  changed = false;
+  assert.match(await CollectedMemory.attachForCodex('微博热搜', '回答问题', '', '测试电脑', () => true), /本机记录摘录.*合成标题/s);
+});
+
 let nativeCall;
 const { ChatImages } = module('shared-frontend/adapters/platform/ChatImages.ets', 'ChatImages', {
   Bridge: { createBridge: () => ({ callMethod: (...args) => nativeCall(...args) }) },
@@ -141,7 +166,7 @@ await check('the generated Weibo graph exposes an editable read limit and the fo
   const graph = JSON.parse(fs.readFileSync(resources + 'default_weibo_hot_search.json', 'utf8'));
   assert.deepEqual(graph.steps.map(step => step.action), ['weibo_open_board', 'weibo_select_hot', 'weibo_read_hot', 'weibo_preview']);
   assert.ok(graph.steps.every(step => step.type === 'android_accessibility'));
-  assert.equal(graph.steps[2].item_limit, 3);
+  assert.equal(graph.steps[2].item_limit, 0);
   const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
   const method = page.match(/^  private (updateWeiboItemLimit\(limit: number\): void \{[\s\S]*?^  \})/m);
   assert.ok(method);

@@ -36,6 +36,7 @@ internal data class GuiCollection(
     val lines: List<String>,
     val partial: Boolean,
     val pages: Int = 1,
+    val weibo: WeiboSnapshot? = null,
 ) {
     fun title(): String = "$sourceLabel · ${DateFormat.getDateTimeInstance().format(Date(capturedAt))}"
 
@@ -50,7 +51,10 @@ internal data class GuiCollection(
         }, FrameLayout.LayoutParams(MATCH_PARENT, maxHeight))
     }
 
-    fun description(): String = "$sourcePackage\n$pages 页 · ${lines.size} 条可见文字" +
+    fun description(): String = weibo?.let { snapshot ->
+        "${snapshot.date} · $pages 页 · ${snapshot.entries.size} 条\n" +
+            if (snapshot.complete) "已核对主榜第 1 至 50 名" else "部分采集 · ${snapshot.endReason}"
+    } ?: "$sourcePackage\n$pages 页 · ${lines.size} 条可见文字" +
         if (partial) "（仅包含已读部分）" else ""
 
     companion object {
@@ -160,11 +164,11 @@ internal class GuiCollectionAccumulator {
         first.copy(lines = lines.toList(), partial = incomplete || truncated, pages = pages)
 }
 
-/** Accessed on the UI thread. Only explicitly saved previews reach this app-private file. */
+/** Serializes UI writes and model-side reads of the app-private collection file. */
 internal object GuiCollectionHistory {
     private fun file(context: Context) = AtomicFile(File(context.noBackupFilesDir, "gui-collections.json"))
 
-    private fun read(context: Context): List<GuiCollection> {
+    @Synchronized fun read(context: Context): List<GuiCollection> {
         val bytes = try {
             file(context).readFully()
         } catch (_: FileNotFoundException) {
@@ -173,9 +177,17 @@ internal object GuiCollectionHistory {
         return Json.decodeFromString(bytes.toString(Charsets.UTF_8))
     }
 
-    fun save(context: Context, value: GuiCollection) {
-        write(context, (listOf(value) + read(context)).take(10))
+    @Synchronized fun save(context: Context, value: GuiCollection) {
+        val records = read(context)
+        val isBoard = value.weibo != null
+        check(records.count { (it.weibo != null) == isBoard } < 200) {
+            if (isBoard) "微博榜单已保存 200 批，请先删除旧批次" else "本机采集已保存 200 条，请先删除旧记录"
+        }
+        write(context, listOf(value) + records)
     }
+
+    @Synchronized private fun delete(context: Context, record: GuiCollection) =
+        write(context, read(context).toMutableList().apply { remove(record) })
 
     private fun write(context: Context, records: List<GuiCollection>) {
         val bytes = Json.encodeToString(records).toByteArray(Charsets.UTF_8)
@@ -199,15 +211,24 @@ internal object GuiCollectionHistory {
         } else {
             list.setItems(records.map { it.title() }.toTypedArray()) { _, index ->
                 val record = records[index]
+                if (record.weibo != null) {
+                    val style = GuiCollectionStyle(activity)
+                    style.sheet("微博热搜 · ${record.weibo.date}", record.description(), "关闭", "删除记录",
+                        content = style.recordContent(record), secure = true, onNegative = {
+                            style.sheet("删除这批微博热搜？", "从本机历史移除后，模型查询也不会返回这批记录。", "删除", secure = true) {
+                                runCatching { delete(activity, record) }.onFailure {
+                                    android.widget.Toast.makeText(activity, "删除失败，请重试", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }) {}
+                    return@setItems
+                }
                 AlertDialog.Builder(activity).setTitle(record.title()).setMessage(record.description())
                     .setView(record.preview(activity)).setNegativeButton("关闭", null)
                     .setNeutralButton("删除记录") { _, _ ->
                         AlertDialog.Builder(activity).setMessage("删除这条本机采集记录？")
                             .setNegativeButton("取消", null).setPositiveButton("删除") { _, _ ->
-                                runCatching { write(activity, read(activity).toMutableList().apply {
-                                    // Use the current file so a record saved since opening the list survives.
-                                    remove(record)
-                                }) }.onFailure {
+                                runCatching { delete(activity, record) }.onFailure {
                                     AlertDialog.Builder(activity).setMessage("删除失败，请重新打开采集记录后重试。")
                                         .setPositiveButton("知道了", null).show()
                                 }
