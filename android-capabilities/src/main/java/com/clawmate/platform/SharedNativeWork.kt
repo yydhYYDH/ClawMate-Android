@@ -28,7 +28,7 @@ object SharedNativeWork {
             ?: error("无法解析工作流")
         if (WeiboGuiWorkflow.containsNode(parsed.definition.steps)) {
             return@runBlocking guiWorkflow?.invoke(parsed.definition.steps)
-                ?: WorkflowRunResult(RunStatus.BLOCKED, "微博热搜需要单次确认，请在任务列表单独运行")
+                ?: WorkflowRunResult(RunStatus.BLOCKED, "无障碍采集需要单次确认，请在任务列表单独运行")
         }
         // The shared ArkTS host owns its workflow files and commits actual summaries.
         WorkflowRunnerImpl(modelTool = modelTool).run(parsed.definition)

@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "name": "android-xhs-public-notes",
+    "description": "小红书 AI 采集公开笔记"
+  },
+  "steps": [
+    {
+      "id": 1,
+      "type": "android_accessibility",
+      "action": "xhs_public_notes",
+      "text": "上海城市漫步",
+      "task_description": "采集当前页的公开笔记摘录，然后向下翻一页，再采集这一页，最后打开预览。",
+      "on_error": "stop"
+    }
+  ],
+  "context": {}
+}

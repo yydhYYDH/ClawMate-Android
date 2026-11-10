@@ -313,15 +313,19 @@ class PlatformBridge(private val activity: StageActivity) :
     fun avatarForegroundCancel(id: String): Boolean { avatarJobs.cancel(id); return true }
     fun workflowStart(raw: String): String = startWorkflow(raw, interactive = false)
     fun workflowStartInteractive(raw: String): String = startWorkflow(raw, interactive = true)
+    fun workflowStartGui(raw: String, destination: String): String {
+        require(destination.isNotBlank() && destination.length <= 240 && destination.none(Char::isISOControl)) { "Decider 目标无效" }
+        return startWorkflow(raw, interactive = true, destination = destination)
+    }
 
-    private fun startWorkflow(raw: String, interactive: Boolean): String {
+    private fun startWorkflow(raw: String, interactive: Boolean, destination: String = ""): String {
         require(raw.length <= 256000) { "工作流配置过长" }
         val mailbox = WorkflowModelMailbox()
         return try {
             val id = workflowJobs.start {
                 try {
                     if (interactive) SharedNativeWork.runWorkflow(raw, mailbox) { steps ->
-                        com.clawmate.platform.gui.GuiControlEntry.runWeiboWorkflow(activity, steps)
+                        com.clawmate.platform.gui.GuiControlEntry.runWorkflow(activity, steps, mailbox, destination)
                     } else SharedNativeWork.runWorkflow(raw, mailbox)
                 } finally { mailbox.close() }
             }
@@ -357,7 +361,10 @@ class PlatformBridge(private val activity: StageActivity) :
         return mailbox.reply(request, reply.optString("response"), reply.optString("error"))
     }
     fun workflowToolPending(id: String, request: String): Boolean = onUi {
-        (activity as SharedActivity).reminderWindowReady() && workflowModels[id]?.peek()?.id == request
+        val pending = workflowModels[id]?.peek()?.takeIf { it.id == request } ?: return@onUi false
+        if (pending.mode == "xhs_public_choice") {
+            com.clawmate.platform.gui.GuiControlService.connected?.xhsModelWindowReady() == true
+        } else (activity as SharedActivity).reminderWindowReady()
     }
     fun workflowCancel(id: String): Boolean { workflowModels.remove(id)?.close(); workflowJobs.cancel(id); return true }
     fun captureStart(): String = onUi { (activity as SharedActivity).startCapture() }

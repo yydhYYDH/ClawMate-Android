@@ -37,6 +37,18 @@ await check('confirmed image uses saved Decider model and actual prepared JPEG w
   assert.ok(dialog.message.includes('fixture question')); assert.ok(dialog.message.includes('https://vision.invalid'));
   assert.ok(!dialog.message.includes('synthetic-key'));
 });
+await check('Xiaohongshu sends text choices only and discards a reply after leaving the authorized window', async () => {
+  const h = harness();
+  const config = await h.model.prepareGui(h.authorize);
+  const request = { id: 'choice', mode: 'xhs_public_choice', question: '{"task":"先读这一页","choices":[{"id":"read_visible"}]}', image: '' };
+  h.state.response = async () => '{"action":"read_visible"}';
+  assert.equal(await h.model.executeGui('run', request, config, () => false), '{"action":"read_visible"}');
+  assert.equal(h.state.images, 0);
+  assert.equal(h.state.requests[0].messages[1].content, request.question);
+  assert.equal(h.state.requests[0].logResponseContent, false);
+  h.state.response = async () => { h.state.pending = false; return '{"action":"read_visible"}'; };
+  await assert.rejects(h.model.executeGui('run', request, config, () => false), /窗口已变化/);
+});
 await check('missing or unsafe endpoint fails before authorization, image reads and requests', async () => {
   for(const endpoint of ['', 'http://vision.invalid','https://user:password@vision.invalid','https://vision.invalid?secret=x']) {
     const h=harness(); h.settings.set('cloudDeciderBaseUrl',endpoint);
@@ -116,6 +128,43 @@ await check('actual workflow loop forwards model result, records provenance and 
   });
   await Workflow.run('/fixture',{id:'task',title:'fixture',sceneId:12},{throwIfCancelled(){},isCancelled:()=>false,setHandler(){}});
   assert.equal(marked,1); assert.equal(closed,1); assert.ok([...files.values()].every(v=>v.includes('android_workflow_model')));
+});
+await check('interactive Xiaohongshu run binds Decider and forwards a single native action choice', async () => {
+  const raw = '{"steps":[{"type":"android_accessibility","action":"xhs_public_notes"}]}';
+  const config = { baseUrl: 'https://vision.invalid', model: 'saved-model', apiKey: 'private-key' };
+  let authorized = false; let replied = false; let receipt;
+  const Workflow = module('shared-frontend/adapters/platform/AndroidWorkflow.ets', 'AndroidWorkflow', {
+    Bridge: { createBridge: () => ({ async callMethod(method, run, request, payload) {
+      if (method === 'workflowStartGui') {
+        assert.equal(authorized, true); assert.equal(run, raw);
+        assert.equal(request, 'https://vision.invalid（saved-model）'); return 'native-run';
+      }
+      assert.equal(run, 'native-run');
+      if (method === 'workflowToolReply') {
+        assert.equal(request, 'choice');
+        assert.equal(JSON.parse(payload).response, '{"action":"read_visible"}');
+        replied = true; return true;
+      }
+      assert.equal(method, 'workflowPoll');
+      return JSON.stringify(replied ? { v: 1, status: 'done', result: JSON.stringify({
+        status: 'success', message: 'native save', steps: [], resultSummary: ''
+      }) } : { v: 1, status: 'running', tool: { id: 'choice', mode: 'xhs_public_choice' } });
+    } }) },
+    WorkflowVlm: class {
+      async prepareGui(authorize) { await authorize(); return config; }
+      async executeGui(run, tool, savedConfig) {
+        assert.equal(savedConfig, config); assert.equal(tool.mode, 'xhs_public_choice'); return '{"action":"read_visible"}';
+      }
+      cancel() {}
+    },
+    WorkflowStorage: { updateTaskRun() {}, readTaskWorkflowJson: () => raw, runsDir: () => '/fixture/runs' },
+    DataManagerFacade: class { storage = { ensureDir() {}, writeJsonAtomic: (_, value) => { receipt = value; } }; ensureReady() {} }
+  });
+  assert.equal(await Workflow.run('/fixture', { id: 'xhs' }, {
+    throwIfCancelled() {}, isCancelled: () => false, setHandler() {}
+  }, async () => { authorized = true; }, true), false);
+  assert.equal(receipt.message, 'native save');
+  assert.equal(receipt.result_summary, '');
 });
 await check('later deterministic summary preserves existing model provenance in an appended log', async () => {
   let saved='';

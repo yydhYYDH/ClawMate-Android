@@ -47,6 +47,9 @@ for (const input of sourceInputs.files.filter(file => !file.path.includes('/ets/
 const weiboConfig = 'entry/src/main/resources/rawfile/workflows/configs/default_weibo_hot_search.json';
 const androidWeibo = fs.readFileSync(path.join(template, weiboConfig), 'utf8');
 fs.writeFileSync(checkedPath(repo, '.arkui-x-validation/application/project/' + weiboConfig), androidWeibo);
+const xhsConfig = 'entry/src/main/resources/rawfile/workflows/configs/default_xhs_public_notes.json';
+const androidXhs = fs.readFileSync(path.join(template, xhsConfig), 'utf8');
+fs.writeFileSync(checkedPath(repo, '.arkui-x-validation/application/project/' + xhsConfig), androidXhs);
 for (const item of ['hvigorfile.ts', 'oh-package.json5', 'entry/oh-package.json5', 'entry/hvigorfile.ts', 'entry/src/main/module.json5']) {
   fs.copyFileSync(path.join(template, item), checkedPath(repo, '.arkui-x-validation/application/project/' + item));
 }
@@ -80,6 +83,17 @@ const overlay = (name, value) => {
 overlay('utils/WorkflowTypes.ets', replaceChecked(read('utils/WorkflowTypes.ets'), '  action?: string;\n  x?: number;',
   '  action?: string;\n  item_limit?: number;\n  x?: number;'));
 overlay('utils/WorkflowStorage.ets', applyPatches(read('utils/WorkflowStorage.ets'), [
+  ["  {\n    id: 'default_xiaohongshu_history',", `  {
+    id: 'default_xhs_public_notes',
+    sceneId: 5,
+    fileName: 'default_xhs_public_notes.json',
+    rawFilePath: DEFAULT_WORKFLOW_RAW_ROOT + '/default_xhs_public_notes.json'
+  },
+  {
+    id: 'default_xiaohongshu_history',`],
+  ['  private static legacyDefaultWorkflowForTaskId(taskId: string): string {',
+    '  private static legacyDefaultWorkflowForTaskId(taskId: string): string {\n' +
+    "    if (taskId === 'default_xhs_public_notes') { return " + JSON.stringify(androidXhs) + '; }'],
   [/  static defaultWeiboWorkflow\(\): string \{[^]*?\n  \}/,
     '  static defaultWeiboWorkflow(): string { return ' + JSON.stringify(androidWeibo) + '; }'],
   ["stepType === 'loop' || stepType === 'if';", "stepType === 'loop' || stepType === 'if' || stepType === 'android_accessibility';"],

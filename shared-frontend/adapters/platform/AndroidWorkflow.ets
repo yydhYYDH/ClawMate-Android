@@ -5,6 +5,7 @@ import { WorkflowCancellation } from '../utils/WorkflowCancellation';
 import { DataManagerFacade } from '../datamanager/DataManagerFacade';
 import { CollectionReminderService } from '../utils/CollectionReminderService';
 import { WorkflowVlm, WorkflowVlmRequest } from './WorkflowVlm';
+import { CloudChatCompletionOptions } from '../utils/CloudModelClient';
 import { isBuiltInAlipayCollection } from './TaskServices';
 
 interface ExecutionStep { id: string; type?: string; status: string; }
@@ -26,7 +27,15 @@ export class AndroidWorkflow {
     try {
       cancellation.throwIfCancelled();
       let raw = WorkflowStorage.readTaskWorkflowJson(filesDir, task);
-      id = await bridge.callMethod(interactive ? 'workflowStartInteractive' : 'workflowStart', raw) as string;
+      let guiConfig: CloudChatCompletionOptions | null = null;
+      if (interactive && /"action"\s*:\s*"xhs_public_notes"/.test(raw)) {
+        model = new WorkflowVlm();
+        guiConfig = await model.prepareGui(authorize);
+        cancellation.throwIfCancelled();
+        id = await bridge.callMethod('workflowStartGui', raw, guiConfig.baseUrl + '（' + guiConfig.model + '）') as string;
+      } else {
+        id = await bridge.callMethod(interactive ? 'workflowStartInteractive' : 'workflowStart', raw) as string;
+      }
       cancellation.setHandler((): void => { model?.cancel(); bridge.callMethod('workflowCancel', id).catch(() => {}); });
       let deadline = Date.now() + (/"type"\s*:\s*"android_accessibility"/.test(raw) ? 110000 : 65000);
       while (Date.now() < deadline) {
@@ -38,7 +47,10 @@ export class AndroidWorkflow {
           if (model === null) { model = new WorkflowVlm(); }
           usedModel = true;
           let response = ''; let error = '';
-          try { response = await model.execute(id, poll.tool, (): boolean => cancellation.isCancelled(), authorize); }
+          try {
+            response = guiConfig !== null ? await model.executeGui(id, poll.tool, guiConfig, (): boolean => cancellation.isCancelled()) :
+              await model.execute(id, poll.tool, (): boolean => cancellation.isCancelled(), authorize);
+          }
           catch (failure) { error = (failure as Error).message.slice(0, 500) || '视觉问答失败'; }
           cancellation.throwIfCancelled();
           if (!await bridge.callMethod('workflowToolReply', id, poll.tool.id, JSON.stringify({ response: response, error: error }))) {

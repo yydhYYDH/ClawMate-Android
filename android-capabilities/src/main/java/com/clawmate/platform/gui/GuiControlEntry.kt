@@ -9,6 +9,7 @@ import android.os.Build
 import android.provider.Settings
 import com.clawmate.app.task.model.WorkflowStep
 import com.clawmate.app.task.runner.RunStatus
+import com.clawmate.app.task.runner.WorkflowModelTool
 import com.clawmate.app.task.runner.WorkflowRunResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,15 @@ import kotlinx.coroutines.withTimeoutOrNull
 /** Native user choice; no caller can supply a package, launch intent or gesture. */
 object GuiControlEntry {
     private const val ALIPAY_PACKAGE = "com.eg.android.AlipayGphone"
+
+    suspend fun runWorkflow(activity: Activity, steps: List<WorkflowStep>, model: WorkflowModelTool,
+        destination: String,
+    ): WorkflowRunResult {
+        if (destination.isNotEmpty() || steps.any { it.action == XhsGuiWorkflow.ACTION }) {
+            return runXhsWorkflow(activity, steps, model, destination)
+        }
+        return runWeiboWorkflow(activity, steps)
+    }
 
     private fun foreground(activity:Activity) {
         check(!activity.isFinishing && !activity.isDestroyed && activity.hasWindowFocus() && !activity.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "请返回前台并解锁后操作" }
@@ -132,6 +142,51 @@ object GuiControlEntry {
                 prompt.dismiss()
                 service.cancelWeibo(run)
             }
+        }
+    }
+
+    private suspend fun runXhsWorkflow(activity: Activity, steps: List<WorkflowStep>, model: WorkflowModelTool,
+        destination: String,
+    ): WorkflowRunResult = withContext(Dispatchers.Main.immediate) {
+        val (keyword, task) = try { XhsGuiWorkflow.validate(steps) }
+        catch (failure: IllegalArgumentException) {
+            return@withContext WorkflowRunResult(RunStatus.BLOCKED, failure.message ?: "小红书 AI 采集配置有误")
+        }
+        if (destination.isBlank()) return@withContext WorkflowRunResult(RunStatus.BLOCKED, "小红书 AI 采集需要单独确认 Decider，请从任务卡运行")
+        if (Build.VERSION.SDK_INT < 34) return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "小红书 AI 采集需要 Android 14 及以上")
+        val launch = XhsGuiWorkflow.launch(keyword)
+        if (launch.resolveActivity(activity.packageManager)?.packageName != XhsGuiWorkflow.PACKAGE) {
+            return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "找不到可打开公开搜索页的小红书，请检查客户端版本")
+        }
+        foreground(activity)
+        val service = GuiControlService.connected
+        if (service == null) {
+            GuiCollectionStyle(activity).sheet("开启无障碍服务", "请启用 ClawMate 按次界面控制，返回任务页后重新运行。", "去系统设置") {
+                activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "请先开启 ClawMate 无障碍服务")
+        }
+        val run = XhsGuiRun(steps.single(), keyword, task, model)
+        val consent = CompletableDeferred<Boolean>()
+        val dialog = GuiCollectionStyle(activity).sheet("小红书 AI 采集",
+            "公开搜索：$keyword\n提示词：$task\n\n发送提示词、可用操作和进度给 $destination。笔记摘录在本机读取，确认预览后保存。切出或锁屏时停止。",
+            "运行采集") { consent.complete(true) }.apply { setOnDismissListener { consent.complete(false) } }
+        try {
+            withTimeoutOrNull(105_000) {
+                if (!consent.await()) return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消小红书 AI 采集")
+                delay(250)
+                foreground(activity)
+                check(GuiControlService.connected === service) { "无障碍服务已断开" }
+                service.beginXhs(launch, run)
+                run.result.await()
+            } ?: WorkflowRunResult(RunStatus.CANCELLED, "小红书 AI 采集已超时")
+        } catch (failure: IllegalStateException) {
+            WorkflowRunResult(RunStatus.FAILED, failure.message ?: "无法开启小红书 AI 采集")
+        } catch (_: android.content.ActivityNotFoundException) {
+            WorkflowRunResult(RunStatus.NOT_CONFIGURED, "无法打开小红书公开搜索页")
+        } finally {
+            dialog.dismiss()
+            service.cancelXhs(run)
         }
     }
 

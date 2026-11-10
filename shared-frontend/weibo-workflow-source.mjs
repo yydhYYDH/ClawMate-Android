@@ -4,7 +4,8 @@ const actions = [
   ['weibo_open_board', '打开微博榜单', '打开微博客户端的榜单页面'],
   ['weibo_select_hot', '切换热搜标签', '进入公开榜单'],
   ['weibo_read_hot', '读取热搜', '读取可见标题和热度'],
-  ['weibo_preview', '预览并保存', '确认后写入本机采集记录']
+  ['weibo_preview', '预览并保存', '确认后写入本机采集记录'],
+  ['xhs_public_notes', '小红书 AI 采集', '模型选择读取、翻页或结束']
 ];
 
 export function patchWeiboTaskPage(page) {
@@ -20,6 +21,10 @@ ${templates}
     ["    if (templateKey === 'open_app') {", `    if (${actions.map(([key]) => `templateKey === '${key}'`).join(' || ')}) {
       let step: WorkflowStep = { id: id, type: 'android_accessibility', action: templateKey };
       if (templateKey === 'weibo_read_hot') { step.item_limit = 0; }
+      if (templateKey === 'xhs_public_notes') {
+        step.text = '上海城市漫步';
+        step.task_description = '采集两页公开笔记摘录，然后打开预览。';
+      }
       return step;
     }
     if (templateKey === 'open_app') {`],
@@ -50,7 +55,17 @@ ${summaries}
 
   @Builder WeiboActionEditor() {
     Column({ space: 8 }) {
-      if (this.selectedStepAction() === 'weibo_read_hot') {
+      if (this.selectedStepAction() === 'xhs_public_notes') {
+        this.FieldLabel('公开搜索关键词')
+        TextInput({ placeholder: '例如 上海城市漫步', text: this.selectedStep()?.text || '' })
+          .maxLength(40).backgroundColor(AppTheme.inputBackground())
+          .onChange((value: string) => { this.updateSelectedStringField('text', value); })
+        this.FieldLabel('采集提示词')
+        TextArea({ placeholder: '例如 采集两页公开笔记摘录，然后预览', text: this.selectedStep()?.task_description || '' })
+          .maxLength(300).height(96).backgroundColor(AppTheme.inputBackground())
+          .onChange((value: string) => { this.updateSelectedStringField('task_description', value); })
+        Text('Decider 选择读取、翻页或结束。最多翻两次，笔记摘录保存在本机。').fontSize(11).fontColor(AppTheme.text('#6F7584'))
+      } else if (this.selectedStepAction() === 'weibo_read_hot') {
         this.FieldLabel('读取范围')
         this.SegmentButton('整榜', '0', String(this.selectedStep()?.item_limit ?? 0), '#148F73',
           () => { this.updateWeiboItemLimit(0); })
