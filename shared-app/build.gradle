@@ -26,6 +26,7 @@ dependencies {
     // Codex bridge awaits suspending transport calls from bridge methods.
     implementation libs.kotlinx.coroutines.android
     implementation libs.okhttp
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
     if (findProject(':meeting-sdk') != null) implementation project(':meeting-sdk')
     implementation fileTree(dir: new File(runtimeDir, 'libs'), include: ['*.jar'])
     androidTestImplementation libs.androidx.junit

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "title": "ClawMate 用户手册",
   "edition": "Android 共享版 · 0.3-integrated",
-  "updated": "2026-11-11",
+  "updated": "2026-11-12",
   "entryFile": "index.html",
   "contentFile": "content.json",
   "homeRoute": "#/",
@@ -16,8 +16,8 @@
     },
     {
       "id": "navigation",
-      "title": "认识五个入口",
-      "summary": "找功能时，先看底部导航。",
+      "title": "认识底部入口",
+      "summary": "找功能时，先看底部导航。当前版本在聊天与任务之间增加了 Codex。",
       "route": "#/chapter/navigation"
     },
     {
@@ -55,6 +55,12 @@
       "title": "首页：概览、推荐与陪伴",
       "summary": "首页需要已有数据和相应模型配置，空白时先建立一条真实记录。",
       "route": "#/chapter/home"
+    },
+    {
+      "id": "codex",
+      "title": "Codex：配对电脑、继续会话和收取文件",
+      "summary": "启动电脑端 ClawMate Codex 连接器，手机通过 HTTPS 连接。",
+      "route": "#/chapter/codex"
     },
     {
       "id": "tasks",

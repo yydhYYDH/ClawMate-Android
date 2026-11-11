@@ -1,5 +1,6 @@
 package com.clawmate.shared
 
+import android.Manifest
 import android.os.Bundle
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -7,6 +8,7 @@ import android.view.View
 import android.view.WindowManager
 import android.content.res.Configuration
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.app.Activity
 import android.net.Uri
 import android.provider.MediaStore
@@ -53,6 +55,7 @@ class SharedActivity : StageActivity() {
     }
     private var captureStatus = "missing"
     private var captureFile: File? = null
+    private var cameraPermissionResult: ((Boolean) -> Unit)? = null
     @Volatile private var resumedForReminder = false
     private var pendingReminder = ""
 
@@ -93,22 +96,52 @@ class SharedActivity : StageActivity() {
 
     internal fun startCapture(): String {
         check(captureStatus != "running") { "相机已打开" }
-        val root = File(cacheDir, "chat-camera").also { it.mkdirs() }
         captureId = UUID.randomUUID().toString()
-        captureFile = File(root, "$captureId.jpg").also { it.createNewFile() }
-        val uri = Uri.parse("content://$packageName.capture/$captureId.jpg")
         captureStatus = "running"
+        if (!withCameraPermission { granted ->
+                if (granted) launchCapture() else captureStatus = "permission"
+            }) captureStatus = "failed"
+        return captureId
+    }
+
+    internal fun withCameraPermission(onResult: (Boolean) -> Unit): Boolean {
+        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            onResult(true)
+            return true
+        }
+        if (cameraPermissionResult != null) return false
+        cameraPermissionResult = onResult
+        return try {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), 7203)
+            true
+        } catch (_: Exception) {
+            cameraPermissionResult = null
+            false
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, results: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, results)
+        if (requestCode == 7203) {
+            val callback = cameraPermissionResult
+            cameraPermissionResult = null
+            callback?.invoke(results.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+        }
+    }
+
+    private fun launchCapture() {
         try {
+            val root = File(cacheDir, "chat-camera").also { it.mkdirs() }
+            captureFile = File(root, "$captureId.jpg").also { it.createNewFile() }
+            val uri = Uri.parse("content://$packageName.capture/$captureId.jpg")
             startActivityForResult(Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
                 putExtra(MediaStore.EXTRA_OUTPUT, uri)
                 clipData = android.content.ClipData.newRawUri("camera", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }, 7201)
-        } catch (failure: Exception) {
+        } catch (_: Exception) {
             captureFile?.delete(); captureFile = null; captureStatus = "failed"
-            throw IllegalStateException("无法启动系统相机，请使用相册选图", failure)
         }
-        return captureId
     }
     internal fun pollCapture(id: String): String {
         val status = if (id == captureId) captureStatus else "missing"

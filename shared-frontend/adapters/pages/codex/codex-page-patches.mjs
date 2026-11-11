@@ -3,7 +3,7 @@
 // Every patch is anchored on exact upstream text, so an upstream change fails the build
 // instead of silently shipping an unadapted Huawei-platform call. The three adaptations:
 //
-//   1. ScanKit is replaced by the native QR scanner (CameraX/ML Kit);
+//   1. ScanKit is replaced by the native camera and album QR scanner;
 //   2. CameraKit and MediaLibraryKit are replaced by the native photo pickers;
 //   3. FrostedPage's HarmonyOS-only `titleFadeHeight` parameter is dropped.
 //
@@ -39,6 +39,16 @@ export function adaptCodexPage(source) {
   out = replaceChecked(out,
     "import { photoAccessHelper } from '@kit.MediaLibraryKit';\n",
     '');
+  out = replaceChecked(out, "import { common } from '@kit.AbilityKit';",
+    "import { common } from '@kit.AbilityKit';\nimport Bridge from '@arkui-x.bridge';");
+  out = replaceChecked(out,
+    "    try { await (this.getUIContext().getHostContext() as common.UIAbilityContext).openLink(target.trim()); }",
+    `    try {
+      const bridge: ESObject = Bridge.createBridge('ClawMatePlatform');
+      if (await bridge.callMethod('openLink', target.trim()) !== true) { throw new Error('no handler'); }
+    }`);
+  out = replaceChecked(out, "import { fileIo, fileUri, picker } from '@kit.CoreFileKit';",
+    "import { fileIo } from '@kit.CoreFileKit';");
 
   // 2. ScanKit -> native scanner. The pairing check that follows is unchanged.
   out = replaceChecked(out,
@@ -63,7 +73,36 @@ export function adaptCodexPage(source) {
       }
       this.pairingInput = scanned;`);
 
-  // 3. CameraKit -> native camera, MediaLibraryKit -> native photo picker.
+  out = replaceChecked(out,
+    `    let file: fileIo.File | null = null;
+    try {
+      const options = new picker.DocumentSelectOptions(); options.maxSelectNumber = 1;
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const uris = await new picker.DocumentViewPicker(context).select(options);
+      if (!uris.length || epoch !== this.epoch) { return; }
+      file = await fileIo.open(uris[0], fileIo.OpenMode.READ_ONLY);
+      const size = (await fileIo.stat(file.fd)).size;
+      if (size <= 0 || size > 8192) { throw new Error('配对文件无效，文件上限为 8 KiB'); }
+      const bytes = new ArrayBuffer(size);
+      if (await fileIo.read(file.fd, bytes) !== size) { throw new Error('配对文件读取不完整'); }
+      if (epoch !== this.epoch) { return; }
+      this.pairingInput = new util.TextDecoder().decodeWithStream(new Uint8Array(bytes));`,
+    `    try {
+      const picked = await CodexPickers.pickDocument('pairing');
+      if (!picked.value || epoch !== this.epoch || this.screen !== CodexScreen.Setup) { return; }
+      this.pairingInput = picked.value;`);
+  out = replaceChecked(out,
+    `    finally {
+      if (file !== null) { try { await fileIo.close(file); } catch (e) { } }
+      if (epoch === this.epoch) { this.connectionOperation = false; this.busy = false; }
+    }`,
+    `    finally {
+      if (epoch === this.epoch) { this.connectionOperation = false; this.busy = false; }
+    }`);
+
+  // 3. Use native pickers so content URIs are read under their Android grants.
+  out = replaceChecked(out, "    let cameraPath: string = '';",
+    "    let cameraPath: string = '';\n    let displayName: string = '';");
   out = replaceChecked(out,
     `        const context = this.getUIContext().getHostContext();
         if (context === undefined) { throw new Error('页面已关闭，请返回对话后重试拍照'); }
@@ -80,22 +119,27 @@ export function adaptCodexPage(source) {
       } else if (source === 'album') {
         const options = new photoAccessHelper.PhotoSelectOptions();
         options.MIMEType = photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE; options.maxSelectNumber = 1;
-        uris = (await new photoAccessHelper.PhotoViewPicker().select(options)).photoUris;`,
+        uris = (await new photoAccessHelper.PhotoViewPicker().select(options)).photoUris;
+      } else {
+        const options = new picker.DocumentSelectOptions(); options.maxSelectNumber = 1;
+        const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+        uris = await new picker.DocumentViewPicker(context).select(options);`,
     `        const context = this.getUIContext().getHostContext();
         if (context === undefined) { throw new Error('页面已关闭，请返回对话后重试拍照'); }
         cameraPath = await CodexPickers.takePhoto(context.cacheDir);
         if (cameraPath.length === 0) { return; }
         uris = [cameraPath];
-      } else if (source === 'album') {
-        const picked = await CodexPickers.pickImage();
-        if (picked.length === 0) { return; }
-        cameraPath = picked;
-        uris = [picked];`);
+      } else {
+        const picked = await CodexPickers.pickDocument(image ? 'image' : 'file');
+        if (!picked.value) { return; }
+        cameraPath = picked.value;
+        displayName = picked.name || '';
+        uris = [cameraPath];`);
 
   // 4. The attachment name no longer comes from a file URI: both pickers return a path.
   out = replaceChecked(out,
     `      const name = new fileUri.FileUri(uris[0]).name || (image ? 'image' : 'file');`,
-    `      const name = uris[0].substring(uris[0].lastIndexOf('/') + 1) || (image ? 'image' : 'file');`);
+    `      const name = displayName || uris[0].substring(uris[0].lastIndexOf('/') + 1) || (image ? 'image' : 'file');`);
 
   // 5. FrostedPage has no title fade on Android: the header is a plain capsule.
   // 5. FrostedPage has no title fade on Android: the header is a plain capsule.
@@ -161,4 +205,18 @@ export function adaptCodexPage(source) {
         requestId: this.pendingRequestId, text: this.pendingTurnText, attachments:`);
 
   return out;
+}
+
+export function adaptCodexTypes(source) {
+  return replaceChecked(source,
+    "  if (envelope.task !== undefined) { return envelope.task; }\n  const delta = envelope.taskDelta;\n  if (delta === undefined) { return undefined; }",
+    "  if (envelope.task !== undefined && envelope.task !== null) { return envelope.task; }\n  const delta = envelope.taskDelta;\n  if (delta === undefined || delta === null) { return undefined; }");
+}
+
+export function adaptCodexMarkdownView(source) {
+  let out = replaceChecked(source, "  @Prop variant: MarkdownViewVariant = 'file_preview';",
+    "  @Prop variant: MarkdownViewVariant = 'file_preview';\n  onLinkClick: (target: string) => void = (_target: string): void => {};");
+  return replaceChecked(out, "            .fontFamily(inline.type === 'code' ? 'monospace' : 'HarmonyOS Sans')",
+    `            .fontFamily(inline.type === 'code' ? 'monospace' : 'HarmonyOS Sans')
+            .onClick((): void => { if (inline.type === 'link') { this.onLinkClick(inline.href); } })`);
 }

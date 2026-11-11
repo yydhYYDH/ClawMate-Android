@@ -34,7 +34,7 @@ export function adaptCodexApprovalCard(source) {
   }
 
   const indent = lines[declineAt].match(/^\s*/)[0];
-  lines[declineAt] = `${indent}Button('拒绝').enabled(!this.busy)`;
+  lines[declineAt] = lines[declineAt].replace(DECLINE_PREFIX, "Button('拒绝').enabled(!this.busy).onClick(");
   lines[acceptAt] = `${indent}${ACCEPT_LABEL}.enabled(this.approval.canAccept === true && !this.busy)`;
 
   // Drop the container-level guard; it is what shadowed the per-button state.

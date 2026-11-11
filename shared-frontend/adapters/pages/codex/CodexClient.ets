@@ -12,7 +12,9 @@
 //   codexConnectionSave/list/load/forget  encrypted credential storage
 
 import Bridge from '@arkui-x.bridge';
+import { util } from '@kit.ArkTS';
 import { codexResponseText } from './CodexResponseText';
+import { checkCodexJsonBudget } from '../../utils/CodexRequestBudget';
 import {
   CodexConnection, CodexEnvelope, CodexCreateBody, CodexTurnBody, CodexUploadBody, CodexApprovalBody,
   normalizeCodexOrigin, validCodexToken, validCodexCa, CodexPairBody, CodexPairingBundle, validateCodexPairing,
@@ -78,7 +80,6 @@ export class CodexClient {
   private updatePending: string[] = [];
   private compressionEnabled: boolean = true;
   private chunkBytes: number = 1024 * 1024;
-  private sequence: number = 0;
   onReachability: (reachable: boolean, message: string) => void = () => {};
 
   /**
@@ -190,14 +191,16 @@ export class CodexClient {
     authenticated: boolean): Promise<CodexEnvelope> {
     if (!this.origin || !this.token) { throw new Error('请先连接 Codex 服务器'); }
     const generation = this.generation;
-    const id = 'codex-' + (++this.sequence).toString() + '-' + Date.now().toString();
+    const id = util.generateRandomUUID(true);
     this.pending.push(id);
     const isUpdate = route.includes('waitMs=');
     if (isUpdate) { this.updatePending.push(id); }
     try {
+      const encoded = body === undefined ? undefined : JSON.stringify(body);
+      if (encoded !== undefined) { checkCodexJsonBudget(route, encoded); }
       const payload: CodexNativeRequest = {
         id: id, origin: this.origin, method: body === undefined ? 'GET' : 'POST', route: route,
-        body: body === undefined ? undefined : JSON.stringify(body), authenticated: authenticated,
+        body: encoded, authenticated: authenticated,
         caCertificate: this.caCertificate, token: this.token,
         // The platform bridge call itself is capped (~60 s), so a single exchange must ask
         // for less than that or the bridge times out before the request does. Long polls use

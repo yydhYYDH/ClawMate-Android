@@ -1,6 +1,8 @@
 package com.clawmate.shared
 
 import android.content.Context
+import android.util.AtomicFile
+import com.clawmate.platform.codex.CodexAuthException
 import com.clawmate.platform.codex.ChatBackendUnavailableException
 import com.clawmate.platform.codex.ChatHandlers
 import com.clawmate.platform.codex.ChatRequest
@@ -9,6 +11,7 @@ import com.clawmate.platform.codex.CodexArtifactStore
 import com.clawmate.platform.codex.CodexBackend
 import com.clawmate.platform.codex.CodexConnection
 import com.clawmate.platform.codex.CodexCredentialStore
+import com.clawmate.platform.codex.CodexHttpException
 import com.clawmate.platform.codex.CodexRunException
 import com.clawmate.platform.codex.CodexTransport
 import com.clawmate.platform.codex.CodexTransportException
@@ -16,10 +19,12 @@ import com.clawmate.platform.codex.EncryptedCodexSecretStorage
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.ExperimentalSerializationApi
 // codexRequest is one bounded HTTP exchange, so blocking the bridge thread is acceptable
 // there; a delegation is not, and uses start/poll instead.
 import kotlinx.coroutines.runBlocking
@@ -47,13 +52,14 @@ import kotlinx.serialization.json.put
  * Every method returns JSON and never throws across the bridge, so an ArkTS caller always
  * receives a structured error it can display.
  */
+@OptIn(ExperimentalSerializationApi::class)
 class CodexPlatformBridge(private val context: Context) {
 
     // encodeDefaults matters on the way out as well as in: a field left at its default is
     // omitted, and the page then sees `undefined` instead of the value. That silently made
     // `canAccept` disappear, so the approval card could not be accepted — the same class of
     // bug as the missing `attachments` in a turn body.
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
 
     /** Runs delegations off the bridge thread; they outlive a single poll. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -66,7 +72,8 @@ class CodexPlatformBridge(private val context: Context) {
      *
      * The value is settled exactly once and collected by the next poll.
      */
-    private class ExchangeSlot {
+    private class ExchangeSlot(val requestId: String) {
+        lateinit var job: Job
         @Volatile var result: String? = null
         fun complete(value: String) { result = value }
     }
@@ -91,9 +98,9 @@ class CodexPlatformBridge(private val context: Context) {
         return done
     }
 
-    /** Abandons a pending exchange; the transport call keeps running until it returns. */
+    /** Cancels a pending exchange without resubmitting it. */
     fun codexRequestCancel(ticket: String): Boolean {
-        exchanges.remove(ticket)
+        exchanges.remove(ticket)?.job?.cancel()
         return true
     }
 
@@ -101,17 +108,28 @@ class CodexPlatformBridge(private val context: Context) {
     fun close() {
         codexRuns.clear()
         scope.coroutineContext[Job]?.cancel()
+        exchanges.clear()
+        transports.values.forEach { it.transport.close() }
+        transports.clear()
     }
 
     private val credentials: CodexCredentialStore by lazy {
         CodexCredentialStore(EncryptedCodexSecretStorage.open(context.applicationContext))
     }
 
-    /** One transport per connection origin, so generations do not interfere. */
-    private val transports = ConcurrentHashMap<String, CodexTransport>()
+    private data class ActiveConnection(val credentials: CodexConnection, val transport: CodexTransport)
+    private val transports = ConcurrentHashMap<String, ActiveConnection>()
 
-    private fun transportFor(origin: String): CodexTransport =
-        transports.getOrPut(origin) { CodexTransport(clientFactory = { ca -> CodexTransport.defaultClient(ca) }) }
+    private fun newTransport(connection: CodexConnection): CodexTransport =
+        CodexTransport(clientFactory = { ca -> CodexTransport.defaultClient(ca) }).apply { configure(connection) }
+
+    private fun transportFor(connection: CodexConnection, authenticated: Boolean): CodexTransport {
+        if (!authenticated) return newTransport(connection)
+        return checkNotNull(transports.compute(connection.origin) { _, previous ->
+            if (previous?.credentials == connection) previous
+            else ActiveConnection(connection, newTransport(connection)).also { previous?.transport?.close() }
+        }).transport
+    }
 
     /**
      * Performs one request.
@@ -132,18 +150,9 @@ class CodexPlatformBridge(private val context: Context) {
         if (origin.isEmpty() || route.isEmpty() || !route.startsWith("/")) {
             return failure("连接地址无效，请重新配对", transportFailure = false, gzipUnsupported = false)
         }
-        val transport = transportFor(origin)
         return try {
-            // Reconfigure only when the connection or its certificate changed.
-            if (!transport.isConfiguredFor(origin)) {
-                transport.configure(
-                    CodexConnection(
-                        origin = origin,
-                        token = request.text("token"),
-                        caCertificate = request.text("caCertificate"),
-                    ),
-                )
-            }
+            val authenticated = (request["authenticated"] as? JsonPrimitive)?.content != "false"
+            val connection = CodexConnection(origin, request.text("token"), request.text("caCertificate"))
             val body = request["body"]?.jsonPrimitiveOrNull()?.content
             // Honour the caller's deadline: a bridge call cannot block indefinitely, and the
             // page already knows how long it is prepared to wait.
@@ -152,14 +161,18 @@ class CodexPlatformBridge(private val context: Context) {
             // of seconds. Blocking the bridge thread that long is what the system reports as
             // an ANR, so the exchange runs on a coroutine and the caller polls for it.
             val ticket = java.util.UUID.randomUUID().toString()
-            val slot = ExchangeSlot()
-            exchanges[ticket] = slot
-            scope.launch {
+            val slot = ExchangeSlot(id)
+            slot.job = scope.launch(start = CoroutineStart.LAZY) {
                 val outcome = try {
-                    val envelope = if (method == "POST") {
-                        transport.post(route, json.parseToJsonElement(body ?: "{}"), timeoutMs = requestedTimeout)
-                    } else {
-                        transport.get(route, timeoutMs = requestedTimeout)
+                    val transport = transportFor(connection, authenticated)
+                    val envelope = try {
+                        if (method == "POST") {
+                            transport.post(route, json.parseToJsonElement(body ?: "{}"), authenticated, requestedTimeout)
+                        } else {
+                            transport.get(route, authenticated, requestedTimeout)
+                        }
+                    } finally {
+                        if (!authenticated) transport.close()
                     }
                     buildJsonObject {
                         put("status", 200)
@@ -173,6 +186,8 @@ class CodexPlatformBridge(private val context: Context) {
                 }
                 slot.complete(outcome)
             }
+            exchanges[ticket] = slot
+            slot.job.start()
             return buildJsonObject { put("ticket", ticket) }.toString()
         } catch (e: CodexTransportException) {
             // Report the status the caller must reason about, plus the reason it failed.
@@ -190,20 +205,22 @@ class CodexPlatformBridge(private val context: Context) {
      * remote may still be working; anything else is a plain failure.
      */
     private fun failureJson(e: Exception): String = when (e) {
-        is com.clawmate.platform.codex.CodexTransportException -> {
-            // Log the concrete cause; the user still sees the generic message.
-            transports.values.firstOrNull()?.lastFailureClass?.takeIf { it.isNotEmpty() }?.let { cause ->
-                android.util.Log.i("ClawMateCodex", "transport failure: " + cause)
-            }
-            val text = buildJsonObject { put("error", e.message.orEmpty()) }.toString()
-            failure(e.message.orEmpty(), transportFailure = e.retryable, gzipUnsupported = false, text = text)
-        }
+        is CodexAuthException -> httpFailure(401, e)
+        is CodexHttpException -> httpFailure(e.status, e)
+        is CodexTransportException -> failure(e.message.orEmpty(), transportFailure = e.retryable, gzipUnsupported = false)
         else -> failure(e.message ?: "Codex 请求失败", transportFailure = false, gzipUnsupported = false)
     }
 
+    private fun httpFailure(status: Int, error: Exception): String = buildJsonObject {
+        put("status", status)
+        put("text", buildJsonObject { put("error", error.message.orEmpty()) }.toString())
+    }.toString()
+
     /** Cancels the request with [id]. Safe to call for an unknown id. */
     fun codexCancel(id: String): Boolean {
-        transports.values.forEach { it.cancelTaskUpdates() }
+        exchanges.entries.filter { it.value.requestId == id }.forEach { (ticket, _) ->
+            codexRequestCancel(ticket)
+        }
         return true
     }
 
@@ -259,7 +276,9 @@ class CodexPlatformBridge(private val context: Context) {
         val continueRunId = request.text("continueRunId")
         val sessionId = request.text("sessionId").ifEmpty { "chat" }
         val expectedOrigin = request.text("expectedOrigin")
-        if (expectedOrigin.isNotEmpty() && continueRunId.isNotEmpty()) {
+        val target = CodexBackend.Target(request.text("connectionId"), request.text("workspaceId"))
+        if (continueRunId.isNotEmpty() && (expectedOrigin.isNotEmpty() ||
+                target.connectionId.isNotEmpty() || target.workspaceId.isNotEmpty())) {
             return buildJsonObject { put("id", ""); put("failure", "请在 Codex 直接提问以附加新的本机记录") }.toString()
         }
         val runId = java.util.UUID.randomUUID().toString()
@@ -267,7 +286,7 @@ class CodexPlatformBridge(private val context: Context) {
         scope.launch {
             val state = codexRuns[runId] ?: return@launch
             val result = try {
-                executeDelegation(text, continueRunId, sessionId, runId, expectedOrigin)
+                executeDelegation(text, continueRunId, sessionId, runId, expectedOrigin, target)
             } catch (e: Exception) {
                 outcome("failed", runId, "", e.message ?: "Codex 委托失败")
             }
@@ -315,6 +334,7 @@ class CodexPlatformBridge(private val context: Context) {
         sessionId: String,
         runId: String,
         expectedOrigin: String,
+        target: CodexBackend.Target,
     ): String {
         val store = runStore
         val backend = CodexBackend(
@@ -323,8 +343,11 @@ class CodexPlatformBridge(private val context: Context) {
             artifacts = CodexArtifactStore(File(context.filesDir, "codex/sessions")),
         ).apply {
             selector = CodexBackend.TargetSelector { saved, _, _ ->
-                check(expectedOrigin.isEmpty() || saved.origin == expectedOrigin) { "Codex 电脑已变化，本机记录未发送" }
-                CodexBackend.Target(saved.id, "")
+                val selected = if (target.connectionId.isEmpty()) saved
+                    else credentials.list().firstOrNull { it.id == target.connectionId }
+                        ?: throw ChatBackendUnavailableException("电脑连接已移除，请重新配对")
+                check(expectedOrigin.isEmpty() || selected.origin == expectedOrigin) { "Codex 电脑已变化，本机记录未发送" }
+                CodexBackend.Target(selected.id, target.workspaceId)
             }
             runStore = store
             defaultWorkspace = { envelope -> envelope.workspaces.firstOrNull()?.id.orEmpty() }
@@ -357,15 +380,23 @@ class CodexPlatformBridge(private val context: Context) {
         private val directory = File(context.filesDir, "codex/chat-tools").apply { mkdirs() }
 
         override fun load(id: String): CodexBackend.RunRecord? {
-            val file = File(directory, "$id.json")
-            if (!file.isFile) return null
             return runCatching {
-                json.decodeFromString(CodexBackend.RunRecord.serializer(), file.readText())
+                val file = AtomicFile(File(directory, "$id.json"))
+                json.decodeFromString(CodexBackend.RunRecord.serializer(), file.readFully().toString(Charsets.UTF_8))
             }.getOrNull()
         }
 
         override fun save(run: CodexBackend.RunRecord) {
-            runCatching { File(directory, "${run.id}.json").writeText(json.encodeToString(CodexBackend.RunRecord.serializer(), run)) }
+            val file = AtomicFile(File(directory, "${run.id}.json"))
+            val bytes = json.encodeToString(CodexBackend.RunRecord.serializer(), run).toByteArray(Charsets.UTF_8)
+            val output = file.startWrite()
+            try {
+                output.write(bytes)
+                file.finishWrite(output)
+            } catch (e: Exception) {
+                file.failWrite(output)
+                throw e
+            }
         }
     }
 

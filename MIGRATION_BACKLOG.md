@@ -61,7 +61,7 @@
   - [ ] C0-b `Index.ets` 重建：上游把 `Index.ets` 与 17 个集成点文件（设置页、隐私 consent、数据管理层等）都已改动，这些仍钉在 `cd69b68`，尚未对齐 `4e86f62`；六 Tab 实际生效与聊天委托注入都要等这一步。
   - [ ] 已知限制：`verifySources` 对全部条目只接受**一个** source-root，因此混合 pin 时必须提供同时含两个提交的目录（本次用两个工作树合成了 `.arkui-x-validation/source-composite`）；真机/CI 应直接 clone 全历史。
   - [ ] 已知限制：`.arkui-x-validation/reference/` 曾出现 20 个“在盘但未入锁”的文件，本轮已通过入锁或重钉消除，后续 staging 应保持 0 差额。
-  - [ ] 工程债：`bootstrap.mjs` 在 Windows 上对每个路径组件调用一次 PowerShell 取属性判 junction（Node 的 `lstat` 不暴露 reparse 位），203 个文件约需 10 分钟；后续可改为一次性批量查询。
+  - [x] Windows 源码校验在一次 PowerShell 调用中查询锁定路径的 reparse 属性，218 个锁定输入实测约 0.7 秒。单独的生成输出路径检查仍逐路径执行。
   - [x] C1 传输与凭据（2026-11-06）：`android-capabilities/.../platform/codex/` 新增 `CodexTypes`（origin/token/CA/配对校验、增量合并、交付限额）、`CodexProtocol`（桥接线格式）、`CodexTransport`（OkHttp：禁重定向、禁自动重试、**仅幂等 GET 重试一次**、代次隔离、gzip 降级、状态码分类）、`CodexTrustFactory`（CA 仅对单条连接生效，无放行回退）、`CodexCredentialStore` + `EncryptedCodexSecretStorage`（AES-256-GCM，无明文回退）、`ChatBackend` 接口与 `UnavailableLocalBackend`。单测 44 项（14+16+14）通过；`android-capabilities` 全量 257 项 0 失败。
     - 该模块此前未应用 `kotlinx-serialization` 插件，已补 `alias(libs.plugins.kotlin.serialization)`；新增依赖 `androidx.security:security-crypto:1.1.0-alpha06`。
     - 修正两处实现缺陷：重定向/401/429 原先在读 body 之后判定，空 body 的 3xx 会被误报成“无有效响应”；`needsDecompression` 判断写错。现状态码分类前置。
@@ -99,13 +99,14 @@
   - [x] **此前"adb reverse 不通"的结论已作废**：真实原因是自签证书无信任锚
     （`SSLHandshakeException: Trust anchor not found`）。`toybox nc` 不做 TLS 握手，
     看起来像"数据不转发"，误导了多轮排查。adb reverse 本身一直正常。
-  - [ ] Android 扫码未接入。界面提供导入配对文件和粘贴配对信息入口；2026-11-07 真机复测确认两条入口各有待修缺陷，见下。
+  - [x] Android 扫码代码接入：本机相机识码和相册识码，复用上游二次确认与一次性配对。
   - [ ] 已知限制：`Index.ets` 与设置页/隐私页等 17 个上游漂移文件仍钉在 `cd69b68`，未对齐 `4e86f62`。
   - [x] 2026-11-07 官方 App Server USB 真机复测：固定文本回复、蓝色测试图识别、执行中断、文件下载/导出与重启重连通过。为测试后续流程，隔离桥接临时接受本次测试配对码。详见 [真机复测](docs/CODEX_DEVICE_VERIFICATION.md#2026-11-07-usb-真机复测)。
-  - [ ] 正式配对：同源传输缓存未切换到新签发的设备令牌，后续请求返回 401。
-  - [ ] 配对文件和普通附件：系统选择器返回后文件读取失败，需适配 Android 文档 URI。
-  - [ ] 任务增量：带 `task: null` 的增量响应被忽略，手机需重开会话才能看到终态和新交付。
-  - [ ] 审批：受控替身已验收「仅允许本次」请求；Android 补丁丢失「拒绝」回调。
+  - [x] 工作台代码修复：同源设备令牌切换、Android 文档 URI、带 `task: null` 的任务增量和「拒绝」审批回调。
+  - [x] 工作台补齐 `e876199` 的回复链接和 UTF-8 请求预算。详情见 [Codex 上游对照](docs/CODEX_UPSTREAM_PARITY.md)。
+  - [x] OPPO 真机与受控桥接通过相册二维码、配对文件、普通附件、交付自动同步和拒绝审批。相机打开和退出通过，实际对准电脑扫码仍待验收。
+  - [x] 普通聊天的新委托接入上游电脑、工作目录与确认选择器。修复委托状态未落盘及续办只读回旧结果的问题。
+  - [ ] 首页建议与提醒交给 Codex，普通聊天的图片委托、委托卡与资料准备按上游对照继续迁移。
   - [ ] 官方 App Server 与桥接的其他协议差异、真实审批、模型质量及局域网/会话接力仍待验收。
   - [ ] C1 环境：本机无 JDK 17，构建需显式设 `JAVA_HOME=D:\CODE\MeetingNotesHost\android\tools\jdk-17.0.20.1+1`（取自 Gradle daemon 日志，非仓库配置）。
   - [ ] 统一层：只统一编排接口，不合并实现。`ChatBackend/CloudBackend/CodexBackend` 逐步接入；**本地聊天（`LocalBackend`）由其他负责人并行开发**，本线只保留诚实的 `NOT_AVAILABLE` 占位，不并入本地推理工作。

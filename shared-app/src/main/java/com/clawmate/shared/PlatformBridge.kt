@@ -162,7 +162,8 @@ class PlatformBridge(private val activity: StageActivity) :
     private val workflowModels = java.util.concurrent.ConcurrentHashMap<String, WorkflowModelMailbox>()
     private var asr: AndroidSpeechRecognizerAsrAdapter? = null
     private val meeting = MeetingBridge(activity as SharedActivity)
-    private val codex by lazy { CodexPlatformBridge(activity) }
+    private val codexBridge = lazy { CodexPlatformBridge(activity) }
+    private val codex by codexBridge
     private val reminders = CollectionReminderEngine(activity)
 
     fun reminderInitialize(hour: String, minute: String): String = onUi {
@@ -180,12 +181,14 @@ class PlatformBridge(private val activity: StageActivity) :
 
     // Pickers must run on the UI thread: they register activity-result launchers and start
     // intents, both of which the platform rejects off the main thread.
-    private val pickers by lazy { CodexPickers(activity) }
-    fun codexScanPairingCode(): String = onUi { pickers.scanPairingCode() }
+    private val codexPickers = lazy { CodexPickers(activity as SharedActivity) }
+    private val pickers by codexPickers
+    fun codexScanStart(): Boolean = onUi { pickers.scanStart() }
+    fun codexScanResult(): String = onUi { pickers.scanResult() }
     fun codexTakePhotoStart(cacheDir: String): Boolean = onUi { pickers.takePhotoStart(cacheDir) }
     fun codexTakePhotoResult(): String = pickers.takePhotoResult()
-    fun codexPickImageStart(): Boolean = onUi { pickers.pickImageStart() }
-    fun codexPickImageResult(): String = pickers.pickImageResult()
+    fun codexDocumentStart(kind: String): Boolean = onUi { pickers.documentStart(kind) }
+    fun codexDocumentResult(): String = onUi { pickers.documentResult() }
     fun codexExportStart(raw: String): Boolean {
         val saved = JSONObject(raw)
         return onUi { pickers.exportStart(saved.optString("localPath"), saved.optString("name")) }
@@ -558,6 +561,8 @@ class PlatformBridge(private val activity: StageActivity) :
     }
 
     override fun close() {
+        if (codexBridge.isInitialized()) codex.close()
+        if (codexPickers.isInitialized()) pickers.close()
         sourceAuth.close(); sources.close(); sourceJobs.close(); modelDownloader.close()
         guiScreenshotDetach();screenshotJobs.close()
         speechHttp.close();pcmSpeech.close();onUi{fileSpeech.close()}

@@ -41,6 +41,7 @@ import { CollectionReminderService } from '../utils/CollectionReminderService';
 import { MemoryQuery } from '../platform/MemoryQuery';
 import { CollectedMemory } from '../platform/CollectedMemory';
 import { CodexCredentialStore } from '../pages/codex/CodexCredentialStore';
+import { pickCodexChatTarget } from '../pages/codex/CodexChatTargetPicker';
 import { AndroidWorkflow } from '../platform/AndroidWorkflow';
 import { ANDROID_PC_TASK_PENDING } from '../platform/TaskServices';
 import { AndroidAvatar } from '../platform/AndroidAvatar';
@@ -534,6 +535,8 @@ struct Index {
         while (Date.now() < deadline) {
           let result = JSON.parse(await bridge.callMethod('capturePoll', id) as string) as CaptureResult;
           if (result.status === 'done') { this.pendingImages = this.pendingImages.concat([result.uri]).slice(0, 4); return; }
+          if (result.status === 'permission') { throw new Error('请允许相机权限，或从相册选图'); }
+          if (result.status === 'failed') { throw new Error('无法启动系统相机，请使用相册选图'); }
           if (result.status !== 'running') { return; }
           await NativeCapabilities.wait();
         }
@@ -667,18 +670,30 @@ struct Index {
           const session = this.sessionId.length > 0 ? this.sessionId : 'chat';
           let task = request.task;
           let expectedOrigin = '';
+          let connectionId = '';
+          let workspaceId = '';
           if (request.continueRunId.length === 0) {
-            let computers = await CodexCredentialStore.list();
-            if (computers.length > 0) {
-              let computer = computers[0];
-              task = await CollectedMemory.attachForCodex(question, task, this.context().filesDir,
-                (computer.name || 'Codex 电脑') + '（' + computer.origin + '）', (): boolean => generation === this.generation);
-              if (task !== request.task) { expectedOrigin = computer.origin; }
+            fallback.status = 'unavailable';
+            const target = await pickCodexChatTarget(this.getUIContext(), task, 0);
+            this.ensureGeneration(generation);
+            if (target === null) {
+              fallback.status = 'rejected';
+              fallback.error = '用户取消委托';
+              return fallback;
             }
+            const saved = await CodexCredentialStore.list();
+            const computer = saved.find(item => item.id === target.connectionId);
+            if (computer === undefined) { throw new Error('电脑连接已移除，请重新配对'); }
+            connectionId = target.connectionId; workspaceId = target.workspaceId;
+            expectedOrigin = computer.origin;
+            task = await CollectedMemory.attachForCodex(question, task, this.context().filesDir,
+              (computer.name || 'Codex 电脑') + '（' + computer.origin + '）', (): boolean => generation === this.generation);
           }
           this.ensureGeneration(generation);
+          fallback.status = 'disconnected';
           const started = JSON.parse(await bridge.callMethod('codexRunTaskStart', JSON.stringify({
-            task: task, continueRunId: request.continueRunId, sessionId: session, expectedOrigin: expectedOrigin
+            task: task, continueRunId: request.continueRunId, sessionId: session, expectedOrigin: expectedOrigin,
+            connectionId: connectionId, workspaceId: workspaceId
           })) as string) as CodexStarted;
           if (!started || !started.id) {
             fallback.status = 'unavailable';
@@ -714,8 +729,6 @@ struct Index {
           return fallback;
         } catch (e) {
           fallback.error = (e as Error).message || 'Codex 委托失败';
-          // The native call may have submitted work before failing; say so.
-          fallback.status = 'disconnected';
           return fallback;
         }
       },

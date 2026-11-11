@@ -116,7 +116,7 @@ class CodexBackend(
             run.effort = model.defaultReasoningEffort
             transport.setArtifactChunkBytes(info?.artifactChunkBytes ?: 0L)
 
-            if (previous != null) {
+            val taskId = if (previous != null) {
                 run.taskId = previous.taskId
                 val envelope = transport.get("/v1/tasks/${previous.taskId}", timeoutMs = POLL_TIMEOUT_MS)
                 val task = envelope.task
@@ -127,22 +127,23 @@ class CodexBackend(
                     throw CodexValidationException("原会话已被其他端更新或仍在执行，请同步原结果或新建委托")
                 }
                 current.task = task
-                return resultOf(task, previous.turnId, current, handlers)
+                task.id
+            } else {
+                val created = transport.postTyped(
+                    "/v1/tasks",
+                    CodexCreateBody(workspaceId = run.workspaceId, model = run.model, effort = run.effort),
+                )
+                created.task?.id ?: throw CodexValidationException("电脑未返回有效的新会话")
             }
-
-            val created = transport.postTyped(
-                "/v1/tasks",
-                CodexCreateBody(workspaceId = run.workspaceId, model = run.model, effort = run.effort),
-            )
-            val taskId = created.task?.id ?: throw CodexValidationException("电脑未返回有效的新会话")
             if (!CodexTypes.isValidTaskId(taskId)) throw CodexValidationException("电脑返回的会话编号无效")
             run.taskId = taskId
 
             val attachments = uploadImages(run, request.imagePaths)
             coroutineContext.ensureActive()
             // Record intent before the POST so a lost answer is reconciled by reading.
-            current.submitted = true
             run.submitted = true
+            saveRun(run)
+            current.submitted = true
             handlers.onStatus("starting", "任务正在下发，若断线将同步原任务")
             val turn = try {
                 transport.postTyped(
@@ -161,11 +162,16 @@ class CodexBackend(
             }
             accept(turn, run, current, handlers)
             val finished = follow(run, current, handlers)
-            return resultOf(finished, run.turnId, current, handlers)
+            val result = resultOf(finished, run.turnId, current, handlers)
+            run.answer = result.answer
+            run.error = result.error
+            run.status = result.status
+            saveRun(run)
+            return result
         } catch (e: ChatBackendUnavailableException) {
             throw e
         } catch (e: CodexValidationException) {
-            throw CodexRunException(e.message ?: "Codex 委托失败", false, current.id)
+            throw CodexRunException(e.message ?: "Codex 委托失败", current.submitted, current.id)
         } catch (e: CodexTransportException) {
             // Submitted but unconfirmed means the remote may still be working.
             throw CodexRunException(e.message ?: "Codex 委托失败", current.submitted, current.id)
@@ -358,9 +364,18 @@ class CodexBackend(
                 ?: throw ChatBackendUnavailableException("尚未配对任何电脑，请先在 Codex 页创建连接")
         }
 
-    private fun loadRun(id: String, sessionId: String): RunRecord? {
+    private fun saveRun(run: RunRecord) {
+        run.updatedAt = now()
+        try {
+            runStore?.save(run)
+        } catch (_: Exception) {
+            throw CodexValidationException("无法保存手机端 Codex 委托状态")
+        }
+    }
+
+    private fun loadRun(id: String, sessionId: String): RunRecord {
         if (!CodexTypes.isValidRunId(id)) throw CodexValidationException("委托编号无效")
-        val run = runStore?.load(id) ?: return null
+        val run = runStore?.load(id) ?: throw CodexValidationException("未找到该 Codex 委托，请从本聊天选择有效的委托编号")
         if (run.sessionId != sessionId) throw CodexValidationException("只能继续本聊天中已完成的 Codex 委托")
         if (run.status != "completed" || !run.submitted || !CodexTypes.isValidTaskId(run.taskId)) {
             throw CodexValidationException("只能继续本聊天中已完成的 Codex 委托；状态不明时请先同步原卡片")

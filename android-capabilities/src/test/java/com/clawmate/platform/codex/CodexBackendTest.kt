@@ -78,12 +78,12 @@ class CodexBackendTest {
         }
 
     /** A backend whose transport talks to the mock after every `configure`. */
-    private fun backend(): CodexBackend {
+    private fun backend(credentials: CodexCredentialStore = store()): CodexBackend {
         val transport = CodexTransport(clientFactory = {
             OkHttpClient.Builder().followRedirects(false).retryOnConnectionFailure(false).build()
         })
         transport.onConfigureForTest = { transport.useHttpOriginForTest(origin) }
-        return CodexBackend(transport, store(), CodexArtifactStore(dir)).apply {
+        return CodexBackend(transport, credentials, CodexArtifactStore(dir)).apply {
             selector = CodexBackend.TargetSelector { saved, _, _ -> CodexBackend.Target(saved.id, "app") }
         }
     }
@@ -161,6 +161,45 @@ class CodexBackendTest {
         val paths = executedPaths()
         assertEquals(1, paths.count { it == "/v1/tasks" })
         assertEquals(1, paths.count { it.endsWith("/turns") })
+    }
+
+    @Test
+    fun `a saved completed run continues with a new turn on the same task`() = runBlocking {
+        val records = mutableMapOf<String, CodexBackend.RunRecord>()
+        val runs = object : CodexBackend.CodexRunStore {
+            override fun load(id: String) = records[id]?.copy()
+            override fun save(run: CodexBackend.RunRecord) { records[run.id] = run.copy() }
+        }
+        server.dispatcher = object : Dispatcher() {
+            private var reply = task(status = "idle", revision = 0, turnId = "")
+            private var turns = 0
+            override fun dispatch(request: RecordedRequest): MockResponse = when (request.path) {
+                "/v1/info" -> ok(info())
+                "/v1/tasks", "/v1/tasks/task-1" -> ok(reply)
+                "/v1/tasks/task-1/turns" -> {
+                    val body = json.parseToJsonElement(request.body.readUtf8()).jsonObject
+                    val requestId = body.getValue("requestId").jsonPrimitive.content
+                    val saved = records.values.single { it.requestId == requestId }
+                    check(saved.submitted && saved.taskId == "task-1")
+                    turns++
+                    val turn = "turn-$turns"
+                    reply = task(status = "completed", revision = turns.toLong(), requestId = requestId, turnId = turn,
+                        items = """[{"id":"answer-$turns","kind":"assistant","text":"reply-$turns","turnId":"$turn"}]""")
+                    ok(reply)
+                }
+                else -> MockResponse().setResponseCode(404)
+            }
+        }
+        val credentials = store()
+        val original = backend(credentials).apply { runStore = runs }.run(ChatRequest("s1", "第一轮"), RecordingHandlers())
+        val continued = backend(credentials).apply { runStore = runs }.run(
+            ChatRequest("s1", "请继续修改", continueRunId = original.runId), RecordingHandlers(),
+        )
+        assertEquals("reply-2", continued.answer)
+        assertEquals("completed", records.getValue(continued.runId).status)
+        val paths = executedPaths()
+        assertEquals(1, paths.count { it == "/v1/tasks" })
+        assertEquals(2, paths.count { it.endsWith("/turns") })
     }
 
     @Test

@@ -180,9 +180,12 @@ if (options.has('--overlay')) {
 // Platform adaptations that introduce new imports must run before the reachability walk,
 // otherwise the modules they reference are never picked up.
 if (sources.has('pages/codex/CodexPage.ets')) {
-  const { adaptCodexPage, adaptCodexArtifactCard } = await import('../../shared-frontend/adapters/pages/codex/codex-page-patches.mjs');
+  const { adaptCodexPage, adaptCodexArtifactCard, adaptCodexTypes, adaptCodexMarkdownView } =
+    await import('../../shared-frontend/adapters/pages/codex/codex-page-patches.mjs');
   const { adaptCodexApprovalKeys } = await import('../../shared-frontend/adapters/pages/codex/codex-approval-keys.mjs');
   sources.set('pages/codex/CodexPage.ets', adaptCodexApprovalKeys(adaptCodexPage(sources.get('pages/codex/CodexPage.ets'))));
+  sources.set('pages/codex/CodexTypes.ets', adaptCodexTypes(sources.get('pages/codex/CodexTypes.ets')));
+  sources.set('components/MarkdownView.ets', adaptCodexMarkdownView(sources.get('components/MarkdownView.ets')));
   if (sources.has('pages/codex/CodexArtifactCard.ets')) {
     sources.set('pages/codex/CodexArtifactCard.ets', adaptCodexArtifactCard(sources.get('pages/codex/CodexArtifactCard.ets')));
   }

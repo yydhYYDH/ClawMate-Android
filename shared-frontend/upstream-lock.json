@@ -124,8 +124,8 @@
     },
     {
       "path": "entry/src/main/ets/pages/codex/CodexPage.ets",
-      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
-      "gitBlob": "94040933f7128e0534b446101038204b3763f9ae"
+      "ref": "e876199f382f32530af850dff20cfd6178a55554",
+      "gitBlob": "40e307c12cc636ea0496a407d0852a333319c958"
     },
     {
       "path": "entry/src/main/ets/pages/codex/CodexPairingInput.ets",
@@ -351,6 +351,16 @@
       "path": "entry/src/main/ets/utils/WorkflowTypes.ets",
       "gitBlob": "041f9e0ddcbc041c7c73423389e13f2e82460102",
       "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+    },
+    {
+      "path": "entry/src/main/ets/pages/codex/CodexMarkdownLinks.ets",
+      "ref": "e876199f382f32530af850dff20cfd6178a55554",
+      "gitBlob": "7fc3f681364af1305b306d045a559ec68643424d"
+    },
+    {
+      "path": "entry/src/main/ets/utils/CodexRequestBudget.ets",
+      "ref": "e876199f382f32530af850dff20cfd6178a55554",
+      "gitBlob": "5c52f9ff5b004d2855c72ac81a290d9b49552720"
     }
   ]
 }

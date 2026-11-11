@@ -1,6 +1,6 @@
 // Android replacements for the HarmonyOS pickers used by the Codex page.
 //
-//  - ScanKit (QR scan)        -> native camera scanner; unavailable on this platform
+//  - ScanKit (QR scan)        -> native camera and album scanner
 //  - CameraKit (cameraPicker) -> native ACTION_IMAGE_CAPTURE into the app cache
 //  - MediaLibraryKit          -> native system photo picker
 //
@@ -16,26 +16,30 @@ import Bridge from '@arkui-x.bridge';
 function bridge(): ESObject { return Bridge.createBridge('ClawMatePlatform'); }
 
 /** Wire shape returned by the picker poll methods. */
-interface PickerResult {
+export interface CodexPickerResult {
   v: number;
   status: string;
   path?: string;
+  value?: string;
+  name?: string;
+  error?: string;
 }
 
 const POLL_INTERVAL_MS: number = 250;
 // Long enough for a slow camera start, short enough that a lost result does not hang the UI.
 const PICKER_DEADLINE_MS: number = 10 * 60 * 1000;
 
-async function pollUntilSettled(poll: () => Promise<string>): Promise<string> {
+async function pollUntilSettled(poll: () => Promise<string>): Promise<CodexPickerResult> {
   const deadline = Date.now() + PICKER_DEADLINE_MS;
   while (Date.now() < deadline) {
-    const result = JSON.parse(await poll()) as PickerResult;
+    const result = JSON.parse(await poll()) as CodexPickerResult;
     if (result === null || result.v !== 1) { throw new Error('选择器接口版本不兼容'); }
-    if (result.status === 'done') { return result.path ? result.path : ''; }
-    if (result.status !== 'running') { return ''; }
+    if (result.status === 'permission') { throw new Error('请允许相机权限，或从相册选图'); }
+    if (result.status === 'failed') { throw new Error(result.error || '无法读取照片，请重新拍摄或从相册选图'); }
+    if (result.status !== 'running') { return result; }
     await new Promise<void>((resolve): void => { setTimeout(resolve, POLL_INTERVAL_MS); });
   }
-  return '';
+  throw new Error('选择器等待超时，请关闭选择窗口后重试');
 }
 
 export class CodexPickers {
@@ -45,8 +49,11 @@ export class CodexPickers {
    * @return the decoded value, or an empty string when the user cancelled.
    */
   static async scanPairingCode(): Promise<string> {
-    const value = await bridge().callMethod('codexScanPairingCode') as string;
-    return value === null || value === undefined ? '' : value;
+    const native: ESObject = bridge();
+    if (await native.callMethod('codexScanStart') !== true) { throw new Error('扫码窗口尚未结束'); }
+    const result = await pollUntilSettled((): Promise<string> =>
+      native.callMethod('codexScanResult') as Promise<string>);
+    return result.value || '';
   }
 
   /**
@@ -56,20 +63,18 @@ export class CodexPickers {
    */
   static async takePhoto(cacheDir: string): Promise<string> {
     const started = await bridge().callMethod('codexTakePhotoStart', cacheDir) as boolean;
-    if (started !== true) { return ''; }
-    return await pollUntilSettled((): Promise<string> =>
+    if (started !== true) { throw new Error('相机窗口尚未结束'); }
+    const result = await pollUntilSettled((): Promise<string> =>
       bridge().callMethod('codexTakePhotoResult') as Promise<string>);
+    return result.path || '';
   }
 
-  /**
-   * Opens the system photo picker.
-   *
-   * @return a readable path, or an empty string when cancelled.
-   */
-  static async pickImage(): Promise<string> {
-    const started = await bridge().callMethod('codexPickImageStart') as boolean;
-    if (started !== true) { return ''; }
+  static async pickDocument(kind: 'pairing' | 'image' | 'file'): Promise<CodexPickerResult> {
+    const native: ESObject = bridge();
+    if (await native.callMethod('codexDocumentStart', kind) !== true) {
+      throw new Error('文件选择窗口尚未结束');
+    }
     return await pollUntilSettled((): Promise<string> =>
-      bridge().callMethod('codexPickImageResult') as Promise<string>);
+      native.callMethod('codexDocumentResult') as Promise<string>);
   }
 }

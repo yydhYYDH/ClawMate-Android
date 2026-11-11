@@ -10,10 +10,10 @@ const blob = bytes => createHash('sha1').update(`blob ${bytes.length}\0`).update
 // Windows junctions surface as ordinary directories to every Node stat (identical mode,
 // and lstat().isSymbolicLink() is false), so they are detected with the Win32 attribute
 // query instead. Without this a redirected input or output root would be accepted.
-function isLinked(stat, full) {
+function isLinked(stat, full, windowsAttributes) {
   if (stat.isSymbolicLink()) return true;
   if (process.platform !== 'win32') return false;
-  return (win32Attributes(full) & 0x400) !== 0;
+  return ((windowsAttributes?.get(full) ?? win32Attributes(full)) & 0x400) !== 0;
 }
 function win32Attributes(full) {
   const out = win32Spawn('powershell.exe',
@@ -24,22 +24,54 @@ function win32Attributes(full) {
   if (!Number.isFinite(value)) throw new Error(`Unable to inspect input attributes: ${full}`);
   return value;
 }
-export function checkedPath(root, relative) {
+function pathParts(relative) {
   if (typeof relative !== 'string' || !relative || relative.includes('\\') ||
       relative.split('/').some(p => !p || p === '.' || p === '..' || p.includes(':'))) throw new Error('Unsafe input path');
+  return relative.split('/');
+}
+export function checkedPath(root, relative) {
+  return checkPath(root, relative);
+}
+function checkPath(root, relative, windowsAttributes) {
+  const parts = pathParts(relative);
   const base = fs.realpathSync(root);
   let current = base;
-  for (const part of relative.split('/')) {
+  for (const part of parts) {
     current = path.join(current, part);
     const stat = fs.lstatSync(current, { throwIfNoEntry: false });
     if (stat) {
-      if (isLinked(stat, current)) throw new Error(`Linked input/output rejected: ${relative}`);
+      if (isLinked(stat, current, windowsAttributes)) throw new Error(`Linked input/output rejected: ${relative}`);
     } else {
       // Descendants cannot exist once a directory is missing.
       break;
     }
   }
-  return path.join(base, ...relative.split('/'));
+  return path.join(base, ...parts);
+}
+
+// Query every locked path component in one PowerShell process. A reparse point
+// is still rejected by checkPath before any descendant can be read.
+function verifyWindowsAttributes(root, files) {
+  if (process.platform !== 'win32') return undefined;
+  const prefixes = new Set();
+  for (const file of files) {
+    let current = root;
+    for (const part of pathParts(file.path)) {
+      current = path.join(current, part);
+      prefixes.add(current);
+    }
+  }
+  const paths = [...prefixes];
+  const command = "foreach ($path in ([Console]::In.ReadToEnd() | ConvertFrom-Json)) { " +
+    "try { [int](Get-Item -LiteralPath $path -Force -ErrorAction Stop).Attributes } catch { -1 } }";
+  const out = win32Spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command],
+    { input: JSON.stringify(paths).replace(/[^\x00-\x7f]/g, char =>
+      '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0')), encoding: 'utf8', windowsHide: true });
+  const values = String(out.stdout).trim().split(/\r?\n/).map(Number);
+  if (out.status !== 0 || values.length !== paths.length || values.some(value => !Number.isInteger(value))) {
+    throw new Error('Unable to inspect locked input attributes');
+  }
+  return new Map(paths.map((file, index) => [file, values[index]]));
 }
 // Every entry may pin its own `ref`; without one it inherits the lock-level `ref`.
 // A single shared revision cannot describe inputs that upstream changed between the
@@ -75,9 +107,10 @@ export function lockedInputs(repo) {
 export function verifySources(repo, sourceRoot) {
   const lock = lockedInputs(repo);
   const root = fs.realpathSync(sourceRoot);
+  const attributes = verifyWindowsAttributes(root, lock.files);
   let total = 0;
   const files = lock.files.map(file => {
-    const full = checkedPath(root, file.path);
+    const full = checkPath(root, file.path, attributes);
     const stat = fs.statSync(full);
     if (!stat.isFile() || stat.size > 8 * 1024 * 1024 || (total += stat.size) > 128 * 1024 * 1024) throw new Error('Source input exceeds bounds');
     const bytes = fs.readFileSync(full);
