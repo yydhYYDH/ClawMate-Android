@@ -25,6 +25,7 @@ import com.clawmate.platform.NativeOperations
 import com.clawmate.platform.SharedNativeWork
 import com.clawmate.platform.avatar.AndroidAvatarForeground
 import com.clawmate.platform.avatar.AvatarForegroundRgba
+import com.clawmate.platform.gui.MikaXhsPilotActivity
 import com.clawmate.platform.voice.SpeechHttp
 import com.clawmate.platform.voice.PcmSpeechPlayer
 import com.clawmate.platform.voice.SpeechFilePlayer
@@ -387,6 +388,10 @@ class PlatformBridge(private val activity: StageActivity) :
     fun guiCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.open(activity, collectOnly = true);true }
     fun guiAlipayCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.openAlipayCollection(activity);true }
     fun guiCollectionHistory(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.showCollections(activity);true }
+    fun guiMikaXhsPilot(): Boolean = onUi {
+        activity.startActivity(Intent(activity, MikaXhsPilotActivity::class.java))
+        true
+    }
     fun guiCollectionQuery(raw: String): String = com.clawmate.platform.gui.GuiCollectionSearch.query(activity.applicationContext, raw)
     fun guiControlStop(): Boolean = onUi { com.clawmate.platform.gui.GuiControlService.connected?.stop();true }
     fun guiControlStatus(): String = JSONObject().put("v",1)

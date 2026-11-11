@@ -1,5 +1,13 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## P01/P04 Mika 小红书后台屏试验（2026-11-12）
+
+- 现有小红书前台采集以 `3ba91eb` 为基线。共享版「我的 → 数据采集 → 界面采集与规划」新增独立试验入口，通过 Mika 官方 `/api/v1` 的 USB 本机监听派发固定的「上海城市漫步」公开搜索。Kotlin 适配器限制环回连接，校验接口版本、手机助手状态和任务编号，处理取消和超时。USB 令牌按次填写，结果以文本预览，至多三条，供用户核对。Mika 按提示词执行公开范围，原前台流程仍是任务页的正式入口。
+- 在 OPPO PKB110 / Android 16 安装并启动官方 Mika v0.1.39 arm64，安装前核对发布 SHA-256。真实 USB 环回接口通过认证并返回 API v1、任务恢复支持、设备解锁和手机助手未连接。实际 Mika 虚拟屏搜索和真实模型回传仍待完成 Mika 手机操作授权与模型配置后验收。
+- `prepare.mjs`、hvigor `assembleHap`、运行包导出、构建状态封存及 Gradle `:shared-app:assembleDebug --offline` 通过。调试 APK 使用本地会议 SDK 占位与独立应用 ID `com.clawmate.shared.mikapilot`。会议专项未运行。
+- `:android-capabilities:testDebugUnitTest --offline` 共 309 项，295 项通过、14 项跳过、零失败。新覆盖受控任务回传、取消、手机助手未就绪与笔记格式校验。Node 24 下共享通用回归 6 项、界面规划 13 项、工作流模型 21 项、共享集成 16 项通过，中文手册重新生成并通过 `build.py --check`。
+- `apksigner verify` 与 `aapt2 dump packagename` 通过。独立测试 APK SHA-256 为 `a01769791c5c5c20c7ac19877d8c97dea957f40e2dd18f3b82e38b585462b0f0`。在 OPPO 上启动独立包安装时进入 ColorOS 安装确认，实际试验页尚待用户确认安装后在手机上验收。
+
 ## P01/P04 小红书提示词采集实例（2026-11-11）
 
 - 社交任务新增「小红书 AI 采集公开笔记」。共享图节点支持编辑公开搜索关键词和提示词。Android 启动已安装客户端的指定搜索结果，校验应用和窗口。鸿蒙浏览历史模板作为独立任务保留。

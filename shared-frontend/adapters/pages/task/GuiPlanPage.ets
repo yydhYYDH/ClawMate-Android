@@ -101,6 +101,7 @@ struct GuiPlanPage {
         Text('Android 14及以上，需开启无障碍权限。到目标页面后，可从浮层采集当前页或自动向下采集最多3页。只读取可见文字，预览确认后保存到本机。').fontSize(14)
         Button('选择应用并开始采集').enabled(!this.busy).onClick(() => { this.control('guiCollectionOpen'); })
         Button('查看本机采集记录').enabled(!this.busy).onClick(() => { this.control('guiCollectionHistory'); })
+        Button('Mika 后台屏试验').enabled(!this.busy).onClick(() => { this.control('guiMikaXhsPilot'); })
         Text('跨应用手动控制').fontSize(18).fontWeight(FontWeight.Bold)
         Text('选择一个应用，按次开启120秒/20次动作会话。截图仅本机预览；手动点按、上下滑动和返回逐次确认。不自动执行模型建议，不支持文字输入。').fontSize(14)
         Button('无障碍权限说明').enabled(!this.busy).onClick(() => { this.control('guiControlSettings'); })
