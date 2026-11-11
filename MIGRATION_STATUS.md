@@ -1,5 +1,13 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## P01/P04 内置 Android 后台屏底层（2026-11-12）
+
+- 在 `:android-capabilities` 内置通用后台屏会话，应用确认的启动入口经 Binder 交给同 APK 的 Android shell 助手。辅助进程绑定 ClawMate UID，并按会话结束、应用进程退出或超时回收显示器。Android 14 及以上试验使用授权 USB 调试启动，应用内无线引导待接入。
+- 现有采集按会话选定的显示器读取窗口。小红书用作业务验证，在既有确认框选择「在后台屏采集」，复用 Decider、公开搜索范围、限页、停止、预览与本机保存。主屏无障碍浮窗显示读页数和条数。聊天提示词转任务保留为下一阶段。
+- OPPO PKB110 / Android 16 已验证辅助进程连接，通用夹具与小红书 `GlobalSearchActivity` 在独立虚拟屏启动，`mTopFocusedDisplayId=0`。验证了关闭会话和应用进程退出后回收显示器。以独立包验证，原共享版保留。
+- 共享运行时封存校验、隔离 APK、排除会议专项后的设备测试 APK 构建通过。配套设备测试包的首次安装触发 ColorOS 确认，改用已安装隔离包运行启动和回收探针。界面采集相关 Kotlin 单测 23 项、共享工作流回归 21 项、中文手册检查通过。
+- 采集闭环探针在授权检查阶段返回 `Isolation service is disconnected`。更新并强停 `com.clawmate.shared.guicollect` 隔离包后，其无障碍开关从系统启用列表移除。已按 SHA-256 恢复该隔离包的原 APK，正式共享版和其他 ClawMate 服务仍在启用列表。实际采集、翻页、浮窗显示及保存待重新授权后验收。设备剩余显示器为主屏 `0`。
+
 ## U04/U05 Codex 扫码配对与工作台对齐（2026-11-12）
 
 - 对照 `coevomind-app@e876199` 的手机端、连接器和桥接。来源与差异见 [Codex 上游对照](docs/CODEX_UPSTREAM_PARITY.md)。

@@ -7,12 +7,15 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import android.widget.Switch
 import com.clawmate.app.task.model.WorkflowStep
 import com.clawmate.app.task.runner.RunStatus
 import com.clawmate.app.task.runner.WorkflowModelTool
 import com.clawmate.app.task.runner.WorkflowRunResult
+import com.clawmate.platform.display.BackgroundDisplay
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -167,26 +170,44 @@ object GuiControlEntry {
             return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "请先开启 ClawMate 无障碍服务")
         }
         val run = XhsGuiRun(steps.single(), keyword, task, model)
-        val consent = CompletableDeferred<Boolean>()
+        val consent = CompletableDeferred<Boolean?>()
+        val background = Switch(activity).apply {
+            text = if (BackgroundDisplay.available) "在后台屏采集" else "后台屏助手未连接"
+            isEnabled = BackgroundDisplay.available
+        }
+        var display: BackgroundDisplay? = null
         val dialog = GuiCollectionStyle(activity).sheet("小红书 AI 采集",
-            "公开搜索：$keyword\n提示词：$task\n\n发送提示词、可用操作和进度给 $destination。笔记摘录在本机读取，确认预览后保存。切出或锁屏时停止。",
-            "运行采集") { consent.complete(true) }.apply { setOnDismissListener { consent.complete(false) } }
+            "公开搜索：$keyword\n提示词：$task\n\n发送提示词、可用操作和进度给 $destination。笔记摘录在本机读取，确认预览后保存。锁屏会停止采集。",
+            "运行采集", content = background) { consent.complete(background.isChecked) }
+            .apply { setOnDismissListener { consent.complete(null) } }
         try {
             withTimeoutOrNull(105_000) {
-                if (!consent.await()) return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消小红书 AI 采集")
+                val useBackground = consent.await()
+                    ?: return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消小红书 AI 采集")
                 delay(250)
                 foreground(activity)
                 check(GuiControlService.connected === service) { "无障碍服务已断开" }
-                service.beginXhs(launch, run)
+                if (useBackground) {
+                    service.checkBackgroundStart(XhsGuiWorkflow.PACKAGE)
+                    withContext(Dispatchers.IO + NonCancellable) { display = BackgroundDisplay.open(launch) }
+                    check(GuiControlService.connected === service) { "无障碍服务已断开" }
+                    service.beginBackgroundXhs(checkNotNull(display), run)
+                    display = null // The session now owns the display.
+                } else {
+                    service.beginXhs(launch, run)
+                }
                 run.result.await()
             } ?: WorkflowRunResult(RunStatus.CANCELLED, "小红书 AI 采集已超时")
         } catch (failure: IllegalStateException) {
             WorkflowRunResult(RunStatus.FAILED, failure.message ?: "无法开启小红书 AI 采集")
         } catch (_: android.content.ActivityNotFoundException) {
             WorkflowRunResult(RunStatus.NOT_CONFIGURED, "无法打开小红书公开搜索页")
+        } catch (_: android.os.RemoteException) {
+            WorkflowRunResult(RunStatus.NOT_CONFIGURED, "后台屏助手已断开，请重新连接")
         } finally {
             dialog.dismiss()
             service.cancelXhs(run)
+            display?.close()
         }
     }
 

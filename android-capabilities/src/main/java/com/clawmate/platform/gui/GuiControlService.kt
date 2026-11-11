@@ -28,6 +28,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.clawmate.app.task.runner.RunStatus
+import com.clawmate.platform.display.BackgroundDisplay
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.ZoneId
@@ -73,6 +74,7 @@ class GuiControlService : AccessibilityService() {
     private var collectionJob: Job? = null
     private var weiboRun: WeiboGuiRun? = null
     private var xhsRun: XhsGuiRun? = null
+    private var backgroundDisplay: BackgroundDisplay? = null
     private var xhsCandidate: Pair<Int, Rect>? = null
     private var xhsCandidateSince = 0L
     private val watchdog=object:Runnable {
@@ -83,7 +85,11 @@ class GuiControlService : AccessibilityService() {
                 check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "手机已锁屏，控制已停止" }
                 if (panel != null) currentWindow() else {
                     check(SystemClock.elapsedRealtime() <= armedUntil) {
-                        if (weiboRun == null) "目标应用未进入前台" else "微博榜单未在时限内打开"
+                        when {
+                            backgroundDisplay != null -> "后台屏未在时限内打开已确认的页面"
+                            weiboRun != null -> "微博榜单未在时限内打开"
+                            else -> "目标应用未进入前台"
+                        }
                     }
                     if (weiboRun != null || xhsRun != null) showPanelIfReady()
                 }
@@ -103,7 +109,7 @@ class GuiControlService : AccessibilityService() {
         val weibo = weiboRun
         val xhs = xhsRun
         if ((weibo != null || xhs != null) && Build.VERSION.SDK_INT >= 33) clearCache()
-        val candidate = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }.singleOrNull()
+        val candidate = sessionWindows().filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }.singleOrNull()
         val root = candidate?.root
         if (candidate == null || root == null || root.packageName?.toString() != target) {
             weibo?.windowReady(null, SystemClock.elapsedRealtime())
@@ -158,6 +164,8 @@ class GuiControlService : AccessibilityService() {
         weiboRun = null
         val interruptedXhs = xhsRun
         xhsRun = null
+        backgroundDisplay?.close()
+        backgroundDisplay = null
         xhsCandidate = null
         dialog?.dismiss();dialog=null;preview?.recycle();preview=null
         panel?.let{runCatching{getSystemService(WindowManager::class.java).removeView(it)}};panel=null
@@ -166,15 +174,22 @@ class GuiControlService : AccessibilityService() {
         interruptedWeibo?.finish(RunStatus.CANCELLED, reason)
         interruptedXhs?.finish(RunStatus.CANCELLED, reason)
     }
+    private fun sessionWindows(): List<AccessibilityWindowInfo> {
+        val display = backgroundDisplay ?: return windows
+        check(display.connected) { "后台屏助手已断开" }
+        return windowsOnAllDisplays.get(display.id).orEmpty()
+    }
+
     private fun currentWindow():AccessibilityWindowInfo {
-        val visibleWindows=windows
+        val visibleWindows=sessionWindows()
         overlayOwnership.retain(visibleWindows.filter{it.type==AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY}.map{it.id}.toSet())
         val apps=visibleWindows.filter{it.type==AccessibilityWindowInfo.TYPE_APPLICATION}
         val window=apps.singleOrNull() ?: error("多窗口或目标窗口不可见，控制已停止")
         val root=window.root ?: error("无法识别目标应用窗口")
         val pkg=root.packageName?.toString().orEmpty()
         grant?.requireTarget(SystemClock.elapsedRealtime(),pkg,!getSystemService(KeyguardManager::class.java).isKeyguardLocked,apps.size) ?: error("会话已结束")
-        check(window.displayId==0) { "仅允许主屏幕操作" }
+        check(window.displayId == (backgroundDisplay?.id ?: 0)) { "目标窗口不在本次授权的屏幕" }
+        if (backgroundDisplay != null) requireTargetOffMainScreen(pkg)
         val safe=safeBounds(Rect().also{window.getBoundsInScreen(it)})
         for(other in visibleWindows) {
             if(other.id==window.id)continue
@@ -186,6 +201,10 @@ class GuiControlService : AccessibilityService() {
         return window
     }
     private fun safeBounds(window:Rect):Rect {
+        if (backgroundDisplay != null) {
+            check(!window.isEmpty) { "无法取得后台屏的应用内容区域" }
+            return Rect(window)
+        }
         val metrics=getSystemService(WindowManager::class.java).currentWindowMetrics
         val insets=metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
         val safe=Rect(metrics.bounds).apply{left+=insets.left;top+=insets.top;right-=insets.right;bottom-=insets.bottom}
@@ -206,7 +225,7 @@ class GuiControlService : AccessibilityService() {
             text=if (collectOnly) "ClawMate · $targetLabel\n本机采集 / 120秒" else "ClawMate · $targetLabel\n120秒 / 最多20次动作"
             setTextColor(-1);textSize=11f
         }
-        style?.let { layout.addView(it.badge("ClawMate · $targetLabel")) }
+        style?.let { layout.addView(it.badge(if (backgroundDisplay != null) "后台屏 · $targetLabel" else "ClawMate · $targetLabel")) }
         layout.addView(status)
         fun button(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;textSize=12f;minHeight=0;setOnClickListener{if(!busy)runCatching{currentWindow();action()}.onFailure{stop(it.message ?: "目标应用已变化")}}})}
         if (weibo != null || xhs != null) {
@@ -240,6 +259,31 @@ class GuiControlService : AccessibilityService() {
         check(launch.`package` == XhsGuiWorkflow.PACKAGE)
         begin(XhsGuiWorkflow.PACKAGE, XhsGuiWorkflow.LABEL, launch, collectOnly = true)
         xhsRun = run
+    }
+
+    private fun requireTargetOffMainScreen(target: String) {
+        check(windows.none { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.root?.packageName?.toString() == target }) {
+            "目标应用正在主屏使用，请先离开该应用"
+        }
+    }
+
+    internal fun checkBackgroundStart(target: String) {
+        check(grant == null) { "已有手机控制会话，请先停止" }
+        check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "请先解锁手机" }
+        requireTargetOffMainScreen(target)
+    }
+
+    internal fun beginBackgroundXhs(display: BackgroundDisplay, run: XhsGuiRun) {
+        checkBackgroundStart(XhsGuiWorkflow.PACKAGE)
+        val now = SystemClock.elapsedRealtime()
+        grant = GuiControlSession(XhsGuiWorkflow.PACKAGE, now)
+        backgroundDisplay = display
+        xhsRun = run
+        targetLabel = XhsGuiWorkflow.LABEL
+        collectOnly = true
+        armedUntil = now + 20_000
+        lastStatus = "正在等待后台屏搜索结果"
+        handler.post(watchdog)
     }
 
     internal fun cancelXhs(run: XhsGuiRun) {
@@ -284,7 +328,7 @@ class GuiControlService : AccessibilityService() {
                     }
                     if (excerpts.isNotEmpty()) choices += "finish"
                     check(choices.isNotEmpty()) { "没有可读取的小红书公开笔记" }
-                    status.text = "等待模型选择操作\n已读 ${excerpts.size} 条"
+                    status.text = "等待模型选择操作\n已读 $pages 页 · ${excerpts.size} 条"
                     val request = XhsGuiWorkflow.request(run.prompt, choices, pages, excerpts.size)
                     val answer = withTimeoutOrNull(22_000) { run.model.evaluate(request) }
                         ?: error("模型选择操作超时")
@@ -299,7 +343,7 @@ class GuiControlService : AccessibilityService() {
                             pages++
                         }
                         "scroll_forward" -> {
-                            status.text = "模型选择了翻页\n已读 ${excerpts.size} 条"
+                            status.text = "正在翻页\n已读 $pages 页 · ${excerpts.size} 条"
                             val list = fresh.third.list
                             check(list.refresh() && list.windowId == id && list.isScrollable) { "搜索结果无法继续翻页" }
                             collectionWindow(id, bounds)

@@ -29,6 +29,9 @@
         <activity android:name=".CodexPairingScanActivity" android:exported="false" />
         <provider android:name=".CaptureProvider" android:authorities="${applicationId}.capture"
             android:exported="false" android:grantUriPermissions="true" />
+        <provider android:name="com.clawmate.platform.display.BackgroundDisplayProvider"
+            android:authorities="${applicationId}.background-display" android:exported="true"
+            android:permission="android.permission.DUMP" />
         <provider android:name=".CodexArtifactProvider" android:authorities="${applicationId}.codex"
             android:exported="false" android:grantUriPermissions="true" />
         <receiver android:name="com.clawmate.platform.reminder.CollectionReminderReceiver" android:exported="false">
