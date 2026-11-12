@@ -15,12 +15,13 @@ export function taskServiceLabel(steps: WorkflowStep[]): string {
     if (!Array.isArray(group)) { return '检查任务配置'; }
     for (let step of group) {
       if (!step || ++count > 256) { return '检查任务配置'; }
-      if (step.type === 'gui_task' || (step.type === 'gui_action' && step.action !== 'sleep')) {
+      let androidGui = step.type === 'gui_task' && (step.action === 'collection_open_app' || step.action === 'collection_model_read');
+      if ((step.type === 'gui_task' && !androidGui) || (step.type === 'gui_action' && step.action !== 'sleep')) {
         return '自动 GUI · 待接入';
       }
-      if (step.type === 'android_accessibility') {
+      if (step.type === 'android_accessibility' || androidGui) {
         accessibility = true;
-        if (step.action === 'xhs_public_notes') { modelChoice = true; }
+        if (step.action === 'xhs_public_notes' || step.action === 'collection_model_read') { modelChoice = true; }
       } else if (step.type === 'tool') {
         if (step.tool_name === 'vlm_qa') { visual = true; }
         else if (step.tool_name !== 'echo' && step.tool_name !== 'summary') { other = true; }

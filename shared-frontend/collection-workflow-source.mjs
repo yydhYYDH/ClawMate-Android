@@ -43,15 +43,21 @@ export function androidPageTemplates(readLockedWorkflow) {
 }
 
 export function patchCollectionTaskPage(page) {
-  const templates = actions.map(([key, label]) =>
-    `  { key: '${key}', label: '${label}', shortLabel: '${label}', group: '无障碍采集', accentColor: '#148F73', backgroundColor: '#EAF8F3' },`).join('\n');
   const actionLabels = actions.map(([key, label]) => `      if (step.action === '${key}') { return '${label}'; }`).join('\n');
   const summaries = actions.filter(([key]) => !['weibo_read_hot', 'collection_open_app', 'collection_read_pages'].includes(key)).map(([key, , summary]) =>
     `      if (step.action === '${key}') { return '${summary}'; }`).join('\n');
+  const option = (label, active, update) => `          Text('${label}').fontSize(11)
+            .fontWeight(${active} ? FontWeight.Bold : FontWeight.Regular)
+            .fontColor(AppTheme.text(${active} ? Color.White : '#148F73'))
+            .height(30).padding({ left: 10, right: 10 }).textAlign(TextAlign.Center)
+            .backgroundColor(AppTheme.background(${active} ? '#148F73' : '#F2F5FA'))
+            .borderRadius(8).margin({ right: 8, bottom: 8 }).onClick(() => { ${update}; })`;
   return applyPatches(page, [
-    ['const NODE_TEMPLATES: WorkflowNodeTemplate[] = [', `const NODE_TEMPLATES: WorkflowNodeTemplate[] = [
-${templates}
-  { key: 'wait', label: '等待', shortLabel: '等待', group: '控制流', accentColor: '#7C4DFF', backgroundColor: '#F0EAFF' },`],
+    ["label: 'GUI 任务', shortLabel: '操作'", "label: 'GUI 任务', shortLabel: '模型读屏'"],
+    ["      Scroll() {\n        Row() {\n          ForEach(NODE_TEMPLATES", "      Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {\n          ForEach(NODE_TEMPLATES"],
+    ["            .width(82)\n            .height(58)", "            .width('31%')\n            .height(58)"],
+    ["            .margin({ right: 10 })\n            .onClick(() => { this.insertTemplateAfterSelection(item.key); })", "            .margin({ bottom: 8 })\n            .onClick(() => { this.insertTemplateAfterSelection(item.key); })"],
+    ["          }, (item: WorkflowNodeTemplate) => item.key)\n        }\n      }\n      .width('100%')\n      .height(68)\n      .scrollable(ScrollDirection.Horizontal)\n      .scrollBar(BarState.Off)\n      .margin({ top: 12 })", "          }, (item: WorkflowNodeTemplate) => item.key)\n      }\n      .width('100%')\n      .margin({ top: 12 })"],
     ['interface WorkflowNodeTemplate {', `interface CollectionAppChoice {
   label: string;
   packageName: string;
@@ -59,24 +65,26 @@ ${templates}
 
 interface WorkflowNodeTemplate {`],
     ['  @State private batchSyncing: boolean = false;', `  @State private batchSyncing: boolean = false;
+  @State private collectionPageLimit: number = 1;
+  @State private collectionDirection: string = 'down';
   @State private collectionApps: CollectionAppChoice[] = [];`],
-    ["    if (templateKey === 'open_app') {", `    if (${actions.map(([key]) => `templateKey === '${key}'`).join(' || ')}) {
-      let step: WorkflowStep = { id: id, type: 'android_accessibility', action: templateKey };
-      if (templateKey === 'collection_read_pages') { step.page_limit = 1; step.direction = 'down'; }
-      if (templateKey === 'weibo_read_hot') { step.item_limit = 0; }
-      if (templateKey === 'xhs_public_notes') {
-        step.text = '上海城市漫步';
-        step.task_description = '采集两页公开笔记摘录，然后打开预览。';
-      }
-      return step;
-    }
-    if (templateKey === 'open_app') {`],
+    ["    this.nodeNameDraft = step.name || '';", "    this.nodeNameDraft = step.name || '';\n    this.collectionPageLimit = step.page_limit ?? 1;\n    this.collectionDirection = step.direction || 'down';"],
+    ["return { id: id, type: 'gui_task', task_description: '打开目标应用', on_error: 'stop' };",
+      "return { id: id, type: 'gui_task', action: 'collection_open_app', on_error: 'stop' };"],
+    ["return { id: id, type: 'gui_task', task_description: '描述需要智能体完成的界面操作', on_error: 'stop' };",
+      "return { id: id, type: 'gui_task', action: 'collection_model_read', task_description: '', page_limit: 3, on_error: 'stop' };"],
+    ["    if (step.type === 'gui_task') {\n      if (this.isOpenAppStep(step, path)) {\n        let appName",
+      "    if (step.type === 'gui_task' && !this.isModelCollectionStep(step)) {\n      if (this.isOpenAppStep(step, path)) {\n        let appName"],
     ["  private nodeLabel(step: WorkflowStep, path: string): string {", `  private nodeLabel(step: WorkflowStep, path: string): string {
+    if (step.type === 'gui_task' && step.action === 'collection_open_app') { return '打开应用'; }
+    if (step.type === 'gui_task' && step.action === 'collection_model_read') { return 'GUI 任务 · 模型读屏'; }
     if (step.type === 'android_accessibility') {
 ${actionLabels}
       return '无障碍采集';
     }`],
     ["  private nodeSummary(step: WorkflowStep, path: string): string {", `  private nodeSummary(step: WorkflowStep, path: string): string {
+    if (step.type === 'gui_task' && step.action === 'collection_open_app') { return step.package_name || '选择目标应用'; }
+    if (step.type === 'gui_task' && step.action === 'collection_model_read') { return step.task_description || '填写采集提示词'; }
     if (step.type === 'android_accessibility') {
 ${summaries}
       if (step.action === 'weibo_read_hot') { return step.item_limit ? '最多 ' + String(step.item_limit) + ' 条' : '逐页读取公开热搜主榜'; }
@@ -84,13 +92,21 @@ ${summaries}
       if (step.action === 'collection_read_pages') { return '最多 ' + String(step.page_limit ?? 1) + ' 页'; }
       return '检查无障碍节点';
     }`],
+    ["          if (this.selectedStepType() === 'gui_task') {\n            this.GuiTaskEditor()\n          }", `          if (this.selectedStepType() === 'gui_task' && !this.isModelCollectionStep(this.selectedStep())) {
+            this.GuiTaskEditor()
+          }`],
     ["          if (this.selectedStepType() === 'gui_action') {\n            this.GuiActionEditor()\n          }", `          if (this.selectedStepType() === 'gui_action') {
             this.GuiActionEditor()
           }
-          if (this.selectedStepType() === 'android_accessibility') {
+          if (this.selectedStepType() === 'android_accessibility' || this.isModelCollectionStep(this.selectedStep())) {
             this.CollectionActionEditor()
           }`],
-    ["  @Builder GuiTaskEditor() {", `  private updateWeiboItemLimit(limit: number): void {
+    ["  @Builder GuiTaskEditor() {", `  private isModelCollectionStep(step: WorkflowStep | null): boolean {
+    return step !== null && step.type === 'gui_task' &&
+      (step.action === 'collection_open_app' || step.action === 'collection_model_read');
+  }
+
+  private updateWeiboItemLimit(limit: number): void {
     let step = this.selectedStep();
     if (step && step.type === 'android_accessibility' && step.action === 'weibo_read_hot') {
       step.item_limit = limit;
@@ -113,8 +129,9 @@ ${summaries}
 
   private updateCollectionPages(pages: number): void {
     let step = this.selectedStep();
-    if (step && step.action === 'collection_read_pages') {
+    if (step && (step.action === 'collection_read_pages' || step.action === 'collection_model_read')) {
       step.page_limit = pages;
+      this.collectionPageLimit = pages;
       this.markWorkflowChanged();
     }
   }
@@ -140,21 +157,24 @@ ${summaries}
         TextInput({ placeholder: '例如 我的 → 订单', text: this.selectedStep()?.task_description || '' })
           .maxLength(180).backgroundColor(AppTheme.inputBackground())
           .onChange((value: string) => { this.updateSelectedStringField('task_description', value); })
-      } else if (this.selectedStepAction() === 'collection_read_pages') {
+      } else if (this.selectedStepAction() === 'collection_model_read' || this.selectedStepAction() === 'collection_read_pages') {
+        if (this.selectedStepAction() === 'collection_model_read') {
+          this.FieldLabel('采集提示词（Prompt）')
+          TextArea({ placeholder: '例如：逐页提取可见笔记标题，读够 5 条就结束', text: this.selectedStep()?.task_description || '' })
+            .fontColor($r('app.color.ui_text_primary')).backgroundColor(AppTheme.inputBackground())
+            .width('100%').height(108).maxLength(1000).borderRadius(8).padding(10)
+            .onChange((value: string) => { this.updateSelectedStringField('task_description', value); })
+          Text('Decider 读取目标窗口截图，决定翻页或结束。确认预览后保存。').fontSize(11).fontColor(AppTheme.text('#6F7584'))
+        }
         this.FieldLabel('最多读取页数')
         Row({ space: 6 }) {
-          ForEach([1, 2, 3], (pages: number) => {
-            this.SegmentButton(String(pages), String(pages), String(this.selectedStep()?.page_limit ?? 1),
-              '#148F73', () => { this.updateCollectionPages(pages); })
-          }, (pages: number) => String(pages))
+${[1, 2, 3].map(pages => option(String(pages), `this.collectionPageLimit === ${pages}`, `this.updateCollectionPages(${pages})`)).join('\n')}
         }
-        if ((this.selectedStep()?.page_limit ?? 1) > 1) {
+        if (this.collectionPageLimit > 1) {
           this.FieldLabel('翻页方向')
           Row({ space: 6 }) {
-            this.SegmentButton('向下', 'down', this.selectedStep()?.direction || 'down',
-              '#148F73', () => { this.updateSelectedStringField('direction', 'down'); })
-            this.SegmentButton('向上', 'up', this.selectedStep()?.direction || 'down',
-              '#148F73', () => { this.updateSelectedStringField('direction', 'up'); })
+${[['down', '向下'], ['up', '向上']].map(([direction, label]) => option(label,
+  `this.collectionDirection === '${direction}'`, `this.collectionDirection = '${direction}'; this.updateSelectedStringField('direction', '${direction}')`)).join('\n')}
           }
         }
       } else if (this.selectedStepAction() === 'collection_preview') {
@@ -189,7 +209,7 @@ ${summaries}
   }
 
   @Builder GuiTaskEditor() {`],
-    ["          this.SegmentButton('继续', 'continue', this.nodeOnErrorDraft, '#148F73', () => {\n            this.nodeOnErrorDraft = 'continue';\n          })", `          if (this.selectedStepType() !== 'android_accessibility') {
+    ["          this.SegmentButton('继续', 'continue', this.nodeOnErrorDraft, '#148F73', () => {\n            this.nodeOnErrorDraft = 'continue';\n          })", `          if (this.selectedStepType() !== 'android_accessibility' && !this.isModelCollectionStep(this.selectedStep())) {
             this.SegmentButton('继续', 'continue', this.nodeOnErrorDraft, '#148F73', () => {
               this.nodeOnErrorDraft = 'continue';
             })

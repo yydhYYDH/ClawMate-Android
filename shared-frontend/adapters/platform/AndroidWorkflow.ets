@@ -27,7 +27,8 @@ export class AndroidWorkflow {
       cancellation.throwIfCancelled();
       let raw = WorkflowStorage.readTaskWorkflowJson(filesDir, task);
       let guiConfig: CloudChatCompletionOptions | null = null;
-      if (interactive && /"action"\s*:\s*"xhs_public_notes"/.test(raw)) {
+      let needsDecider = /"action"\s*:\s*"(xhs_public_notes|collection_model_read)"/.test(raw);
+      if (interactive && needsDecider) {
         model = new WorkflowVlm();
         guiConfig = await model.prepareGui(authorize);
         cancellation.throwIfCancelled();
@@ -36,7 +37,7 @@ export class AndroidWorkflow {
         id = await bridge.callMethod(interactive ? 'workflowStartInteractive' : 'workflowStart', raw) as string;
       }
       cancellation.setHandler((): void => { model?.cancel(); bridge.callMethod('workflowCancel', id).catch(() => {}); });
-      let deadline = Date.now() + (/"type"\s*:\s*"android_accessibility"/.test(raw) ? 110000 : 65000);
+      let deadline = Date.now() + (needsDecider || /"type"\s*:\s*"android_accessibility"/.test(raw) ? 110000 : 65000);
       while (Date.now() < deadline) {
         cancellation.throwIfCancelled();
         let poll = JSON.parse(await bridge.callMethod('workflowPoll', id) as string) as ExecutionPoll;
@@ -72,7 +73,7 @@ export class AndroidWorkflow {
             step.status === 'blocked' && (step.type === 'gui_task' || step.type === 'gui_action'));
           let message = result.message;
           if (gui !== undefined) {
-            message = '第 ' + gui.id + ' 步需要自动 GUI。请使用图编辑中的无障碍采集节点。';
+            message = '第 ' + gui.id + ' 步需要自动 GUI。请使用「打开应用」和「GUI 任务 · 模型读屏」节点。';
           }
           let savedSummary = result.status === 'success' && result.resultSummary.trim().length > 0;
           let record: SharedRunRecord = { source_kind: source, workflow_file: task.configFileName, run_dir: runDir,

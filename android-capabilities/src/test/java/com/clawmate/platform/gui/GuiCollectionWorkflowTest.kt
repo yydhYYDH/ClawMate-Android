@@ -34,7 +34,7 @@ class GuiCollectionWorkflowTest {
             assertEquals(CollectionDirection.UP, plan.direction)
             val run = PageGuiRun(plan)
             run.advance(plan.read, "opened")
-            run.advance(plan.preview, "read")
+            run.readyToPreview("read")
             run.finish(RunStatus.SUCCESS, "saved")
             run.finish(RunStatus.CANCELLED, "late stop")
             run.result.await()
@@ -42,6 +42,32 @@ class GuiCollectionWorkflowTest {
         assertEquals(RunStatus.SUCCESS, result.status)
         assertEquals(listOf("1", "2", "3"), result.steps.map { it.stepId })
         assertEquals("", result.resultSummary)
+    }
+
+    @Test fun harmonyGuiNodesKeepTheUserPromptAndUseTheInteractiveModelPath() {
+        val graph = """{"steps":[
+            {"id":1,"type":"gui_task","action":"collection_open_app","package_name":"com.example.notes"},
+            {"id":2,"type":"gui_task","action":"collection_model_read","task_description":"保留标题\n最多五条","page_limit":2}
+        ]}"""
+        assertEquals(RunStatus.BLOCKED, SharedNativeWork.runWorkflow(graph).status)
+        val plan = validate(graph)
+        assertEquals("保留标题\n最多五条", plan.prompt)
+        assertEquals(2, plan.pages)
+        assertEquals(null, plan.preview)
+        assertThrows(IllegalArgumentException::class.java) { validate(graph.replace("保留标题\\n最多五条", "")) }
+    }
+
+    @Test fun screenRepliesCannotIntroduceAnActionOrContinueBeyondThePageLimit() {
+        val request = GuiScreenModel.request("提取标题", "jpeg", 3, 1, false)
+        assertEquals("screen_collection", request.mode)
+        assertEquals("jpeg", request.image)
+        assertEquals(listOf("标题"), GuiScreenModel.decision("""{"action":"finish","lines":[" 标题 ","标题"]}""", false).lines)
+        assertThrows(IllegalArgumentException::class.java) {
+            GuiScreenModel.decision("""{"action":"continue","lines":[]}""", false)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            GuiScreenModel.decision("""{"action":"finish","lines":[],"x":42}""", true)
+        }
     }
 
     @Test fun rejectsUnsafeFieldsAndRequiresASeparatePreviewNode() {

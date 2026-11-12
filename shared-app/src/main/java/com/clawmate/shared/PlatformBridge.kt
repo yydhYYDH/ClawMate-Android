@@ -367,6 +367,8 @@ class PlatformBridge(private val activity: StageActivity) :
         val pending = workflowModels[id]?.peek()?.takeIf { it.id == request } ?: return@onUi false
         if (pending.mode == "xhs_public_choice") {
             com.clawmate.platform.gui.GuiControlService.connected?.xhsModelWindowReady() == true
+        } else if (pending.mode == "screen_collection") {
+            com.clawmate.platform.gui.GuiControlService.connected?.screenModelWindowReady() == true
         } else (activity as SharedActivity).reminderWindowReady()
     }
     fun workflowCancel(id: String): Boolean { workflowModels.remove(id)?.close(); workflowJobs.cancel(id); return true }

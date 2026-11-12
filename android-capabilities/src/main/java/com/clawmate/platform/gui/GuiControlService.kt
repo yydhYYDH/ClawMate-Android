@@ -291,7 +291,7 @@ class GuiControlService : AccessibilityService() {
         } else if (pages != null) {
             status.text = "请打开要采集的页面"
             layout.addView(Button(this).apply {
-                text = "开始读取"
+                text = if (pages.plan.prompt == null) "开始读取" else "开始模型读屏"
                 textSize = 12f
                 setOnClickListener {
                     if (busy) return@setOnClickListener
@@ -338,6 +338,11 @@ class GuiControlService : AccessibilityService() {
     fun xhsModelWindowReady(): Boolean = xhsRun != null && panel != null && runCatching {
         currentWindow().root?.packageName?.toString() == XhsGuiWorkflow.PACKAGE
     }.getOrDefault(false)
+
+    fun screenModelWindowReady(): Boolean {
+        val (id, bounds) = pageRun?.modelWindow ?: return false
+        return panel != null && runCatching { collectionWindow(id, bounds); true }.getOrDefault(false)
+    }
 
     @RequiresApi(34)
     private fun startXhsSteps(run: XhsGuiRun, status: TextView) {
@@ -640,23 +645,28 @@ class GuiControlService : AccessibilityService() {
         status?.text = "正在读取…"
         val job = collectionScope.launch(start = CoroutineStart.LAZY) {
             try {
-                val (record, end) = withTimeout(15_000) {
-                    readCollection(windowId, bounds, target, label, maxPages, direction) { pages ->
-                        status?.text = "已读 $pages 页"
+                val (record, end) = if (run?.plan?.prompt != null) {
+                    readCollectionWithModel(run, windowId, bounds, target, label, status)
+                } else {
+                    withTimeout(15_000) {
+                        readCollection(windowId, bounds, target, label, maxPages, direction) { pages ->
+                            status?.text = "已读 $pages 页"
+                        }
                     }
                 }
                 if (turn != epoch) return@launch
                 if (record.lines.isEmpty()) {
                     busy = false
-                    lastStatus = "当前页没有可采集的无障碍文字"
-                    status?.text = "当前页没有可读文字，请换一页"
+                    lastStatus = if (run?.plan?.prompt != null) "模型未从截图中提取到符合提示词的文字" else "当前页没有可采集的无障碍文字"
+                    status?.text = "$lastStatus，请换一页"
                     Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
                     return@launch
                 }
-                run?.advance(run.plan.preview, "已读取 ${record.pages} 页、${record.lines.size} 条可见文字")
-                showCollectionPreview(record, end, turn, windowId, bounds) { saved ->
+                run?.readyToPreview("已读取 ${record.pages} 页、${record.lines.size} 条可见文字")
+                val title = if (run?.plan?.prompt != null) "模型采集预览" else null
+                showCollectionPreview(record, end, turn, windowId, bounds, brandedTitle = title) { saved ->
                     if (run != null && turn == epoch) {
-                        val message = if (saved) "已保存到本机采集记录" else "已取消预览，未保存采集内容"
+                        val message = if (saved) "已保存 ${record.lines.size} 条文字到本机采集记录" else "已取消预览，未保存采集内容"
                         run.finish(if (saved) RunStatus.SUCCESS else RunStatus.CANCELLED, message)
                         stop(message)
                     }
@@ -673,6 +683,53 @@ class GuiControlService : AccessibilityService() {
         }
         collectionJob = job
         job.start()
+    }
+
+    @RequiresApi(34)
+    private suspend fun readCollectionWithModel(
+        run: PageGuiRun, id: Int, bounds: Rect, target: String, label: String, status: TextView?,
+    ): Pair<GuiCollection, String> {
+        val model = checkNotNull(run.model)
+        val prompt = checkNotNull(run.plan.prompt)
+        val direction = run.plan.direction
+        val original = GuiCollection(target, label, System.currentTimeMillis(), emptyList(), partial = true)
+        val accumulator = GuiCollectionAccumulator()
+        for (pageNumber in 1..run.plan.pages) {
+            status?.text = "模型正在读取第 $pageNumber 页"
+            val image = screenModelImage(id, bounds)
+            val page = inspectCollectionPage(id, bounds, target, label, direction)
+            val scrollNode = page.scrollNode
+            val canContinue = scrollNode != null && pageNumber < run.plan.pages
+            val request = GuiScreenModel.request(prompt, image, pageNumber, accumulator.entryCount, canContinue)
+            run.modelWindow = id to Rect(bounds)
+            val raw = try {
+                withTimeoutOrNull(22_000) { model.evaluate(request) } ?: error("等待模型读屏超时")
+            } finally {
+                run.modelWindow = null
+            }
+            collectionWindow(id, bounds)
+            val answer = GuiScreenModel.decision(raw, canContinue)
+            accumulator.append(original.copy(lines = answer.lines, partial = false))
+            val record = accumulator.record(original, incomplete = true).copy(pages = pageNumber)
+            if (answer.action == "finish" || accumulator.truncated || !accumulator.hasCapacity) {
+                return record to "请核对模型从截图中提取的文字。"
+            }
+            check(screenModelImage(id, bounds) == image) { "等待模型时画面已变化，请重新开始读屏" }
+            check(scrollCollection(checkNotNull(scrollNode), id, bounds, target, direction)) { "无法继续滚动目标页面" }
+            delay(650)
+        }
+        error("已达到模型读屏页数上限")
+    }
+
+    @RequiresApi(34)
+    private suspend fun screenModelImage(id: Int, bounds: Rect): String {
+        val area = safeBounds(bounds).apply { offset(-bounds.left, -bounds.top) }
+        val frame = captureCollectionFrame(id, bounds)
+        return try {
+            withContext(Dispatchers.IO) { GuiScreenModel.encode(frame, area) }
+        } finally {
+            frame.recycle()
+        }
     }
 
     @RequiresApi(34)
@@ -715,6 +772,13 @@ class GuiControlService : AccessibilityService() {
         windowId: Int, bounds: Rect, target: String, label: String, scroll: CollectionDirection?,
     ): GuiCollectionPage {
         checkCollectionCapture(windowId, bounds)
+        return inspectCollectionPage(windowId, bounds, target, label, scroll)
+    }
+
+    @RequiresApi(34)
+    private suspend fun inspectCollectionPage(
+        windowId: Int, bounds: Rect, target: String, label: String, scroll: CollectionDirection?,
+    ): GuiCollectionPage {
         // A scroll may change only child nodes while leaving the active window ID unchanged.
         clearCache()
         val root = checkNotNull(collectionWindow(windowId, bounds).root) { "无法读取目标页面" }

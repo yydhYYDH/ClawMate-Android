@@ -130,6 +130,8 @@ await check('task service labels reflect local, visual and nested automatic GUI 
   assert.equal(taskServiceLabel([{ type: 'if', else_steps: [{ type: 'loop', steps: [{ type: 'gui_task' }] }] }]), '自动 GUI · 待接入');
   assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'python' }]), '含待适配步骤');
   assert.equal(taskServiceLabel([{ type: 'android_accessibility' }]), '无障碍采集 · 单次确认');
+  assert.equal(taskServiceLabel([{ type: 'gui_task', action: 'collection_open_app' },
+    { type: 'gui_task', action: 'collection_model_read' }]), 'AI 界面采集 · 单次确认');
 });
 
 await check('all task cards use the same interactive workflow entry in phone mode', async () => {
@@ -173,26 +175,27 @@ await check('all twelve bundled workflows use the shared accessibility runner an
     }
   }
   const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
-  const nodes = ['collection_open_app', 'collection_read_pages', 'collection_preview'];
+  const library = page.match(/const NODE_TEMPLATES:[^\n]+\n([\s\S]*?)\n\];/);
+  assert.ok(library);
+  assert.deepEqual([...library[1].matchAll(/key: '([^']+)'/g)].map(match => match[1]),
+    ['open_app', 'gui_task', 'shot_summary', 'if', 'for_loop', 'until_loop']);
   const create = page.match(/^  private (createTemplateStep\([\s\S]*?^  \})/m);
   assert.ok(create);
   const createStep = runInNewContext(stripTypeScriptTypes('({' + create[1] + '}).createTemplateStep'));
-  const steps = nodes.map((node, i) => {
-    assert.ok(page.includes("key: '" + node + "'"));
-    const step = createStep(node, i + 1, '');
-    assert.equal(step.type, 'android_accessibility');
-    assert.equal(step.action, node);
-    return step;
-  });
+  const steps = [createStep('open_app', 1, ''), createStep('gui_task', 2, '')];
+  assert.ok(steps.every(step => step.type === 'gui_task'));
+  assert.equal(steps[0].action, 'collection_open_app');
+  assert.equal(steps[1].action, 'collection_model_read');
+  assert.equal(steps[1].task_description, '');
+  assert.ok(page.includes('采集提示词（Prompt）'));
   const editor = page.match(/^  private (updateCollectionPages\(pages: number\): void \{[\s\S]*?^  \})/m);
   assert.ok(editor);
   const update = runInNewContext(stripTypeScriptTypes('({' + editor[1] + '}).updateCollectionPages'));
   const step = steps[1];
-  assert.equal(step.page_limit, 1);
-  assert.equal(step.direction, 'down');
-  let changed = false;
-  update.call({ selectedStep: () => step, markWorkflowChanged: () => { changed = true; } }, 3);
   assert.equal(step.page_limit, 3);
+  let changed = false;
+  update.call({ selectedStep: () => step, markWorkflowChanged: () => { changed = true; } }, 2);
+  assert.equal(step.page_limit, 2);
   assert.equal(changed, true);
   const picker = page.match(/^  private (async chooseCollectionApp\(\): Promise<void> \{[\s\S]*?^  \})/m);
   assert.ok(picker);

@@ -146,6 +146,8 @@ internal class GuiCollectionAccumulator {
         private set
     var truncated = false
         private set
+    val entryCount: Int
+        get() = lines.size
     val hasCapacity: Boolean
         get() = lines.size < MAX_COLLECTION_LINES && chars < MAX_COLLECTION_CHARS
 

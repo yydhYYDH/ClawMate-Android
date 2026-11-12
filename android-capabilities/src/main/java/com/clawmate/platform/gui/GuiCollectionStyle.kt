@@ -79,13 +79,25 @@ internal class GuiCollectionStyle(private val context: Context) {
 
     fun sheet(title: String, message: String, positive: String, negative: String = "取消",
         content: View? = null, overlay: Boolean = false, secure: Boolean = false,
-        onNegative: (() -> Unit)? = null, confirm: () -> Unit,
+        onNegative: (() -> Unit)? = null, scrollMessage: Boolean = false, confirm: () -> Unit,
     ): Dialog {
         val dialog = Dialog(context).apply { requestWindowFeature(Window.FEATURE_NO_TITLE) }
         val body = card().apply {
             addView(badge("ClawMate · 本机采集"))
             addView(label(title, 22, true))
-            if (message.isNotEmpty()) addView(label(message, 14), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+            if (message.isNotEmpty()) {
+                val note = label(message, 14)
+                val messageView = if (scrollMessage) object : ScrollView(context) {
+                    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                        val limit = context.resources.displayMetrics.heightPixels / 2
+                        val available = MeasureSpec.getSize(heightMeasureSpec)
+                        val height = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) limit
+                            else minOf(available, limit)
+                        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST))
+                    }
+                }.apply { addView(note) } else note
+                addView(messageView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+            }
             content?.let { addView(it) }
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL

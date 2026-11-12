@@ -30,13 +30,13 @@ object GuiControlEntry {
         destination: String,
     ): WorkflowRunResult {
         val steps = definition.steps
-        if (destination.isNotEmpty() || steps.any { it.action == XhsGuiWorkflow.ACTION }) {
+        if (steps.any { it.action == XhsGuiWorkflow.ACTION }) {
             return runXhsWorkflow(activity, steps, model, destination)
         }
         if (steps.any { it.type == WeiboGuiWorkflow.TYPE && it.action?.startsWith("weibo_") == true }) {
             return runWeiboWorkflow(activity, steps)
         }
-        return runPageWorkflow(activity, definition)
+        return runPageWorkflow(activity, definition, model, destination)
     }
 
     private fun launchers(activity: Activity, target: String? = null): List<ResolveInfo> {
@@ -57,11 +57,16 @@ object GuiControlEntry {
         }).toString()
     }
 
-    private suspend fun runPageWorkflow(activity: Activity, definition: WorkflowDefinition): WorkflowRunResult {
+    private suspend fun runPageWorkflow(activity: Activity, definition: WorkflowDefinition,
+        model: WorkflowModelTool, destination: String,
+    ): WorkflowRunResult {
         val plan = try {
             GuiCollectionWorkflow.validate(definition)
         } catch (failure: IllegalArgumentException) {
             return WorkflowRunResult(RunStatus.BLOCKED, failure.message ?: "采集图配置有误")
+        }
+        if (plan.prompt != null && destination.isBlank()) {
+            return WorkflowRunResult(RunStatus.BLOCKED, "请从任务卡单独运行模型读屏并确认 Decider")
         }
         val pm = activity.packageManager
         val unavailable = "找不到已安装且可打开的应用（${plan.target}）"
@@ -69,13 +74,17 @@ object GuiControlEntry {
             ?: return WorkflowRunResult(RunStatus.NOT_CONFIGURED, unavailable)
         val launch = Intent.makeMainActivity(ComponentName(plan.target, app.activityInfo.name))
         val label = app.loadLabel(pm).toString().take(40)
-        val run = PageGuiRun(plan)
+        val run = PageGuiRun(plan, model.takeIf { plan.prompt != null })
         val range = if (plan.pages == 1) "读取当前一页" else
             "最多读取 ${plan.pages} 页（${if (plan.direction == CollectionDirection.UP) "向上" else "向下"}翻页）"
+        val modelExplanation = plan.prompt?.let {
+            "\n点击「开始模型读屏」后，最多发送 ${plan.pages} 张目标窗口截图与提示词给 $destination。" +
+                "\n提示词：$it\n模型可决定是否继续翻页。请在本机预览中核对提取的文字。"
+        }.orEmpty()
         return runApprovedCollection(activity, GuiControlRequest(label, launch, GuiControlTask.Pages(run)),
             "仅允许采集 $label（${plan.target}）。\n${plan.instructions.ifBlank { "请打开要采集的页面。" }}\n" +
-                "到达页面后点浮窗开始。$range，预览确认后保存到本机。",
-            unavailable, run.result, title = "采集 $label",
+                "到达页面后点浮窗开始。$range，预览确认后保存到本机。$modelExplanation",
+            unavailable, run.result, title = "采集 $label", scrollMessage = plan.prompt != null,
         )
     }
 
@@ -154,6 +163,7 @@ object GuiControlEntry {
         unavailable: String,
         result: Deferred<WorkflowRunResult>,
         title: String = request.label,
+        scrollMessage: Boolean = false,
     ): WorkflowRunResult = withContext(Dispatchers.Main.immediate) {
         try {
             foreground(activity)
@@ -179,7 +189,7 @@ object GuiControlEntry {
         } else null
         val dialog = GuiCollectionStyle(activity).sheet(title,
             "$explanation\n锁屏会停止采集。前台模式下离开目标应用也会停止。",
-            "运行采集", content = background) { consent.complete(background?.isChecked == true) }
+            "运行采集", content = background, scrollMessage = scrollMessage) { consent.complete(background?.isChecked == true) }
             .apply { setOnDismissListener { consent.complete(null) } }
         try {
             withTimeoutOrNull(105_000) {

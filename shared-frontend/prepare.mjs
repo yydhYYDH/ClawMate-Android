@@ -320,7 +320,7 @@ overlay('utils/gallery/GalleryImageStore.ets', applyPatches(read('utils/gallery/
 ]));
 overlay('components/TaskDeviceControlPanel.ets', replaceChecked(read('components/TaskDeviceControlPanel.ets'), "      Text('任务控制方式').fontSize(15).fontWeight(FontWeight.Bold).width('100%')",
     "      Text('任务控制方式').fontSize(15).fontWeight(FontWeight.Bold).width('100%')\n" +
-    "      Text(this.mode === 'pc' ? '电脑控制待接入 Android 设备桥接。' : '可运行本机工作流和本机图片视觉问答。自动 GUI 待接入。').fontSize(12).fontColor(AppTheme.text('#65718B')).width('100%')"));
+    "      Text(this.mode === 'pc' ? '电脑控制待接入 Android 设备桥接。' : '可运行本机工作流、无障碍采集和 Decider 模型读屏。').fontSize(12).fontColor(AppTheme.text('#65718B')).width('100%')"));
 // Data-pipeline requests must use the saved model and reject cancelled results
 // before validators/checkpoints or later stages can commit them.
 overlay('datamanager/DataManagerTypes.ets', replaceChecked(read('datamanager/DataManagerTypes.ets'), 'export interface DataManagerModelConfig {', 'export interface DataManagerModelConfig {\n  model?: string;\n  ensureActive?: () => void;'));

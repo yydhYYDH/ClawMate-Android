@@ -49,6 +49,20 @@ await check('Xiaohongshu sends text choices only and discards a reply after leav
   h.state.response = async () => { h.state.pending = false; return '{"action":"read_visible"}'; };
   await assert.rejects(h.model.executeGui('run', request, config, () => false), /窗口已变化/);
 });
+await check('model screen collection sends the current window JPEG and stops accepting replies after the window changes', async () => {
+  const h = harness();
+  const config = await h.model.prepareGui(h.authorize);
+  const request = { id: 'screen', mode: 'screen_collection', question: '{"task":"抄录标题","choices":["finish"]}',
+    image: 'data:image/jpeg;base64,/9j/2Q==' };
+  h.state.response = async () => '{"action":"finish","lines":["标题"]}';
+  assert.equal(await h.model.executeGui('run', request, config, () => false), '{"action":"finish","lines":["标题"]}');
+  assert.equal(h.state.requests[0].messages[1].content[0].image_url.url, request.image);
+  assert.equal(h.state.requests[0].messages[1].content[1].text, request.question);
+  assert.equal(h.state.images, 0);
+  await assert.rejects(h.model.executeGui('run', { ...request, image: 'file:///outside.jpg' }, config, () => false), /请求格式/);
+  h.state.response = async () => { h.state.pending = false; return '{"action":"finish","lines":[]}'; };
+  await assert.rejects(h.model.executeGui('run', request, config, () => false), /窗口已变化/);
+});
 await check('missing or unsafe endpoint fails before authorization, image reads and requests', async () => {
   for(const endpoint of ['', 'http://vision.invalid','https://user:password@vision.invalid','https://vision.invalid?secret=x']) {
     const h=harness(); h.settings.set('cloudDeciderBaseUrl',endpoint);
