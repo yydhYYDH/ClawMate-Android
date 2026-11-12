@@ -8,6 +8,11 @@
 - 共享运行时封存校验、隔离 APK、排除会议专项后的设备测试 APK 构建通过。配套设备测试包的首次安装触发 ColorOS 确认，改用已安装隔离包运行启动和回收探针。界面采集相关 Kotlin 单测 23 项、共享工作流回归 21 项、中文手册检查通过。
 - 采集闭环探针在授权检查阶段返回 `Isolation service is disconnected`。更新并强停 `com.clawmate.shared.guicollect` 隔离包后，其无障碍开关从系统启用列表移除。已按 SHA-256 恢复该隔离包的原 APK，正式共享版和其他 ClawMate 服务仍在启用列表。实际采集、翻页、浮窗显示及保存待重新授权后验收。设备剩余显示器为主屏 `0`。
 
+## U04 Codex 实际连接器文件配对复测（2026-11-12）
+
+- Windows 1.1.15 的原始配对文件能在 OPPO 导入并显示确认框。当前 WLAN 无法访问电脑桥接端口，确认后复现连接中断。
+- 经 USB 回环导入新文件后，真实连接器新增设备，OPPO 保存连接并进入已连接工作区。详见 [真机记录](docs/CODEX_DEVICE_VERIFICATION.md#2026-11-12-已安装桌面连接器的真实文件配对)。
+
 ## U04 Codex 扫码界面与解码效率（2026-11-12）
 
 - 对照鸿蒙 Codex 调用的 [ScanKit 默认扫码页](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V14/scan-scanbarcode-V14/)，改为暗色取景、顶部关闭、中央取景框和底部图库/手电筒；取景框与送入解码的裁剪区域一致。
