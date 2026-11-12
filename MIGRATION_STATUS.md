@@ -7,6 +7,7 @@
 - ArkTS、共享版 Debug APK、非会议设备测试 APK 和手册检查通过。Codex JVM 73 项通过，14 项 live 跳过，OPPO 设备协议测试 1 项通过。
 - OPPO 用原 `MSI` 授权经 USB 连接真实 Windows 1.1.15 桥接。隔离测试中配对成功后 `/v1/info` 连续两次返回 502，重启应用后沿用同一条保存的连接进入工作区。详见 [真机记录](docs/CODEX_DEVICE_VERIFICATION.md#2026-11-12-连接恢复与错误诊断)。
 - 当前 OPPO 与电脑的 WLAN 邻居解析失败，手机访问 8787 返回 `No route to host`。无线配对待可互访的 Wi-Fi、热点或同一 Tailscale 网络验收。
+- 两端切到个人热点后可解析邻居地址。Windows 的公用网络入站规则放行后，OPPO 到真实连接器 TCP 8787 的探测从超时变为成功。随后两端切回原 Wi-Fi，热点下的完整配对仍待复测。
 
 ## P01/P04 内置 Android 后台屏底层（2026-11-12）
 
