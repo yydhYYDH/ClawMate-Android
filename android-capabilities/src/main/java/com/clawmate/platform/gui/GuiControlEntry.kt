@@ -14,8 +14,8 @@ import com.clawmate.app.task.runner.WorkflowModelTool
 import com.clawmate.app.task.runner.WorkflowRunResult
 import com.clawmate.platform.display.BackgroundDisplay
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -65,7 +65,8 @@ object GuiControlEntry {
                     "仅允许读取 $pkg 的可见无障碍文字，最长120秒。到目标页面后，可主动采集当前页，或选择最多${GUI_COLLECTION_PAGE_LIMIT}页的自动向下采集。自动采集最多滚动${GUI_COLLECTION_PAGE_LIMIT - 1}次，预览确认后才保存到本机。切换应用、锁屏或到期即停止。"
                 else "仅允许 $pkg，最长120秒、最多20次动作。屏幕将显示停止控制入口，每个手势另行确认；切换应用、锁屏或到期即停止。截图只在本机预览，不上传、不写入文件。当前不自动执行模型建议，也不支持文字输入。")
                 .setNegativeButton("取消",null).setPositiveButton("打开并开始会话"){_,_->
-                    beginAfterConfirmation(activity, launch, label, collectOnly)
+                    val task = if (collectOnly) GuiControlTask.ManualCollection else GuiControlTask.ManualControl
+                    beginAfterConfirmation(activity, GuiControlRequest(label, launch, task))
                 }.show()
         }.setNegativeButton("取消",null).show()
     }
@@ -94,7 +95,7 @@ object GuiControlEntry {
         AlertDialog.Builder(activity).setTitle("本次允许采集支付宝？")
             .setMessage("打开支付宝后，请自行进入「我的 → 账单」。确认页面后，点浮层的「采集当前页」或「采集最多${GUI_COLLECTION_PAGE_LIMIT}页」。120秒内仅限支付宝，预览确认后写入本机采集记录。")
             .setNegativeButton("取消", null).setPositiveButton("打开支付宝") { _, _ ->
-                beginAfterConfirmation(activity, launch, "支付宝", collectOnly = true)
+                beginAfterConfirmation(activity, GuiControlRequest("支付宝", launch, GuiControlTask.ManualCollection))
             }.show()
     }
 
@@ -104,64 +105,48 @@ object GuiControlEntry {
         } catch (failure: IllegalArgumentException) {
             return WorkflowRunResult(RunStatus.BLOCKED, failure.message ?: "微博采集图配置有误")
         }
-        return withContext(Dispatchers.Main.immediate) {
-            try {
-                foreground(activity)
-            } catch (failure: IllegalStateException) {
-                return@withContext WorkflowRunResult(RunStatus.BLOCKED, failure.message.orEmpty())
-            }
-            if (Build.VERSION.SDK_INT < 34) return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "微博采集需要 Android 14 及以上")
-            val launch = WeiboGuiWorkflow.launchIntent()
-            if (launch.resolveActivity(activity.packageManager)?.packageName != WeiboGuiWorkflow.PACKAGE) {
-                return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "找不到可打开热搜榜的微博，请确认微博已安装")
-            }
-            val service = GuiControlService.connected
-            if (service == null) {
-                GuiCollectionStyle(activity).sheet("开启无障碍服务", "请在系统设置中启用 ClawMate 按次界面控制。返回任务页后重新运行。", "去系统设置") {
-                    activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                }
-                return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "请开启 ClawMate 无障碍服务后重新运行")
-            }
-            val run = WeiboGuiRun(steps, limit)
-            val consent = CompletableDeferred<Boolean>()
-            val range = if (limit == 0) "逐页读取整个公开热搜榜" else "读取最多 $limit 条可见热搜"
-            val prompt = GuiCollectionStyle(activity).sheet("采集微博热搜", "ClawMate 将打开微博，$range。标题、日期、排名和可读取的热度会先在本机预览。切出应用或锁屏会停止。", "运行采集") {
-                consent.complete(true)
-            }.apply { setOnDismissListener { consent.complete(false) } }
-            try {
-                withTimeoutOrNull(105_000) {
-                    if (!consent.await()) return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消微博采集")
-                    delay(250)
-                    foreground(activity)
-                    check(GuiControlService.connected === service) { "无障碍服务已断开" }
-                    service.beginWeibo(launch, run)
-                    run.result.await()
-                } ?: WorkflowRunResult(RunStatus.CANCELLED, "微博采集已超时")
-            } catch (failure: IllegalStateException) {
-                WorkflowRunResult(RunStatus.FAILED, failure.message ?: "无法开启微博采集")
-            } catch (failure: android.content.ActivityNotFoundException) {
-                WorkflowRunResult(RunStatus.NOT_CONFIGURED, "无法打开微博热搜榜")
-            } finally {
-                prompt.dismiss()
-                service.cancelWeibo(run)
-            }
-        }
+        val run = WeiboGuiRun(steps, limit)
+        val range = if (limit == 0) "逐页读取整个公开热搜榜" else "读取最多 $limit 条可见热搜"
+        return runApprovedCollection(
+            activity, GuiControlRequest("微博热搜", WeiboGuiWorkflow.launchIntent(), GuiControlTask.Weibo(run)),
+            "ClawMate 将打开微博，$range。标题、日期、排名和可读取的热度会先在本机预览。",
+            "找不到可打开热搜榜的微博，请确认微博已安装", run.result, title = "采集微博热搜",
+        )
     }
 
     private suspend fun runXhsWorkflow(activity: Activity, steps: List<WorkflowStep>, model: WorkflowModelTool,
         destination: String,
-    ): WorkflowRunResult = withContext(Dispatchers.Main.immediate) {
+    ): WorkflowRunResult {
         val (keyword, task) = try { XhsGuiWorkflow.validate(steps) }
         catch (failure: IllegalArgumentException) {
-            return@withContext WorkflowRunResult(RunStatus.BLOCKED, failure.message ?: "小红书 AI 采集配置有误")
+            return WorkflowRunResult(RunStatus.BLOCKED, failure.message ?: "小红书 AI 采集配置有误")
         }
-        if (destination.isBlank()) return@withContext WorkflowRunResult(RunStatus.BLOCKED, "小红书 AI 采集需要单独确认 Decider，请从任务卡运行")
-        if (Build.VERSION.SDK_INT < 34) return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "小红书 AI 采集需要 Android 14 及以上")
-        val launch = XhsGuiWorkflow.launch(keyword)
-        if (launch.resolveActivity(activity.packageManager)?.packageName != XhsGuiWorkflow.PACKAGE) {
-            return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "找不到可打开公开搜索页的小红书，请检查客户端版本")
+        if (destination.isBlank()) return WorkflowRunResult(RunStatus.BLOCKED, "小红书 AI 采集需要单独确认 Decider，请从任务卡运行")
+        val run = XhsGuiRun(steps.single(), keyword, task, model)
+        return runApprovedCollection(
+            activity, GuiControlRequest("小红书 AI 采集", XhsGuiWorkflow.launch(keyword), GuiControlTask.Xhs(run)),
+            "公开搜索：$keyword\n提示词：$task\n\n发送提示词、可用操作和进度给 $destination。笔记摘录在本机读取，确认预览后保存。",
+            "找不到可打开公开搜索页的小红书，请检查客户端版本", run.result,
+        )
+    }
+
+    private suspend fun runApprovedCollection(
+        activity: Activity,
+        request: GuiControlRequest,
+        explanation: String,
+        unavailable: String,
+        result: Deferred<WorkflowRunResult>,
+        title: String = request.label,
+    ): WorkflowRunResult = withContext(Dispatchers.Main.immediate) {
+        try {
+            foreground(activity)
+        } catch (failure: IllegalStateException) {
+            return@withContext WorkflowRunResult(RunStatus.BLOCKED, failure.message.orEmpty())
         }
-        foreground(activity)
+        if (Build.VERSION.SDK_INT < 34) return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "界面采集需要 Android 14 及以上")
+        if (request.launch.resolveActivity(activity.packageManager)?.packageName != request.target) {
+            return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, unavailable)
+        }
         val service = GuiControlService.connected
         if (service == null) {
             GuiCollectionStyle(activity).sheet("开启无障碍服务", "请启用 ClawMate 按次界面控制，返回任务页后重新运行。", "去系统设置") {
@@ -169,60 +154,49 @@ object GuiControlEntry {
             }
             return@withContext WorkflowRunResult(RunStatus.NOT_CONFIGURED, "请先开启 ClawMate 无障碍服务")
         }
-        val run = XhsGuiRun(steps.single(), keyword, task, model)
         val consent = CompletableDeferred<Boolean?>()
+        val backgroundAvailable = BackgroundDisplay.available
         val background = Switch(activity).apply {
-            text = if (BackgroundDisplay.available) "在后台屏采集" else "后台屏助手未连接"
-            isEnabled = BackgroundDisplay.available
+            text = if (backgroundAvailable) "在后台屏采集" else "后台屏助手未连接"
+            isEnabled = backgroundAvailable
         }
-        var display: BackgroundDisplay? = null
-        val dialog = GuiCollectionStyle(activity).sheet("小红书 AI 采集",
-            "公开搜索：$keyword\n提示词：$task\n\n发送提示词、可用操作和进度给 $destination。笔记摘录在本机读取，确认预览后保存。锁屏会停止采集。",
+        val dialog = GuiCollectionStyle(activity).sheet(title,
+            "$explanation\n锁屏会停止采集。前台模式下离开目标应用也会停止。",
             "运行采集", content = background) { consent.complete(background.isChecked) }
             .apply { setOnDismissListener { consent.complete(null) } }
         try {
             withTimeoutOrNull(105_000) {
                 val useBackground = consent.await()
-                    ?: return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消小红书 AI 采集")
+                    ?: return@withTimeoutOrNull WorkflowRunResult(RunStatus.CANCELLED, "已取消${request.label}")
                 delay(250)
-                foreground(activity)
-                check(GuiControlService.connected === service) { "无障碍服务已断开" }
-                if (useBackground) {
-                    service.checkBackgroundStart(XhsGuiWorkflow.PACKAGE)
-                    withContext(Dispatchers.IO + NonCancellable) { display = BackgroundDisplay.open(launch) }
-                    check(GuiControlService.connected === service) { "无障碍服务已断开" }
-                    service.beginBackgroundXhs(checkNotNull(display), run)
-                    display = null // The session now owns the display.
-                } else {
-                    service.beginXhs(launch, run)
-                }
-                run.result.await()
-            } ?: WorkflowRunResult(RunStatus.CANCELLED, "小红书 AI 采集已超时")
+                service.startSession(request, useBackground) { foreground(activity) }
+                result.await()
+            } ?: WorkflowRunResult(RunStatus.CANCELLED, "${request.label}已超时")
         } catch (failure: IllegalStateException) {
-            WorkflowRunResult(RunStatus.FAILED, failure.message ?: "无法开启小红书 AI 采集")
+            WorkflowRunResult(RunStatus.FAILED, failure.message ?: "无法开启${request.label}")
         } catch (_: android.content.ActivityNotFoundException) {
-            WorkflowRunResult(RunStatus.NOT_CONFIGURED, "无法打开小红书公开搜索页")
+            WorkflowRunResult(RunStatus.NOT_CONFIGURED, unavailable)
+        } catch (_: SecurityException) {
+            WorkflowRunResult(RunStatus.NOT_CONFIGURED, "系统拒绝开启采集，请检查应用和后台屏权限")
         } catch (_: android.os.RemoteException) {
             WorkflowRunResult(RunStatus.NOT_CONFIGURED, "后台屏助手已断开，请重新连接")
         } finally {
             dialog.dismiss()
-            service.cancelXhs(run)
-            display?.close()
+            service.stopSession(request, "${request.label}已结束")
         }
     }
 
-    private fun beginAfterConfirmation(activity: Activity, launch: Intent, label: String, collectOnly: Boolean) {
+    private fun beginAfterConfirmation(activity: Activity, request: GuiControlRequest) {
         activity.window.decorView.postDelayed({
-            runCatching {
-                foreground(activity)
-                val service = checkNotNull(GuiControlService.connected) { "无障碍服务已断开" }
-                service.begin(checkNotNull(launch.component).packageName, label, launch, collectOnly)
-            }.onFailure {
+            val onError: (Exception) -> Unit = {
                 if (!activity.isFinishing && !activity.isDestroyed && activity.hasWindowFocus()) {
                     AlertDialog.Builder(activity).setMessage(it.message ?: "无法开启会话")
                         .setPositiveButton("知道了", null).show()
                 }
             }
+            val service = GuiControlService.connected
+            if (service == null) onError(IllegalStateException("无障碍服务已断开"))
+            else service.startManual(request, { foreground(activity) }, onError)
         }, 250)
     }
 

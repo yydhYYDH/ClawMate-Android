@@ -25,7 +25,6 @@ import com.clawmate.platform.NativeOperations
 import com.clawmate.platform.SharedNativeWork
 import com.clawmate.platform.avatar.AndroidAvatarForeground
 import com.clawmate.platform.avatar.AvatarForegroundRgba
-import com.clawmate.platform.gui.MikaXhsPilotActivity
 import com.clawmate.platform.voice.SpeechHttp
 import com.clawmate.platform.voice.PcmSpeechPlayer
 import com.clawmate.platform.voice.SpeechFilePlayer
@@ -391,16 +390,13 @@ class PlatformBridge(private val activity: StageActivity) :
     fun guiCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.open(activity, collectOnly = true);true }
     fun guiAlipayCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.openAlipayCollection(activity);true }
     fun guiCollectionHistory(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.showCollections(activity);true }
-    fun guiMikaXhsPilot(): Boolean = onUi {
-        activity.startActivity(Intent(activity, MikaXhsPilotActivity::class.java))
-        true
-    }
     fun guiCollectionQuery(raw: String): String = com.clawmate.platform.gui.GuiCollectionSearch.query(activity.applicationContext, raw)
     fun guiControlStop(): Boolean = onUi { com.clawmate.platform.gui.GuiControlService.connected?.stop();true }
     fun guiControlStatus(): String = JSONObject().put("v",1)
         .put("supported",android.os.Build.VERSION.SDK_INT>=34)
         .put("connected",com.clawmate.platform.gui.GuiControlService.connected!=null)
-        .put("message",com.clawmate.platform.gui.GuiControlService.lastStatus).toString()
+        .put("message", com.clawmate.platform.gui.GuiControlService.lastStatus + "\n" +
+            if (com.clawmate.platform.display.BackgroundDisplay.available) "后台屏助手已连接" else "后台屏助手未连接").toString()
     fun guiScreenshotCancel(id: String): Boolean { screenshotJobs.cancel(id); return true }
     fun guiScreenshotDetach() { screenshotEpoch++ }
     fun capturePoll(id: String): String = onUi { (activity as SharedActivity).pollCapture(id) }

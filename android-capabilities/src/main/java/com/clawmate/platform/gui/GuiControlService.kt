@@ -40,6 +40,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
@@ -68,12 +69,14 @@ class GuiControlService : AccessibilityService() {
     private var epoch=0
     private var armedUntil=0L
     private var captureAt=0L
-    private var targetLabel=""
-    private var collectOnly = false
+    private var pendingStart: GuiControlRequest? = null
+    private var activeRequest: GuiControlRequest? = null
+    private val targetLabel: String get() = activeRequest?.label.orEmpty().take(40)
+    private val collectOnly: Boolean get() = activeRequest?.task != GuiControlTask.ManualControl
     private val collectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var collectionJob: Job? = null
-    private var weiboRun: WeiboGuiRun? = null
-    private var xhsRun: XhsGuiRun? = null
+    private val weiboRun get() = (activeRequest?.task as? GuiControlTask.Weibo)?.run
+    private val xhsRun get() = (activeRequest?.task as? GuiControlTask.Xhs)?.run
     private var backgroundDisplay: BackgroundDisplay? = null
     private var xhsCandidate: Pair<Int, Rect>? = null
     private var xhsCandidateSince = 0L
@@ -83,6 +86,7 @@ class GuiControlService : AccessibilityService() {
             try {
                 check(grant!!.available(SystemClock.elapsedRealtime())) { "控制会话已到期或达到动作上限" }
                 check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "手机已锁屏，控制已停止" }
+                check(backgroundDisplay?.connected != false) { "后台屏助手已断开" }
                 if (panel != null) currentWindow() else {
                     check(SystemClock.elapsedRealtime() <= armedUntil) {
                         when {
@@ -91,7 +95,7 @@ class GuiControlService : AccessibilityService() {
                             else -> "目标应用未进入前台"
                         }
                     }
-                    if (weiboRun != null || xhsRun != null) showPanelIfReady()
+                    showPanelIfReady()
                 }
             } catch(failure:Exception){stop(failure.message ?: "控制会话已停止");return}
             handler.postDelayed(this,250)
@@ -99,7 +103,7 @@ class GuiControlService : AccessibilityService() {
     }
     override fun onServiceConnected(){connected=this;lastStatus="服务已连接；尚未授权任何应用"}
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if(grant==null)return
+        if (grant == null || panel != null) return
         handler.post { showPanelIfReady() }
     }
     private fun showPanelIfReady() {
@@ -109,7 +113,13 @@ class GuiControlService : AccessibilityService() {
         val weibo = weiboRun
         val xhs = xhsRun
         if ((weibo != null || xhs != null) && Build.VERSION.SDK_INT >= 33) clearCache()
-        val candidate = sessionWindows().filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }.singleOrNull()
+        val visible = try {
+            sessionWindows()
+        } catch (failure: IllegalStateException) {
+            stop(failure.message ?: "采集窗口已断开")
+            return
+        }
+        val candidate = visible.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }.singleOrNull()
         val root = candidate?.root
         if (candidate == null || root == null || root.packageName?.toString() != target) {
             weibo?.windowReady(null, SystemClock.elapsedRealtime())
@@ -142,17 +152,60 @@ class GuiControlService : AccessibilityService() {
     override fun onInterrupt(){stop("系统中断控制会话")}
     override fun onUnbind(intent:Intent?):Boolean{stop("无障碍服务已断开");if(connected===this)connected=null;return super.onUnbind(intent)}
     override fun onDestroy(){stop("无障碍服务已销毁");collectionScope.cancel();if(connected===this)connected=null;super.onDestroy()}
-    fun begin(target:String,label:String,launch:Intent,collectOnly:Boolean=false) {
-        check(Build.VERSION.SDK_INT>=34) { "跨应用窗口截图需要Android 14及以上" }
-        stop("正在开启新会话")
-        check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "请先解锁手机" }
-        val now = SystemClock.elapsedRealtime()
-        grant=GuiControlSession(target,now);targetLabel=label.take(40)
-        // ColorOS can ask the user to approve opening the selected app.
-        armedUntil = now + if (collectOnly) 20_000 else 5_000
-        this.collectOnly = collectOnly
-        lastStatus="等待目标应用进入前台：$targetLabel"
-        try{startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));handler.post(watchdog)}catch(failure:Exception){stop("无法打开目标应用");throw failure}
+    /** Used by all authorized collection and control entry points on the main thread. */
+    internal suspend fun startSession(
+        request: GuiControlRequest,
+        useBackground: Boolean,
+        checkForeground: () -> Unit,
+    ) {
+        check(Build.VERSION.SDK_INT >= 34) { "跨应用窗口截图需要 Android 14 及以上" }
+        check(activeRequest == null && pendingStart == null) { "已有手机控制会话，请先停止" }
+        check(!useBackground || request.supportsBackground) { "此流程需要在主屏手动打开要采集的页面" }
+        check(connected === this) { "无障碍服务已断开" }
+        checkForeground()
+        pendingStart = request
+        var display: BackgroundDisplay? = null
+        try {
+            if (useBackground) {
+                requireTargetOffMainScreen(request.target)
+                withContext(Dispatchers.IO + NonCancellable) { display = BackgroundDisplay.open(request.launch) }
+                check(connected === this && pendingStart === request) { "采集已停止或无障碍服务已断开" }
+                checkForeground()
+                requireTargetOffMainScreen(request.target)
+            }
+            val now = SystemClock.elapsedRealtime()
+            grant = GuiControlSession(request.target, now)
+            activeRequest = request
+            pendingStart = null
+            backgroundDisplay = display
+            display = null
+            weiboRun?.let { it.current = it.steps.first() }
+            armedUntil = now + if (collectOnly) 20_000 else 5_000
+            lastStatus = if (useBackground) "等待后台屏打开：$targetLabel" else "等待目标应用进入前台：$targetLabel"
+            if (!useBackground) startActivity(Intent(request.launch).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            handler.post(watchdog)
+        } catch (failure: Exception) {
+            stopSession(request, failure.message ?: "无法打开目标应用")
+            throw failure
+        } finally {
+            display?.close()
+        }
+    }
+
+    internal fun startManual(request: GuiControlRequest, checkForeground: () -> Unit, onError: (Exception) -> Unit) {
+        collectionScope.launch {
+            try {
+                startSession(request, useBackground = false, checkForeground)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                onError(failure)
+            }
+        }
+    }
+
+    internal fun stopSession(request: GuiControlRequest, reason: String) {
+        if (activeRequest === request || pendingStart === request) stop(reason)
     }
     fun stop(reason:String="用户停止控制会话") {
         val active=grant!=null
@@ -161,9 +214,9 @@ class GuiControlService : AccessibilityService() {
         collectionJob?.cancel()
         collectionJob = null
         val interruptedWeibo = weiboRun
-        weiboRun = null
         val interruptedXhs = xhsRun
-        xhsRun = null
+        activeRequest = null
+        pendingStart = null
         backgroundDisplay?.close()
         backgroundDisplay = null
         xhsCandidate = null
@@ -255,39 +308,10 @@ class GuiControlService : AccessibilityService() {
         if (xhs != null && Build.VERSION.SDK_INT >= 34) startXhsSteps(xhs, status)
     }
 
-    internal fun beginXhs(launch: Intent, run: XhsGuiRun) {
-        check(launch.`package` == XhsGuiWorkflow.PACKAGE)
-        begin(XhsGuiWorkflow.PACKAGE, XhsGuiWorkflow.LABEL, launch, collectOnly = true)
-        xhsRun = run
-    }
-
     private fun requireTargetOffMainScreen(target: String) {
         check(windows.none { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.root?.packageName?.toString() == target }) {
             "目标应用正在主屏使用，请先离开该应用"
         }
-    }
-
-    internal fun checkBackgroundStart(target: String) {
-        check(grant == null) { "已有手机控制会话，请先停止" }
-        check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "请先解锁手机" }
-        requireTargetOffMainScreen(target)
-    }
-
-    internal fun beginBackgroundXhs(display: BackgroundDisplay, run: XhsGuiRun) {
-        checkBackgroundStart(XhsGuiWorkflow.PACKAGE)
-        val now = SystemClock.elapsedRealtime()
-        grant = GuiControlSession(XhsGuiWorkflow.PACKAGE, now)
-        backgroundDisplay = display
-        xhsRun = run
-        targetLabel = XhsGuiWorkflow.LABEL
-        collectOnly = true
-        armedUntil = now + 20_000
-        lastStatus = "正在等待后台屏搜索结果"
-        handler.post(watchdog)
-    }
-
-    internal fun cancelXhs(run: XhsGuiRun) {
-        if (xhsRun === run) stop("小红书采集已结束")
     }
 
     fun xhsModelWindowReady(): Boolean = xhsRun != null && panel != null && runCatching {
@@ -345,10 +369,11 @@ class GuiControlService : AccessibilityService() {
                         "scroll_forward" -> {
                             status.text = "正在翻页\n已读 $pages 页 · ${excerpts.size} 条"
                             val list = fresh.third.list
-                            check(list.refresh() && list.windowId == id && list.isScrollable) { "搜索结果无法继续翻页" }
-                            collectionWindow(id, bounds)
-                            checkNotNull(grant).consume(SystemClock.elapsedRealtime(), XhsGuiWorkflow.PACKAGE, true, 1)
-                            check(list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) { "小红书未接受翻页操作" }
+                            check(performCollectionAction(list, id, bounds, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) {
+                                it.isScrollable
+                            }) {
+                                "搜索结果无法继续翻页"
+                            }
                             scrolls++
                             delay(700)
                         }
@@ -382,17 +407,6 @@ class GuiControlService : AccessibilityService() {
         job.start()
     }
 
-    internal fun beginWeibo(launch: Intent, run: WeiboGuiRun) {
-        check(launch.`package` == WeiboGuiWorkflow.PACKAGE)
-        begin(WeiboGuiWorkflow.PACKAGE, "微博热搜", launch, collectOnly = true)
-        weiboRun = run
-        run.current = run.steps.first()
-    }
-
-    internal fun cancelWeibo(run: WeiboGuiRun) {
-        if (weiboRun === run) stop("微博采集已结束")
-    }
-
     @RequiresApi(34)
     private fun startWeiboSteps(run: WeiboGuiRun, status: TextView) {
         val turn = epoch
@@ -422,10 +436,9 @@ class GuiControlService : AccessibilityService() {
                             val tab = awaitHotTab(id, bounds, area)
                             if (!tab.isSelected) {
                                 val button = checkNotNull(WeiboGuiWorkflow.hotTabButton(tab, area)) { "无法识别热搜标签按钮" }
-                                collectionWindow(id, bounds)
-                                check(button.windowId == id) { "热搜标签窗口已变化" }
-                                checkNotNull(grant).consume(SystemClock.elapsedRealtime(), WeiboGuiWorkflow.PACKAGE, true, 1)
-                                check(button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { "微博未接受热搜标签操作" }
+                                check(performCollectionAction(button, id, bounds, AccessibilityNodeInfo.ACTION_CLICK)) {
+                                    "微博未接受热搜标签操作"
+                                }
                             }
                             awaitHotTab(id, bounds, area, selected = true)
                             "已进入公开热搜标签"
@@ -545,16 +558,17 @@ class GuiControlService : AccessibilityService() {
         return null
     }
 
+    @RequiresApi(34)
     private suspend fun scrollWeibo(id: Int, bounds: Rect, list: Rect): Boolean {
-        collectionWindow(id, bounds)
         val height = list.height()
         if (height < 200) return false
+        val display = authorizeCollectionAction(id, bounds).displayId
         val start = list.bottom - height * .22f
         val end = list.top + height * .34f
-        checkNotNull(grant).consume(SystemClock.elapsedRealtime(), WeiboGuiWorkflow.PACKAGE, true, 1)
         val stroke = Path().apply { moveTo(list.centerX().toFloat(), start); lineTo(list.centerX().toFloat(), end) }
         return suspendCancellableCoroutine { ready ->
-            val gesture = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(stroke, 0, 830)).build()
+            val gesture = GestureDescription.Builder().setDisplayId(display)
+                .addStroke(GestureDescription.StrokeDescription(stroke, 0, 830)).build()
             val callback = object : GestureResultCallback() {
                 override fun onCompleted(description: GestureDescription?) { if (ready.isActive) ready.resume(true) }
                 override fun onCancelled(description: GestureDescription?) { if (ready.isActive) ready.resume(false) }
@@ -686,17 +700,32 @@ class GuiControlService : AccessibilityService() {
             }
         }
 
+    private fun authorizeCollectionAction(windowId: Int, bounds: Rect): AccessibilityWindowInfo {
+        val window = collectionWindow(windowId, bounds)
+        val session = checkNotNull(grant)
+        session.consume(SystemClock.elapsedRealtime(), session.target,
+            !getSystemService(KeyguardManager::class.java).isKeyguardLocked, 1)
+        return window
+    }
+
+    @RequiresApi(34)
+    private fun performCollectionAction(
+        node: AccessibilityNodeInfo, windowId: Int, bounds: Rect, action: Int,
+        eligible: (AccessibilityNodeInfo) -> Boolean = { true },
+    ): Boolean {
+        if (node.windowId != windowId || !node.refresh() || !node.isVisibleToUser || !node.isEnabled ||
+            node.isPassword || node.isAccessibilityDataSensitive ||
+            node.packageName?.toString() != grant?.target || !eligible(node)) return false
+        authorizeCollectionAction(windowId, bounds)
+        return node.performAction(action)
+    }
+
     @RequiresApi(34)
     private fun scrollCollectionDown(node: AccessibilityNodeInfo, windowId: Int, bounds: Rect, target: String): Boolean {
         collectionWindow(windowId, bounds)
-        if (node.windowId != windowId || !node.refresh() || !node.canScrollCollectionDown(target, safeBounds(bounds))) {
-            return false
+        return performCollectionAction(node, windowId, bounds, AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id) {
+            it.canScrollCollectionDown(target, safeBounds(bounds))
         }
-        collectionWindow(windowId, bounds)
-        checkNotNull(grant).consume(
-            SystemClock.elapsedRealtime(), target, !getSystemService(KeyguardManager::class.java).isKeyguardLocked, 1,
-        )
-        return node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id)
     }
 
     private fun showCollectionPreview(record: GuiCollection, end: String?, turn: Int, windowId: Int, bounds: Rect,

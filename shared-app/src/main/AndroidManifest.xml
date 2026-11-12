@@ -24,8 +24,6 @@
         </service>
         <activity android:name="com.clawmate.platform.gui.GuiControlSetupActivity"
             android:label="@string/clawmate_gui_accessibility_name" android:exported="true" />
-        <activity android:name="com.clawmate.platform.gui.MikaXhsPilotActivity"
-            android:exported="false" android:windowSoftInputMode="adjustResize|stateHidden" />
         <activity android:name=".CodexPairingScanActivity" android:exported="false" />
         <provider android:name=".CaptureProvider" android:authorities="${applicationId}.capture"
             android:exported="false" android:grantUriPermissions="true" />
