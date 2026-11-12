@@ -34,6 +34,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-common:1.9.24")
     api(libs.kotlinx.serialization.json)
+    api("com.google.zxing:core:3.5.4")
     implementation(libs.androidx.exifinterface)
     implementation(libs.okhttp)
     implementation("com.squareup.okio:okio:3.8.0")

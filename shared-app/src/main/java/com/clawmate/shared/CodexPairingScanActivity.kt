@@ -11,14 +11,14 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.google.zxing.BarcodeFormat
+import com.clawmate.platform.codex.CodexPairingQrReader
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
-import com.google.zxing.qrcode.QRCodeReader
 import com.journeyapps.barcodescanner.CameraPreview
 import com.journeyapps.barcodescanner.DecoratedBarcodeView
-import com.journeyapps.barcodescanner.DefaultDecoderFactory
+import com.journeyapps.barcodescanner.Decoder
+import com.journeyapps.barcodescanner.DecoderFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,7 +40,7 @@ class CodexPairingScanActivity : Activity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         albumOpen = state?.getBoolean("albumOpen") ?: false
         scanner = DecoratedBarcodeView(this).apply {
-            barcodeView.decoderFactory = DefaultDecoderFactory(listOf(BarcodeFormat.QR_CODE))
+            barcodeView.decoderFactory = DecoderFactory { Decoder(CodexPairingQrReader()) }
             setStatusText("")
             barcodeView.addStateListener(object : CameraPreview.StateListener {
                 override fun previewSized() = Unit
@@ -57,7 +57,7 @@ class CodexPairingScanActivity : Activity() {
         }
         status = TextView(this).apply {
             setPadding(24, 20, 24, 20)
-            text = "扫描电脑端「手机配对」中的二维码"
+            text = "对准电脑端配对码，让整个二维码占满取景框"
         }
         camera = Button(this).apply {
             text = "开启相机"
@@ -167,7 +167,7 @@ class CodexPairingScanActivity : Activity() {
         try {
             val pixels = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-            return QRCodeReader().decode(BinaryBitmap(
+            return CodexPairingQrReader().decode(BinaryBitmap(
                 HybridBinarizer(RGBLuminanceSource(bitmap.width, bitmap.height, pixels)),
             )).text
         } finally {

@@ -394,3 +394,10 @@ SHA-256 与本地构建产物一致。本轮沿用已安装包，在独立测试
 | 设备协议回归 | `CodexPairingDeviceTest` 通过，覆盖配对无 bearer、同源更新设备令牌、空任务字段与有效增量、401 状态回传。 |
 
 构建通过 ArkTS、运行时签封校验及 Android Debug APK 打包。设备测试 APK 使用仓库既有的非会议筛选，会议 SDK 使用本机替身。普通聊天的新选择器未做真实云服务端到端验收，续办回归在 JVM 模拟 HTTPS 协议数据上覆盖持久化、复用原任务与提交第二轮。
+
+## 2026-11-12 Windows 桌面 1.1.15 二维码复测
+
+- Windows 已安装连接器实际输出 479×479 像素的配对 PNG。旧 ZXing 读取失败，桌面探针发现检测器把 113×113 模块估算成 117×117。修正采样网格后解码结果与原配对数据完全一致。ZXing 3.5.4 配合重采样也能读取按桌面显示尺寸缩放的受控样本。
+- Android Debug APK 已安装到 OPPO PKB110 并核对 APK 哈希。从相册选择这份真实桌面二维码，进入电脑名称和 HTTPS 地址的确认框。诊断图片的配对码已被替换，测试在确认前取消，未新增设备授权。实际相机对准电脑屏幕仍待验收。
+- 用 PC 配对 CA 从 Windows 本机连接桥接，TLS 校验成功，匿名健康请求收到预期 401。同一台手机从 WLAN 测试同一 TCP 地址和端口，返回 `No route to host`，因此没有完成真实局域网配对。
+- `:android-capabilities:testDebugUnitTest --tests 'com.clawmate.platform.codex.*'` 通过 68 项，14 项 live 跳过。新增回归覆盖相机灰度帧与相册 RGB 的非整数像素渲染。共享版 Debug APK 构建及中文手册检查通过。
