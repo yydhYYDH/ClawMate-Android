@@ -7,18 +7,22 @@ import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 import com.clawmate.platform.codex.CodexPairingQrReader
+import com.clawmate.platform.codex.CodexTypes
 import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.LuminanceSource
 import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.Result
 import com.google.zxing.common.HybridBinarizer
 import com.journeyapps.barcodescanner.CameraPreview
-import com.journeyapps.barcodescanner.DecoratedBarcodeView
 import com.journeyapps.barcodescanner.Decoder
 import com.journeyapps.barcodescanner.DecoderFactory
+import com.journeyapps.barcodescanner.camera.CameraSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,64 +32,77 @@ import kotlinx.coroutines.withContext
 
 class CodexPairingScanActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private lateinit var scanner: DecoratedBarcodeView
+    private lateinit var scanner: CodexPairingPreview
     private lateinit var status: TextView
     private lateinit var camera: Button
     private lateinit var album: Button
+    private lateinit var torch: Button
     private var albumOpen = false
     private var readingAlbum = false
+    private var resumed = false
+    private var cameraRequested = false
+    private var torchOn = false
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        window.statusBarColor = SCAN_CHROME
+        window.navigationBarColor = SCAN_CHROME
+        window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and
+            (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR).inv()
         albumOpen = state?.getBoolean("albumOpen") ?: false
-        scanner = DecoratedBarcodeView(this).apply {
-            barcodeView.decoderFactory = DecoderFactory { Decoder(CodexPairingQrReader()) }
-            setStatusText("")
-            barcodeView.addStateListener(object : CameraPreview.StateListener {
+        setContentView(R.layout.codex_pairing_scan)
+        status = findViewById(R.id.codex_scan_status)
+        camera = findViewById<Button>(R.id.codex_scan_camera).apply { setOnClickListener { openCamera() } }
+        album = findViewById<Button>(R.id.codex_scan_album).apply { setOnClickListener { openAlbum() } }
+        torch = findViewById<Button>(R.id.codex_scan_torch).apply {
+            setOnClickListener { if (scanner.isPreviewActive) setTorch(!torchOn) }
+        }
+        findViewById<View>(R.id.codex_scan_back).setOnClickListener { finish() }
+        scanner = findViewById<CodexPairingPreview>(R.id.codex_scan_preview).apply {
+            cameraSettings = CameraSettings().apply { focusMode = CameraSettings.FocusMode.CONTINUOUS }
+            decoderFactory = DecoderFactory { PreviewDecoder() }
+            addStateListener(object : CameraPreview.StateListener {
                 override fun previewSized() = Unit
-                override fun previewStarted() = Unit
-                override fun previewStopped() = Unit
+                override fun previewStarted() {
+                    invalidate()
+                    if (packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH)) {
+                        torch.visibility = View.VISIBLE
+                    }
+                }
+                override fun previewStopped() { torch.visibility = View.GONE }
                 override fun cameraClosed() = Unit
                 override fun cameraError(error: Exception) {
                     pause()
-                    status.text = "相机无法启动，请重试或从相册识别"
-                    camera.isEnabled = true
+                    cameraRequested = false
+                    camera.visibility = View.VISIBLE
+                    showStatus(R.string.codex_scan_camera_failed)
                 }
             })
-            decodeContinuous { result -> if (!isFinishing && !albumOpen && !readingAlbum) finishWithCode(result.text) }
+            decodeContinuous { result ->
+                if (resumed && !albumOpen && !readingAlbum) consumeCode(result.text)
+            }
         }
-        status = TextView(this).apply {
-            setPadding(24, 20, 24, 20)
-            text = "对准电脑端配对码，让整个二维码占满取景框"
-        }
-        camera = Button(this).apply {
-            text = "开启相机"
-            setOnClickListener { openCamera() }
-        }
-        album = Button(this).apply {
-            text = "从相册识别"
-            setOnClickListener { openAlbum() }
-        }
-        val cancel = Button(this).apply { text = "取消"; setOnClickListener { finish() } }
-        setContentView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(status)
-            addView(scanner, LinearLayout.LayoutParams(-1, 0, 1f))
-            addView(LinearLayout(this@CodexPairingScanActivity).apply {
-                for (button in listOf(camera, album, cancel)) {
-                    addView(button, LinearLayout.LayoutParams(0, -2, 1f))
-                }
-            })
-        })
+        camera.visibility = if (hasCameraPermission()) View.GONE else View.VISIBLE
     }
 
     override fun onResume() {
         super.onResume()
-        if (hasCameraPermission() && !albumOpen && !readingAlbum) resumeCamera()
+        resumed = true
+        if (albumOpen || readingAlbum) return
+        if (hasCameraPermission()) {
+            resumeCamera()
+        } else if (!getPreferences(MODE_PRIVATE).getBoolean("camera_permission_requested", false)) {
+            openCamera()
+        } else {
+            showStatus(R.string.codex_scan_permission)
+        }
     }
 
     override fun onPause() {
+        resumed = false
+        cameraRequested = false
+        if (torchOn) setTorch(false)
         scanner.pause()
         super.onPause()
     }
@@ -104,20 +121,43 @@ class CodexPairingScanActivity : Activity() {
         checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
     private fun openCamera() {
-        if (hasCameraPermission()) resumeCamera()
-        else requestPermissions(arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION)
+        if (hasCameraPermission()) {
+            showStatus(R.string.codex_scan_hint)
+            resumeCamera()
+        } else {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("camera_permission_requested", true).apply()
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION)
+        }
     }
 
     private fun resumeCamera() {
-        camera.isEnabled = false
+        if (!resumed || isFinishing || albumOpen || readingAlbum || cameraRequested || !hasCameraPermission()) return
+        cameraRequested = true
+        camera.visibility = View.GONE
         scanner.resume()
+    }
+
+    private fun setTorch(on: Boolean) {
+        scanner.setTorch(on)
+        torchOn = on
+        torch.isSelected = on
+        torch.setText(if (on) R.string.codex_scan_torch_off else R.string.codex_scan_torch_on)
+    }
+
+    private fun showStatus(message: Int) {
+        val text = getString(message)
+        if (status.text.toString() != text) status.text = text
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
         if (requestCode != CAMERA_PERMISSION || isFinishing) return
-        if (hasCameraPermission()) resumeCamera()
-        else status.text = "相机权限未开启，可从相册识别，或在系统设置允许相机权限"
+        if (hasCameraPermission()) {
+            showStatus(R.string.codex_scan_hint)
+            resumeCamera()
+        } else {
+            showStatus(R.string.codex_scan_permission_settings)
+        }
     }
 
     private fun openAlbum() {
@@ -129,7 +169,7 @@ class CodexPairingScanActivity : Activity() {
             }, ALBUM)
         } catch (_: Exception) {
             albumOpen = false
-            status.text = "无法打开系统相册，请使用相机扫码"
+            showStatus(R.string.codex_scan_album_failed)
         }
     }
 
@@ -142,16 +182,16 @@ class CodexPairingScanActivity : Activity() {
         readingAlbum = true
         album.isEnabled = false
         camera.isEnabled = false
-        status.text = "正在识别二维码"
+        showStatus(R.string.codex_scan_reading)
         scope.launch {
             val code = withContext(Dispatchers.IO) { runCatching { decodeImage(uri) }.getOrNull() }
             readingAlbum = false
-            if (code != null) finishWithCode(code)
-            else {
-                album.isEnabled = true
-                camera.isEnabled = true
-                status.text = "这张图片中未识别出二维码，请选择清晰的配对码截图"
-            }
+            if (isFinishing) return@launch
+            if (code != null && consumeCode(code)) return@launch
+            if (code == null) showStatus(R.string.codex_scan_no_code)
+            album.isEnabled = true
+            camera.isEnabled = true
+            resumeCamera()
         }
     }
 
@@ -160,7 +200,9 @@ class CodexPairingScanActivity : Activity() {
         contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 2048) sample *= 2
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 4096 ||
+            (bounds.outWidth.toLong() / sample) * (bounds.outHeight / sample) > 5_000_000L
+        ) sample *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sample }
         val bitmap = contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
             ?: return null
@@ -169,20 +211,40 @@ class CodexPairingScanActivity : Activity() {
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
             return CodexPairingQrReader().decode(BinaryBitmap(
                 HybridBinarizer(RGBLuminanceSource(bitmap.width, bitmap.height, pixels)),
-            )).text
+            ), albumHints).text
         } finally {
             bitmap.recycle()
         }
     }
 
-    private fun finishWithCode(code: String) {
+    private fun consumeCode(code: String): Boolean {
+        if (isFinishing) return true
+        if (!code.startsWith(CodexTypes.PAIRING_PREFIX)) {
+            showStatus(R.string.codex_scan_wrong_code)
+            return false
+        }
         setResult(RESULT_OK, Intent().putExtra(EXTRA_CODE, code))
         finish()
+        return true
+    }
+
+    /** Give dark-background codes a second polarity without decoding every frame twice. */
+    private class PreviewDecoder : Decoder(CodexPairingQrReader()) {
+        private var misses = 0
+
+        override fun decode(source: LuminanceSource): Result? {
+            val result = super.decode(source)
+            if (result == null && ++misses < 4) return null
+            misses = 0
+            return result ?: super.decode(source.invert())
+        }
     }
 
     companion object {
         internal const val EXTRA_CODE = "pairingCode"
         private const val CAMERA_PERMISSION = 1
         private const val ALBUM = 2
+        private const val SCAN_CHROME = 0xFF10141C.toInt()
+        private val albumHints = mapOf(DecodeHintType.ALSO_INVERTED to true)
     }
 }

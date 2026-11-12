@@ -401,3 +401,11 @@ SHA-256 与本地构建产物一致。本轮沿用已安装包，在独立测试
 - Android Debug APK 已安装到 OPPO PKB110 并核对 APK 哈希。从相册选择这份真实桌面二维码，进入电脑名称和 HTTPS 地址的确认框。诊断图片的配对码已被替换，测试在确认前取消，未新增设备授权。实际相机对准电脑屏幕仍待验收。
 - 用 PC 配对 CA 从 Windows 本机连接桥接，TLS 校验成功，匿名健康请求收到预期 401。同一台手机从 WLAN 测试同一 TCP 地址和端口，返回 `No route to host`，因此没有完成真实局域网配对。
 - `:android-capabilities:testDebugUnitTest --tests 'com.clawmate.platform.codex.*'` 通过 68 项，14 项 live 跳过。新增回归覆盖相机灰度帧与相册 RGB 的非整数像素渲染。共享版 Debug APK 构建及中文手册检查通过。
+
+## 2026-11-12 ScanKit 界面对照与识码回归
+
+- 鸿蒙 Codex 使用 [ScanKit 默认界面](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V14/scan-scanbarcode-V14/)，设置仅扫二维码、单码识别和图库入口。Android 使用暗色相机预览、顶部关闭、与解码裁剪对齐的中央方框及底部相册和手电筒。
+- OPPO PKB110 安装最新 Debug APK 并核对哈希。页面直接打开相机，Android CameraService 确认后摄预览活动；手电筒控件可开关，关闭按钮返回创建连接页。相册选择 Windows 连接器 1.1.15 生成的真实 PNG 后显示电脑名和地址的确认框。样本的配对码已被替换，测试在确认前取消。
+- 从相册选中普通二维码时，页面提示选择电脑端的配对二维码并恢复相机取景。
+- JVM 覆盖非整数像素渲染、高密度码的透视倾斜和反色图片。对相同 479×479 合成高密度灰度帧，旧版和新版各预热 240 次并交替解码 600 次。中位耗时 3.964 → 2.557 ms，P95 5.263 → 3.428 ms。此测量覆盖桌面 JVM 解码阶段。
+- `:android-capabilities:testDebugUnitTest --tests 'com.clawmate.platform.codex.*'` 通过 70 项，14 项 live 跳过。共享版 Debug APK 和中文手册检查通过。手持相机对着实际电脑屏幕的识码率和速度待测；本次可见两端已在原 Wi-Fi，未复测此前热点环境的连接超时。

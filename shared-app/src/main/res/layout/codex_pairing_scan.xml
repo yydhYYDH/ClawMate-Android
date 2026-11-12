@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#10141C"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:accessibilityHeading="true"
+            android:text="@string/codex_scan_title"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/codex_scan_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/codex_scan_button"
+            android:contentDescription="@string/codex_scan_back"
+            android:scaleType="center"
+            android:src="@drawable/codex_scan_back" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#0B0E14">
+
+        <com.clawmate.shared.CodexPairingPreview
+            android:id="@+id/codex_scan_preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="noHideDescendants" />
+
+        <Button
+            android:id="@+id/codex_scan_camera"
+            style="@style/CodexScanButton"
+            android:layout_gravity="center"
+            android:text="@string/codex_scan_camera" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/codex_scan_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:accessibilityLiveRegion="polite"
+        android:gravity="center"
+        android:minHeight="56dp"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="10dp"
+        android:text="@string/codex_scan_hint"
+        android:textColor="#D7DEED"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp">
+
+        <Button
+            android:id="@+id/codex_scan_torch"
+            style="@style/CodexScanButton"
+            android:layout_marginEnd="12dp"
+            android:drawableStart="@drawable/codex_scan_torch"
+            android:text="@string/codex_scan_torch_on"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/codex_scan_album"
+            style="@style/CodexScanButton"
+            android:drawableStart="@drawable/codex_scan_album"
+            android:text="@string/codex_scan_album" />
+    </LinearLayout>
+</LinearLayout>

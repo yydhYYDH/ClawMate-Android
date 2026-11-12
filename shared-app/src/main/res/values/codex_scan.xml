@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="codex_scan_title">扫描二维码</string>
+    <string name="codex_scan_back">关闭扫码</string>
+    <string name="codex_scan_camera">开启相机</string>
+    <string name="codex_scan_album">从相册识别</string>
+    <string name="codex_scan_torch_on">开启手电筒</string>
+    <string name="codex_scan_torch_off">关闭手电筒</string>
+    <string name="codex_scan_hint">将电脑端的配对码完整放入框内</string>
+    <string name="codex_scan_permission">允许相机权限后即可扫码，也可以从相册识别</string>
+    <string name="codex_scan_permission_settings">请在系统设置允许相机权限，或从相册识别</string>
+    <string name="codex_scan_camera_failed">相机无法启动，请重试或从相册识别</string>
+    <string name="codex_scan_album_failed">无法打开系统相册，请使用相机扫码</string>
+    <string name="codex_scan_reading">正在识别图片中的二维码…</string>
+    <string name="codex_scan_no_code">未识别到二维码，请选择清晰的配对码截图</string>
+    <string name="codex_scan_wrong_code">请扫描电脑端「手机配对」中生成的二维码</string>
+
+    <style name="CodexScanButton" parent="@android:style/Widget.Material.Button">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:background">@drawable/codex_scan_button</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:drawablePadding">7dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textColor">#F4F7FF</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+</resources>

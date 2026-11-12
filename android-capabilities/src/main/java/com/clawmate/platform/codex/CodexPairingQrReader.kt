@@ -10,50 +10,68 @@ import com.google.zxing.ResultPoint
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.common.GridSampler
 import com.google.zxing.common.PerspectiveTransform
-import com.google.zxing.qrcode.QRCodeReader
 import com.google.zxing.qrcode.decoder.Decoder
 import com.google.zxing.qrcode.detector.Detector
 
 /** Reads the desktop pairing QR from both camera luminance and album images. */
 class CodexPairingQrReader : Reader {
-    private val standard = QRCodeReader()
     private val decoder = Decoder()
 
     override fun decode(image: BinaryBitmap): Result = decode(image, null)
 
     override fun decode(image: BinaryBitmap, hints: Map<DecodeHintType, *>?): Result {
-        try {
-            return standard.decode(image, hints)
+        val pixels = image.blackMatrix
+        val options = if (hints == null) tryHarder else hints + tryHarder
+        return try {
+            read(pixels, options)
         } catch (failure: ReaderException) {
-            return readNearbyVersions(image) ?: throw failure
+            if (hints?.get(DecodeHintType.ALSO_INVERTED) != true) throw failure
+            val inverted = pixels.clone().apply { flip() }
+            read(inverted, options)
         }
     }
 
-    override fun reset() = standard.reset()
+    override fun reset() = Unit
 
-    private fun readNearbyVersions(image: BinaryBitmap): Result? {
-        val pixels = image.blackMatrix
-        val detection = try {
-            Detector(pixels).detect(tryHarder)
-        } catch (_: ReaderException) {
-            return null
-        }
+    private fun read(pixels: BitMatrix, hints: Map<DecodeHintType, *>): Result {
+        val detection = Detector(pixels).detect(hints)
         val points = detection.points
+        return try {
+            // Decoding the detector's grid mutates it. Alternate grids sample the
+            // original pixels and reuse the same finder positions.
+            val decoded = decoder.decode(detection.bits, hints)
+            Result(decoded.text, decoded.rawBytes, points, BarcodeFormat.QR_CODE)
+        } catch (failure: ReaderException) {
+            readNearbyVersions(pixels, detection.bits.width, points, hints) ?: throw failure
+        }
+    }
+
+    private fun readNearbyVersions(
+        pixels: BitMatrix,
+        detectedDimension: Int,
+        points: Array<ResultPoint>,
+        hints: Map<DecodeHintType, *>,
+    ): Result? {
         val alignment = points.getOrNull(3)
         // On a fractional pixel grid the finder estimate can be one QR version off.
         // Keep the detected geometry and retry only the estimated and adjacent versions.
-        for (offset in versionOffsets) {
-            val dimension = detection.bits.width + offset
-            if (dimension !in 21..177) continue
+        for (dimension in intArrayOf(detectedDimension - 4, detectedDimension + 4)) {
+            if (dimension !in MIN_DIMENSION..MAX_DIMENSION) continue
             if (alignment != null) {
-                readGrid(pixels, dimension, points, alignment)?.let { return it }
+                readGrid(pixels, dimension, points, alignment, hints)?.let { return it }
             }
-            readGrid(pixels, dimension, points, null)?.let { return it }
+            readGrid(pixels, dimension, points, null, hints)?.let { return it }
         }
-        return null
+        return if (alignment == null) null else readGrid(pixels, detectedDimension, points, null, hints)
     }
 
-    private fun readGrid(pixels: BitMatrix, dimension: Int, points: Array<ResultPoint>, alignment: ResultPoint?): Result? {
+    private fun readGrid(
+        pixels: BitMatrix,
+        dimension: Int,
+        points: Array<ResultPoint>,
+        alignment: ResultPoint?,
+        hints: Map<DecodeHintType, *>,
+    ): Result? {
         val bottomLeft = points[0]
         val topLeft = points[1]
         val topRight = points[2]
@@ -70,7 +88,7 @@ class CodexPairingQrReader : Reader {
         )
         val decoded = try {
             val grid = GridSampler.getInstance().sampleGrid(pixels, dimension, dimension, transform)
-            decoder.decode(grid)
+            decoder.decode(grid, hints)
         } catch (_: ReaderException) {
             return null
         }
@@ -80,6 +98,7 @@ class CodexPairingQrReader : Reader {
 
     private companion object {
         val tryHarder = mapOf(DecodeHintType.TRY_HARDER to true)
-        val versionOffsets = intArrayOf(0, -4, 4)
+        const val MIN_DIMENSION = 21
+        const val MAX_DIMENSION = 177
     }
 }
