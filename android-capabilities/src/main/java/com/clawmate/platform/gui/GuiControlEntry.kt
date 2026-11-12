@@ -5,9 +5,11 @@ import android.app.AlertDialog
 import android.app.KeyguardManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.ResolveInfo
 import android.os.Build
 import android.provider.Settings
 import android.widget.Switch
+import com.clawmate.app.task.model.WorkflowDefinition
 import com.clawmate.app.task.model.WorkflowStep
 import com.clawmate.app.task.runner.RunStatus
 import com.clawmate.app.task.runner.WorkflowModelTool
@@ -19,18 +21,62 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONArray
+import org.json.JSONObject
 
-/** Native user choice; no caller can supply a package, launch intent or gesture. */
+/** Resolves launchers locally and requires native confirmation for each session. */
 object GuiControlEntry {
-    private const val ALIPAY_PACKAGE = "com.eg.android.AlipayGphone"
-
-    suspend fun runWorkflow(activity: Activity, steps: List<WorkflowStep>, model: WorkflowModelTool,
+    suspend fun runWorkflow(activity: Activity, definition: WorkflowDefinition, model: WorkflowModelTool,
         destination: String,
     ): WorkflowRunResult {
+        val steps = definition.steps
         if (destination.isNotEmpty() || steps.any { it.action == XhsGuiWorkflow.ACTION }) {
             return runXhsWorkflow(activity, steps, model, destination)
         }
-        return runWeiboWorkflow(activity, steps)
+        if (steps.any { it.type == WeiboGuiWorkflow.TYPE && it.action?.startsWith("weibo_") == true }) {
+            return runWeiboWorkflow(activity, steps)
+        }
+        return runPageWorkflow(activity, definition)
+    }
+
+    private fun launchers(activity: Activity, target: String? = null): List<ResolveInfo> {
+        val query = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(target)
+        return activity.packageManager.queryIntentActivities(query, 0).filter {
+            it.activityInfo.packageName != activity.packageName && it.activityInfo.enabled && it.activityInfo.exported
+        }
+    }
+
+    fun collectionApps(activity: Activity): String {
+        foreground(activity)
+        val pm = activity.packageManager
+        val apps = launchers(activity).distinctBy { it.activityInfo.packageName }
+            .map { it.loadLabel(pm).toString().take(60) to it.activityInfo.packageName }
+            .sortedBy { it.first }.take(200)
+        return JSONArray(apps.map { (label, target) ->
+            JSONObject().put("label", label).put("packageName", target)
+        }).toString()
+    }
+
+    private suspend fun runPageWorkflow(activity: Activity, definition: WorkflowDefinition): WorkflowRunResult {
+        val plan = try {
+            GuiCollectionWorkflow.validate(definition)
+        } catch (failure: IllegalArgumentException) {
+            return WorkflowRunResult(RunStatus.BLOCKED, failure.message ?: "采集图配置有误")
+        }
+        val pm = activity.packageManager
+        val unavailable = "找不到已安装且可打开的应用（${plan.target}）"
+        val app = launchers(activity, plan.target).firstOrNull()
+            ?: return WorkflowRunResult(RunStatus.NOT_CONFIGURED, unavailable)
+        val launch = Intent.makeMainActivity(ComponentName(plan.target, app.activityInfo.name))
+        val label = app.loadLabel(pm).toString().take(40)
+        val run = PageGuiRun(plan)
+        val range = if (plan.pages == 1) "读取当前一页" else
+            "最多读取 ${plan.pages} 页（${if (plan.direction == CollectionDirection.UP) "向上" else "向下"}翻页）"
+        return runApprovedCollection(activity, GuiControlRequest(label, launch, GuiControlTask.Pages(run)),
+            "仅允许采集 $label（${plan.target}）。\n${plan.instructions.ifBlank { "请打开要采集的页面。" }}\n" +
+                "到达页面后点浮窗开始。$range，预览确认后保存到本机。",
+            unavailable, run.result, title = "采集 $label",
+        )
     }
 
     private fun foreground(activity:Activity) {
@@ -51,8 +97,7 @@ object GuiControlEntry {
         if(GuiControlService.connected==null){AlertDialog.Builder(activity).setTitle("尚未启用按次界面控制")
             .setMessage("请先通过权限说明入口进入Android无障碍设置，手动开启ClawMate按次界面控制。")
             .setPositiveButton("知道了",null).show();return}
-        val query=Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val apps=activity.packageManager.queryIntentActivities(query,0).filter{it.activityInfo.packageName!=activity.packageName && it.activityInfo.enabled && it.activityInfo.exported}
+        val apps=launchers(activity)
             .distinctBy{it.activityInfo.packageName}.sortedBy{it.loadLabel(activity.packageManager).toString()}.take(200)
         if(apps.isEmpty()){AlertDialog.Builder(activity).setMessage("没有可选择的启动应用").setPositiveButton("知道了",null).show();return}
         val labels=apps.map{it.loadLabel(activity.packageManager).toString().take(60)+"\n"+it.activityInfo.packageName}.toTypedArray()
@@ -69,34 +114,6 @@ object GuiControlEntry {
                     beginAfterConfirmation(activity, GuiControlRequest(label, launch, task))
                 }.show()
         }.setNegativeButton("取消",null).show()
-    }
-
-    fun openAlipayCollection(activity: Activity) {
-        foreground(activity)
-        if (Build.VERSION.SDK_INT < 34) {
-            AlertDialog.Builder(activity).setMessage("支付宝账单采集需要 Android 14 及以上。")
-                .setPositiveButton("知道了", null).show()
-            return
-        }
-        val launch = activity.packageManager.getLaunchIntentForPackage(ALIPAY_PACKAGE)
-        if (launch == null || launch.component?.packageName != ALIPAY_PACKAGE) {
-            AlertDialog.Builder(activity).setMessage("找不到可打开的支付宝，请确认已安装支付宝。")
-                .setPositiveButton("知道了", null).show()
-            return
-        }
-        if (GuiControlService.connected == null) {
-            AlertDialog.Builder(activity).setTitle("开启无障碍服务后采集账单")
-                .setMessage("此服务可读取窗口并执行滚动。请在 Android 无障碍设置中开启「ClawMate 按次界面控制」，然后返回任务页重新点击「采集账单」。每次采集仍需另行确认。")
-                .setNegativeButton("取消", null).setPositiveButton("去系统设置") { _, _ ->
-                    activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                }.show()
-            return
-        }
-        AlertDialog.Builder(activity).setTitle("本次允许采集支付宝？")
-            .setMessage("打开支付宝后，请自行进入「我的 → 账单」。确认页面后，点浮层的「采集当前页」或「采集最多${GUI_COLLECTION_PAGE_LIMIT}页」。120秒内仅限支付宝，预览确认后写入本机采集记录。")
-            .setNegativeButton("取消", null).setPositiveButton("打开支付宝") { _, _ ->
-                beginAfterConfirmation(activity, GuiControlRequest("支付宝", launch, GuiControlTask.ManualCollection))
-            }.show()
     }
 
     suspend fun runWeiboWorkflow(activity: Activity, steps: List<WorkflowStep>): WorkflowRunResult {
@@ -156,13 +173,13 @@ object GuiControlEntry {
         }
         val consent = CompletableDeferred<Boolean?>()
         val backgroundAvailable = BackgroundDisplay.available
-        val background = Switch(activity).apply {
+        val background = if (request.supportsBackground) Switch(activity).apply {
             text = if (backgroundAvailable) "在后台屏采集" else "后台屏助手未连接"
             isEnabled = backgroundAvailable
-        }
+        } else null
         val dialog = GuiCollectionStyle(activity).sheet(title,
             "$explanation\n锁屏会停止采集。前台模式下离开目标应用也会停止。",
-            "运行采集", content = background) { consent.complete(background.isChecked) }
+            "运行采集", content = background) { consent.complete(background?.isChecked == true) }
             .apply { setOnDismissListener { consent.complete(null) } }
         try {
             withTimeoutOrNull(105_000) {

@@ -6,7 +6,6 @@ import { DataManagerFacade } from '../datamanager/DataManagerFacade';
 import { CollectionReminderService } from '../utils/CollectionReminderService';
 import { WorkflowVlm, WorkflowVlmRequest } from './WorkflowVlm';
 import { CloudChatCompletionOptions } from '../utils/CloudModelClient';
-import { isBuiltInAlipayCollection } from './TaskServices';
 
 interface ExecutionStep { id: string; type?: string; status: string; }
 interface ExecutionResult { status: string; message: string; resultSummary: string; steps: ExecutionStep[]; }
@@ -73,8 +72,7 @@ export class AndroidWorkflow {
             step.status === 'blocked' && (step.type === 'gui_task' || step.type === 'gui_action'));
           let message = result.message;
           if (gui !== undefined) {
-            message = isBuiltInAlipayCollection(task) ? '支付宝账单需单次确认。请在任务列表点击「采集账单」。' :
-              '第 ' + gui.id + ' 步需要自动 GUI，Android 工作流待接入此能力。';
+            message = '第 ' + gui.id + ' 步需要自动 GUI。请使用图编辑中的无障碍采集节点。';
           }
           let savedSummary = result.status === 'success' && result.resultSummary.trim().length > 0;
           let record: SharedRunRecord = { source_kind: source, workflow_file: task.configFileName, run_dir: runDir,

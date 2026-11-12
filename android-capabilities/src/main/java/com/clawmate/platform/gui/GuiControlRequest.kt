@@ -19,6 +19,7 @@ internal class GuiControlRequest(
 internal sealed interface GuiControlTask {
     data object ManualControl : GuiControlTask
     data object ManualCollection : GuiControlTask
+    data class Pages(val run: PageGuiRun) : GuiControlTask
     data class Weibo(val run: WeiboGuiRun) : GuiControlTask
     data class Xhs(val run: XhsGuiRun) : GuiControlTask
 }

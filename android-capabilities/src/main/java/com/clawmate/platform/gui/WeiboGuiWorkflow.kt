@@ -15,7 +15,7 @@ import kotlinx.serialization.json.intOrNull
 
 internal object WeiboGuiWorkflow {
     const val PACKAGE = "com.sina.weibo"
-    const val TYPE = "android_accessibility"
+    const val TYPE = GuiCollectionWorkflow.TYPE
     const val OPEN = "weibo_open_board"
     const val SELECT = "weibo_select_hot"
     const val READ = "weibo_read_hot"
@@ -30,10 +30,6 @@ internal object WeiboGuiWorkflow {
 
     fun launchIntent(): Intent = Intent(Intent.ACTION_VIEW,
         Uri.parse("sinaweibo://pageinfo?containerid=106003_-_type%3A25_-_filter_type%3Aband")).setPackage(PACKAGE)
-
-    fun containsNode(steps: List<WorkflowStep>): Boolean = steps.any { step ->
-        step.type == TYPE || containsNode(step.steps) || containsNode(step.thenSteps) || containsNode(step.elseSteps)
-    }
 
     fun validate(steps: List<WorkflowStep>): Int {
         require(steps.size in 4..7) { "微博采集需要四个采集节点，可另外插入最多三个等待节点" }

@@ -77,6 +77,7 @@ class GuiControlService : AccessibilityService() {
     private var collectionJob: Job? = null
     private val weiboRun get() = (activeRequest?.task as? GuiControlTask.Weibo)?.run
     private val xhsRun get() = (activeRequest?.task as? GuiControlTask.Xhs)?.run
+    private val pageRun get() = (activeRequest?.task as? GuiControlTask.Pages)?.run
     private var backgroundDisplay: BackgroundDisplay? = null
     private var xhsCandidate: Pair<Int, Rect>? = null
     private var xhsCandidateSince = 0L
@@ -87,7 +88,7 @@ class GuiControlService : AccessibilityService() {
                 check(grant!!.available(SystemClock.elapsedRealtime())) { "控制会话已到期或达到动作上限" }
                 check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "手机已锁屏，控制已停止" }
                 check(backgroundDisplay?.connected != false) { "后台屏助手已断开" }
-                if (panel != null) currentWindow() else {
+                if (panel != null) currentWindow(allowInputMethod = pageRun?.awaitingPage == true && !busy) else {
                     check(SystemClock.elapsedRealtime() <= armedUntil) {
                         when {
                             backgroundDisplay != null -> "后台屏未在时限内打开已确认的页面"
@@ -145,7 +146,7 @@ class GuiControlService : AccessibilityService() {
                 }
                 if (now - xhsCandidateSince < 900) return
             }
-            currentWindow()
+            currentWindow(allowInputMethod = pageRun != null)
             showPanel()
         } catch (_: Exception) { /* short launch grace only */ }
     }
@@ -215,6 +216,7 @@ class GuiControlService : AccessibilityService() {
         collectionJob = null
         val interruptedWeibo = weiboRun
         val interruptedXhs = xhsRun
+        val interruptedPages = pageRun
         activeRequest = null
         pendingStart = null
         backgroundDisplay?.close()
@@ -226,6 +228,7 @@ class GuiControlService : AccessibilityService() {
         if(active)android.widget.Toast.makeText(this,reason,android.widget.Toast.LENGTH_LONG).show()
         interruptedWeibo?.finish(RunStatus.CANCELLED, reason)
         interruptedXhs?.finish(RunStatus.CANCELLED, reason)
+        interruptedPages?.finish(RunStatus.CANCELLED, reason)
     }
     private fun sessionWindows(): List<AccessibilityWindowInfo> {
         val display = backgroundDisplay ?: return windows
@@ -233,7 +236,7 @@ class GuiControlService : AccessibilityService() {
         return windowsOnAllDisplays.get(display.id).orEmpty()
     }
 
-    private fun currentWindow():AccessibilityWindowInfo {
+    private fun currentWindow(allowInputMethod: Boolean = false):AccessibilityWindowInfo {
         val visibleWindows=sessionWindows()
         overlayOwnership.retain(visibleWindows.filter{it.type==AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY}.map{it.id}.toSet())
         val apps=visibleWindows.filter{it.type==AccessibilityWindowInfo.TYPE_APPLICATION}
@@ -246,6 +249,7 @@ class GuiControlService : AccessibilityService() {
         val safe=safeBounds(Rect().also{window.getBoundsInScreen(it)})
         for(other in visibleWindows) {
             if(other.id==window.id)continue
+            if (allowInputMethod && other.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD) continue
             if(other.type==AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY &&
                 overlayOwnership.isOwned(other.id,other.root?.packageName?.toString(),packageName))continue
             val covered=Rect().also{other.getBoundsInScreen(it)}
@@ -272,7 +276,8 @@ class GuiControlService : AccessibilityService() {
         if(panel!=null)return
         val weibo = weiboRun
         val xhs = xhsRun
-        val style = if (weibo == null && xhs == null) null else GuiCollectionStyle(this)
+        val pages = pageRun
+        val style = if (weibo == null && xhs == null && pages == null) null else GuiCollectionStyle(this)
         val layout = style?.card(compact = true) ?: LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8,8,8,8);setBackgroundColor(0xee18304f.toInt())}
         val status = style?.label("准备采集…", 12, true) ?: TextView(this).apply{
             text=if (collectOnly) "ClawMate · $targetLabel\n本机采集 / 120秒" else "ClawMate · $targetLabel\n120秒 / 最多20次动作"
@@ -283,6 +288,21 @@ class GuiControlService : AccessibilityService() {
         fun button(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;textSize=12f;minHeight=0;setOnClickListener{if(!busy)runCatching{currentWindow();action()}.onFailure{stop(it.message ?: "目标应用已变化")}}})}
         if (weibo != null || xhs != null) {
             status.text = "准备采集"
+        } else if (pages != null) {
+            status.text = "请打开要采集的页面"
+            layout.addView(Button(this).apply {
+                text = "开始读取"
+                textSize = 12f
+                setOnClickListener {
+                    if (busy) return@setOnClickListener
+                    if (sessionWindows().any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }) {
+                        status.text = "请收起键盘再开始读取"
+                        return@setOnClickListener
+                    }
+                    runCatching { collectPages(pages.plan.pages, pages.plan.direction, pages, status) }
+                        .onFailure { stop(it.message ?: "无法读取页面") }
+                }
+            })
         } else if (collectOnly) {
             button("采集当前页"){collectPages(1)}
             button("采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectPages(GUI_COLLECTION_PAGE_LIMIT)}
@@ -303,6 +323,7 @@ class GuiControlService : AccessibilityService() {
         params.width=minOf((150*resources.displayMetrics.density).toInt(),resources.displayMetrics.widthPixels/3)
         if (style != null) { params.width = minOf(style.dp(172), resources.displayMetrics.widthPixels / 2); params.x = style.dp(12); params.y = style.dp(12) }
         getSystemService(WindowManager::class.java).addView(layout,params);panel=layout
+        pages?.advance(pages.plan.read, "已打开目标应用，等待手动定位页面")
         lastStatus=if (collectOnly) "本机采集会话进行中：$targetLabel" else "控制会话进行中：$targetLabel；全部操作由用户逐次确认"
         if (weibo != null && Build.VERSION.SDK_INT >= 34) startWeiboSteps(weibo, status)
         if (xhs != null && Build.VERSION.SDK_INT >= 34) startXhsSteps(xhs, status)
@@ -602,7 +623,12 @@ class GuiControlService : AccessibilityService() {
         }
         error("无法识别公开热搜标签，请检查微博版本或关闭弹窗后重试")
     }
-    private fun collectPages(maxPages: Int) {
+    private fun collectPages(
+        maxPages: Int,
+        direction: CollectionDirection = CollectionDirection.DOWN,
+        run: PageGuiRun? = null,
+        status: TextView? = null,
+    ) {
         check(Build.VERSION.SDK_INT >= 34 && collectOnly)
         val window = currentWindow()
         val windowId = window.id
@@ -611,19 +637,30 @@ class GuiControlService : AccessibilityService() {
         val label = targetLabel
         val turn = epoch
         busy = true
+        status?.text = "正在读取…"
         val job = collectionScope.launch(start = CoroutineStart.LAZY) {
             try {
                 val (record, end) = withTimeout(15_000) {
-                    readCollection(windowId, bounds, target, label, maxPages)
+                    readCollection(windowId, bounds, target, label, maxPages, direction) { pages ->
+                        status?.text = "已读 $pages 页"
+                    }
                 }
                 if (turn != epoch) return@launch
                 if (record.lines.isEmpty()) {
                     busy = false
                     lastStatus = "当前页没有可采集的无障碍文字"
+                    status?.text = "当前页没有可读文字，请换一页"
                     Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
                     return@launch
                 }
-                showCollectionPreview(record, end, turn, windowId, bounds)
+                run?.advance(run.plan.preview, "已读取 ${record.pages} 页、${record.lines.size} 条可见文字")
+                showCollectionPreview(record, end, turn, windowId, bounds) { saved ->
+                    if (run != null && turn == epoch) {
+                        val message = if (saved) "已保存到本机采集记录" else "已取消预览，未保存采集内容"
+                        run.finish(if (saved) RunStatus.SUCCESS else RunStatus.CANCELLED, message)
+                        stop(message)
+                    }
+                }
             } catch (_: TimeoutCancellationException) {
                 if (turn == epoch) stop("采集超时，未保存采集内容")
             } catch (cancelled: CancellationException) {
@@ -641,9 +678,11 @@ class GuiControlService : AccessibilityService() {
     @RequiresApi(34)
     private suspend fun readCollection(
         windowId: Int, bounds: Rect, target: String, label: String, maxPages: Int,
+        direction: CollectionDirection, onPage: (Int) -> Unit,
     ): Pair<GuiCollection, String?> {
-        var page = readCollectionPage(windowId, bounds, target, label, findScroll = maxPages > 1)
+        var page = readCollectionPage(windowId, bounds, target, label, direction.takeIf { maxPages > 1 })
         val first = page.record
+        if (first.lines.isNotEmpty()) onPage(1)
         if (maxPages == 1 || first.lines.isEmpty()) return first to null
 
         val accumulator = GuiCollectionAccumulator()
@@ -656,23 +695,24 @@ class GuiControlService : AccessibilityService() {
                 break
             }
             val node = page.scrollNode
-            if (node == null || node != initialScrollNode || !scrollCollectionDown(node, windowId, bounds, target)) {
-                end = "没有可继续向下滚动的唯一目标区域"
+            if (node == null || node != initialScrollNode || !scrollCollection(node, windowId, bounds, target, direction)) {
+                end = "没有可继续滚动的唯一目标区域"
                 break
             }
             delay(1_050)
-            page = readCollectionPage(windowId, bounds, target, label, findScroll = true)
+            page = readCollectionPage(windowId, bounds, target, label, direction)
             if (!accumulator.append(page.record)) {
-                end = if (accumulator.truncated) "已达到本次文字读取上限" else "向下滚动后没有新的可采集文字"
+                end = if (accumulator.truncated) "已达到本次文字读取上限" else "翻页后没有新的可采集文字"
                 break
             }
+            onPage(accumulator.pages)
         }
         return accumulator.record(first, incomplete = true) to end
     }
 
     @RequiresApi(34)
     private suspend fun readCollectionPage(
-        windowId: Int, bounds: Rect, target: String, label: String, findScroll: Boolean,
+        windowId: Int, bounds: Rect, target: String, label: String, scroll: CollectionDirection?,
     ): GuiCollectionPage {
         checkCollectionCapture(windowId, bounds)
         // A scroll may change only child nodes while leaving the active window ID unchanged.
@@ -680,7 +720,7 @@ class GuiControlService : AccessibilityService() {
         val root = checkNotNull(collectionWindow(windowId, bounds).root) { "无法读取目标页面" }
         val area = safeBounds(bounds)
         val page = withContext(Dispatchers.IO) {
-            GuiCollection.read(this, root, area, target, label, findScroll)
+            GuiCollection.read(this, root, area, target, label, scroll)
         }
         collectionWindow(windowId, bounds)
         return page
@@ -735,10 +775,12 @@ class GuiControlService : AccessibilityService() {
     }
 
     @RequiresApi(34)
-    private fun scrollCollectionDown(node: AccessibilityNodeInfo, windowId: Int, bounds: Rect, target: String): Boolean {
+    private fun scrollCollection(
+        node: AccessibilityNodeInfo, windowId: Int, bounds: Rect, target: String, direction: CollectionDirection,
+    ): Boolean {
         collectionWindow(windowId, bounds)
-        return performCollectionAction(node, windowId, bounds, AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id) {
-            it.canScrollCollectionDown(target, safeBounds(bounds))
+        return performCollectionAction(node, windowId, bounds, direction.action.id) {
+            it.canScrollCollection(target, safeBounds(bounds), direction)
         }
     }
 

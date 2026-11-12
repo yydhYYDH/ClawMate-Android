@@ -1,10 +1,6 @@
-import { WorkflowStep, WorkflowTask } from '../utils/WorkflowTypes';
+import { WorkflowStep } from '../utils/WorkflowTypes';
 
 export const ANDROID_PC_TASK_PENDING: string = '电脑控制待接入 Android 设备桥接。可切换到「手机自己控制」运行本机工作流。';
-
-export function isBuiltInAlipayCollection(task: WorkflowTask): boolean {
-  return task.id === 'default_alipay_bill' && task.isUserModified !== true;
-}
 
 /** Describes services a task may call, including steps inside conditions and loops. */
 export function taskServiceLabel(steps: WorkflowStep[]): string {

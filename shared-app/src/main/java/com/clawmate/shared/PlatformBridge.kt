@@ -327,8 +327,8 @@ class PlatformBridge(private val activity: StageActivity) :
         return try {
             val id = workflowJobs.start {
                 try {
-                    if (interactive) SharedNativeWork.runWorkflow(raw, mailbox) { steps ->
-                        com.clawmate.platform.gui.GuiControlEntry.runWorkflow(activity, steps, mailbox, destination)
+                    if (interactive) SharedNativeWork.runWorkflow(raw, mailbox) { definition ->
+                        com.clawmate.platform.gui.GuiControlEntry.runWorkflow(activity, definition, mailbox, destination)
                     } else SharedNativeWork.runWorkflow(raw, mailbox)
                 } finally { mailbox.close() }
             }
@@ -388,7 +388,7 @@ class PlatformBridge(private val activity: StageActivity) :
     fun guiControlSettings(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.settings(activity);true }
     fun guiControlOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.open(activity);true }
     fun guiCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.open(activity, collectOnly = true);true }
-    fun guiAlipayCollectionOpen(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.openAlipayCollection(activity);true }
+    fun guiCollectionApps(): String = onUi { com.clawmate.platform.gui.GuiControlEntry.collectionApps(activity) }
     fun guiCollectionHistory(): Boolean = onUi { com.clawmate.platform.gui.GuiControlEntry.showCollections(activity);true }
     fun guiCollectionQuery(raw: String): String = com.clawmate.platform.gui.GuiCollectionSearch.query(activity.applicationContext, raw)
     fun guiControlStop(): Boolean = onUi { com.clawmate.platform.gui.GuiControlService.connected?.stop();true }

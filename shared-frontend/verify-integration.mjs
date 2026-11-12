@@ -123,8 +123,7 @@ await check('historical image files contain only the decoded byte range and rema
   store.discard(result.paths); assert.equal(written.size, 0);
 });
 
-const { taskServiceLabel, isBuiltInAlipayCollection } = module('shared-frontend/adapters/platform/TaskServices.ets',
-  'taskServiceLabel,isBuiltInAlipayCollection');
+const { taskServiceLabel } = module('shared-frontend/adapters/platform/TaskServices.ets', 'taskServiceLabel');
 await check('task service labels reflect local, visual and nested automatic GUI steps', () => {
   assert.equal(taskServiceLabel([{ type: 'gui_action', action: 'sleep' }, { type: 'tool', tool_name: 'summary' }]), '本机工作流');
   assert.equal(taskServiceLabel([{ type: 'tool', tool_name: 'vlm_qa' }]), '视觉问答 · 发送前确认');
@@ -133,15 +132,14 @@ await check('task service labels reflect local, visual and nested automatic GUI 
   assert.equal(taskServiceLabel([{ type: 'android_accessibility' }]), '无障碍采集 · 单次确认');
 });
 
-await check('single-run Alipay entry opens only the native consent and respects edited tasks and PC mode', async () => {
+await check('all task cards use the same interactive workflow entry in phone mode', async () => {
   const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
   const entry = page.match(/^  private (async runTask\(task: WorkflowTask\): Promise<void> \{[\s\S]*?^  \})/m);
   assert.ok(entry);
   const calls = [];
   const runTask = runInNewContext(stripTypeScriptTypes('({' + entry[1] + '}).runTask'), {
-    isBuiltInAlipayCollection, WorkflowCancellation: class {},
-    WorkflowStorage: { updateTaskRun: () => calls.push('record'), loadTasks: () => [] },
-    Bridge: { createBridge: () => ({ callMethod: async name => calls.push(name) }) }
+    WorkflowCancellation: class {},
+    WorkflowStorage: { updateTaskRun: () => calls.push('record'), loadTasks: () => [] }
   });
   let task = { id: 'default_alipay_bill', enabled: true };
   const view = {
@@ -152,13 +150,82 @@ await check('single-run Alipay entry opens only the native consent and respects 
     }, onEnsureDesktopCompanion: async () => { calls.push('pc'); return false; }
   };
   await runTask.call(view, task);
-  assert.deepEqual(calls.splice(0), ['guiAlipayCollectionOpen']);
-  task = { ...task, isUserModified: true };
+  assert.deepEqual(calls.splice(0), ['record', 'workflow']);
+  task = { id: 'new-custom-workflow', enabled: true, isUserModified: true };
   await runTask.call(view, task);
   assert.deepEqual(calls.splice(0), ['record', 'workflow']);
   view.taskControlMode = 'pc'; task = { ...task, isUserModified: false };
   await runTask.call(view, task);
   assert.deepEqual(calls, ['pc']);
+});
+
+await check('all twelve bundled workflows use the shared accessibility runner and graph nodes', async () => {
+  const resources = generated.replace(/ets\/$/, 'resources/rawfile/workflows/configs/');
+  const files = fs.readdirSync(resources).filter(name => /^default_.*\.json$/.test(name));
+  assert.equal(files.length, 12);
+  for (const file of files) {
+    const { steps } = JSON.parse(fs.readFileSync(resources + file, 'utf8'));
+    assert.ok(steps.every(step => step.type === 'android_accessibility'), file);
+    if (file !== 'default_weibo_hot_search.json' && file !== 'default_xhs_public_notes.json') {
+      assert.deepEqual(steps.map(step => step.action), ['collection_open_app', 'collection_read_pages', 'collection_preview'], file);
+      assert.match(steps[0].package_name, /^[\w.]+$/);
+      assert.ok(steps[1].page_limit >= 1 && steps[1].page_limit <= 3);
+    }
+  }
+  const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
+  const nodes = ['collection_open_app', 'collection_read_pages', 'collection_preview'];
+  const create = page.match(/^  private (createTemplateStep\([\s\S]*?^  \})/m);
+  assert.ok(create);
+  const createStep = runInNewContext(stripTypeScriptTypes('({' + create[1] + '}).createTemplateStep'));
+  const steps = nodes.map((node, i) => {
+    assert.ok(page.includes("key: '" + node + "'"));
+    const step = createStep(node, i + 1, '');
+    assert.equal(step.type, 'android_accessibility');
+    assert.equal(step.action, node);
+    return step;
+  });
+  const editor = page.match(/^  private (updateCollectionPages\(pages: number\): void \{[\s\S]*?^  \})/m);
+  assert.ok(editor);
+  const update = runInNewContext(stripTypeScriptTypes('({' + editor[1] + '}).updateCollectionPages'));
+  const step = steps[1];
+  assert.equal(step.page_limit, 1);
+  assert.equal(step.direction, 'down');
+  let changed = false;
+  update.call({ selectedStep: () => step, markWorkflowChanged: () => { changed = true; } }, 3);
+  assert.equal(step.page_limit, 3);
+  assert.equal(changed, true);
+  const picker = page.match(/^  private (async chooseCollectionApp\(\): Promise<void> \{[\s\S]*?^  \})/m);
+  assert.ok(picker);
+  const pick = runInNewContext(stripTypeScriptTypes('({' + picker[1] + '}).chooseCollectionApp'), {
+    ArkJSON: JSON, Bridge: { createBridge: () => ({ async callMethod(name) {
+      assert.equal(name, 'guiCollectionApps');
+      return '[{"label":"示例应用","packageName":"com.example.fixture"}]';
+    } }) }
+  });
+  const view = { editorOpen: true, selectedStep: () => steps[0] };
+  await pick.call(view);
+  assert.equal(view.collectionApps[0].packageName, 'com.example.fixture');
+});
+
+await check('upgrading a legacy WeChat task keeps its contact and rejects replacing edited steps', () => {
+  const storage = fs.readFileSync(generated + 'utils/WorkflowStorage.ets', 'utf8');
+  const methods = ['legacyChatSteps', 'androidWorkflowFallback', 'migrateLegacyChatWorkflow'].map(name => {
+    const match = storage.match(new RegExp('^  private (static ' + name + '\\([^]*?^  \\})', 'm'));
+    assert.ok(match, name);
+    return match[1];
+  });
+  const Storage = runInNewContext(stripTypeScriptTypes('class WorkflowStorage { ' + methods.join('\n') +
+    ' static validateWorkflowJson(raw: string) { return JSON.parse(raw); } }; WorkflowStorage'), {
+    stringifyJsonCompat: JSON.stringify
+  });
+  const id = 'default_weixin_today_chat';
+  const graph = JSON.parse(fs.readFileSync('.arkui-x-validation/reference/entry/src/main/resources/rawfile/workflows/configs/' + id + '.json', 'utf8'));
+  graph.context.contact_name = '已有联系人';
+  const migrated = JSON.parse(Storage.migrateLegacyChatWorkflow(id, JSON.stringify(graph)));
+  assert.equal(migrated.context.contact_name, '已有联系人');
+  assert.equal(migrated.steps[1].page_limit, 1);
+  graph.steps[0].task_description = '用户修改了节点';
+  assert.equal(Storage.migrateLegacyChatWorkflow(id, JSON.stringify(graph)), '');
 });
 
 await check('the generated Weibo graph exposes an editable read limit and the four native actions', () => {
@@ -184,7 +251,6 @@ await check('only a persisted workflow summary makes results ready for sync', as
   const storage = { ensureDir() {}, readText: path => files.get(path) ?? '',
     writeTextAtomic: (path, value) => files.set(path, value), writeJsonAtomic: (path, value) => files.set(path, JSON.stringify(value)) };
   const { AndroidWorkflow } = module('shared-frontend/adapters/platform/AndroidWorkflow.ets', 'AndroidWorkflow', {
-    isBuiltInAlipayCollection,
     WorkflowStorage: { updateTaskRun: (_, id, status) => statuses.push(status), readTaskWorkflowJson: () => '{"steps":[]}', runsDir: () => '/fixture/runs' },
     DataManagerFacade: class { storage = storage; paths = { dailyLogRoot: '/fixture/daily-log' }; ensureReady() {} },
     CollectionReminderService: { recordSuccessfulCollection: async () => { collectionMarks++; assert.ok([...files.keys()].some(path => path.endsWith('.md'))); } },
@@ -211,7 +277,6 @@ await check('only a persisted workflow summary makes results ready for sync', as
     { id: '1', type: 'gui_task', status: 'blocked' }
   ] };
   await assert.rejects(AndroidWorkflow.run('/fixture', { id: 'gui' }, signal), /第 1 步需要自动 GUI/);
-  await assert.rejects(AndroidWorkflow.run('/fixture', { id: 'default_alipay_bill' }, signal), /单次确认.*采集账单/);
   assert.equal(statuses.at(-1), 'blocked');
   assert.equal([...files.keys()].filter(path => path.endsWith('.md')).length, 1);
   assert.equal(collectionMarks, 1);

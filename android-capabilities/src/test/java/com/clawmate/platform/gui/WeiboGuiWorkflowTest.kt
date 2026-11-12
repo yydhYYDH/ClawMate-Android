@@ -44,8 +44,8 @@ class WeiboGuiWorkflowTest {
         assertEquals(RunStatus.BLOCKED, batch.status)
         assertEquals("", batch.resultSummary)
         var received = 0
-        val interactive = SharedNativeWork.runWorkflow(raw) { steps ->
-            received = WeiboGuiWorkflow.validate(steps)
+        val interactive = SharedNativeWork.runWorkflow(raw) { definition ->
+            received = WeiboGuiWorkflow.validate(definition.steps)
             WorkflowRunResult(RunStatus.CANCELLED, "测试取消")
         }
         assertEquals(3, received)

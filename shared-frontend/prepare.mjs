@@ -4,7 +4,7 @@ import { buildChatContextSource } from './context-source.mjs';
 import { buildAndroidGallerySource } from './gallery-source.mjs';
 import { buildChatAvatarView, buildChatAvatarPage, buildChatAvatarMessages } from './chat-avatar-source.mjs';
 import { buildMimoProtocol } from './voice-source.mjs';
-import { patchWeiboTaskPage } from './weibo-workflow-source.mjs';
+import { androidPageTemplates, patchCollectionTaskPage } from './collection-workflow-source.mjs';
 import { verifySources, toolchainPaths, checkedPath } from './bootstrap.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,6 +50,21 @@ fs.writeFileSync(checkedPath(repo, '.arkui-x-validation/application/project/' + 
 const xhsConfig = 'entry/src/main/resources/rawfile/workflows/configs/default_xhs_public_notes.json';
 const androidXhs = fs.readFileSync(path.join(template, xhsConfig), 'utf8');
 fs.writeFileSync(checkedPath(repo, '.arkui-x-validation/application/project/' + xhsConfig), androidXhs);
+const workflowRoot = 'entry/src/main/resources/rawfile/workflows/configs';
+const pageTemplates = androidPageTemplates(id => {
+  const input = sourceInputs.files.find(file => (file.target || file.path) === workflowRoot + '/' + id + '.json');
+  if (!input) throw new Error('Missing locked workflow ' + id);
+  return input.bytes.toString('utf8');
+});
+for (const { id, raw } of pageTemplates) {
+  fs.writeFileSync(checkedPath(repo, '.arkui-x-validation/application/project/' + workflowRoot + '/' + id + '.json'), raw);
+}
+const androidWorkflowFallbacks = [
+  ...pageTemplates, { id: 'default_weibo_hot_search', raw: androidWeibo },
+  { id: 'default_xhs_public_notes', raw: androidXhs }
+].map(({ id, raw }) => `    if (taskId === '${id}') { return ${JSON.stringify(raw)}; }`).join('\n');
+const legacyChatSteps = pageTemplates.filter(({ legacySteps }) => legacySteps !== null)
+  .map(({ id, legacySteps }) => `    if (taskId === '${id}') { return ${JSON.stringify(JSON.stringify(legacySteps))}; }`).join('\n');
 for (const item of ['hvigorfile.ts', 'oh-package.json5', 'entry/oh-package.json5', 'entry/hvigorfile.ts', 'entry/src/main/module.json5']) {
   fs.copyFileSync(path.join(template, item), checkedPath(repo, '.arkui-x-validation/application/project/' + item));
 }
@@ -81,7 +96,7 @@ const overlay = (name, value) => {
   fs.writeFileSync(file, value);
 };
 overlay('utils/WorkflowTypes.ets', replaceChecked(read('utils/WorkflowTypes.ets'), '  action?: string;\n  x?: number;',
-  '  action?: string;\n  item_limit?: number;\n  x?: number;'));
+  '  action?: string;\n  item_limit?: number;\n  page_limit?: number;\n  x?: number;'));
 overlay('utils/WorkflowStorage.ets', applyPatches(read('utils/WorkflowStorage.ets'), [
   ["  {\n    id: 'default_xiaohongshu_history',", `  {
     id: 'default_xhs_public_notes',
@@ -91,9 +106,44 @@ overlay('utils/WorkflowStorage.ets', applyPatches(read('utils/WorkflowStorage.et
   },
   {
     id: 'default_xiaohongshu_history',`],
-  ['  private static legacyDefaultWorkflowForTaskId(taskId: string): string {',
-    '  private static legacyDefaultWorkflowForTaskId(taskId: string): string {\n' +
-    "    if (taskId === 'default_xhs_public_notes') { return " + JSON.stringify(androidXhs) + '; }'],
+  ['  private static defaultWorkflowJsonForConfig(filesDir: string, config: DefaultWorkflowConfig): string {',
+    `  private static androidWorkflowFallback(taskId: string): string {
+${androidWorkflowFallbacks}
+    return '';
+  }
+
+  private static legacyChatSteps(taskId: string): string {
+${legacyChatSteps}
+    return '';
+  }
+
+  private static migrateLegacyChatWorkflow(taskId: string, raw: string): string {
+    let original = WorkflowStorage.legacyChatSteps(taskId);
+    if (original.length === 0) { return ''; }
+    try {
+      let stored = WorkflowStorage.validateWorkflowJson(raw, false);
+      if (stringifyJsonCompat(stored.steps as Object) !== original) { return ''; }
+      stored.steps = WorkflowStorage.validateWorkflowJson(WorkflowStorage.androidWorkflowFallback(taskId)).steps;
+      return stringifyJsonCompat(stored as Object, 2);
+    } catch (error) { return ''; }
+  }
+
+  private static defaultWorkflowJsonForConfig(filesDir: string, config: DefaultWorkflowConfig): string {`],
+  ['    if (filesDir.length > 0) {\n      try {\n        let path = WorkflowStorage.configPath(filesDir, config.fileName);',
+    `    let androidDefault = WorkflowStorage.androidWorkflowFallback(config.id);
+    if (androidDefault.length > 0) { return androidDefault; }
+    if (filesDir.length > 0) {
+      try {
+        let path = WorkflowStorage.configPath(filesDir, config.fileName);`],
+  ['    let userModified = storedTask.isUserModified === true;', `    let userModified = storedTask.isUserModified === true;
+    let migratedChat = userModified ? WorkflowStorage.migrateLegacyChatWorkflow(defaultTask.id, storedTask.workflowJson) : '';`],
+  ['workflowJson: userModified ? WorkflowStorage.nonEmptyOrDefault(storedTask.workflowJson, defaultTask.workflowJson) :',
+    'workflowJson: migratedChat.length > 0 ? migratedChat : userModified ? WorkflowStorage.nonEmptyOrDefault(storedTask.workflowJson, defaultTask.workflowJson) :'],
+  ['      let rawJson = WorkflowStorage.readText(WorkflowStorage.configPath(filesDir, task.configFileName));\n      let workflow =',
+    `      let currentJson = WorkflowStorage.readText(WorkflowStorage.configPath(filesDir, task.configFileName));
+      let migratedChat = WorkflowStorage.migrateLegacyChatWorkflow(task.id, currentJson);
+      let rawJson = migratedChat.length > 0 ? migratedChat : currentJson;
+      let workflow =`],
   [/  static defaultWeiboWorkflow\(\): string \{[^]*?\n  \}/,
     '  static defaultWeiboWorkflow(): string { return ' + JSON.stringify(androidWeibo) + '; }'],
   ["stepType === 'loop' || stepType === 'if';", "stepType === 'loop' || stepType === 'if' || stepType === 'android_accessibility';"],
@@ -285,7 +335,7 @@ overlay('datamanager/DataPipelineModelClient.ets', applyPatches(read('datamanage
 ]));
 let taskPage = read('pages/task/TaskPage.ets');
 taskPage = replaceChecked(taskPage, "import { AppTheme }",
-  "import Bridge from '@arkui-x.bridge';\nimport { isBuiltInAlipayCollection, taskServiceLabel } from '../../platform/TaskServices';\nimport { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }");
+  "import Bridge from '@arkui-x.bridge';\nimport { taskServiceLabel } from '../../platform/TaskServices';\nimport { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }");
 taskPage = applyPatches(taskPage, [
   ['  @State private batchSyncing: boolean = false;', '  @State private batchSyncing: boolean = false;\n  @State private androidCollectedResultsReady: boolean = false;'],
   ['  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {};',
@@ -332,7 +382,6 @@ taskPage = applyPatches(taskPage, [
       }`],
   ['  @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {',
     `  private androidTaskService(task: WorkflowTask): string {
-    if (isBuiltInAlipayCollection(task)) { return '账单采集 · 单独确认'; }
     try {
       let raw = WorkflowStorage.readTaskWorkflowJson(this.filesDir, task);
       return raw.length <= 256000 ? taskServiceLabel(WorkflowStorage.validateWorkflowJson(raw).steps) : '检查任务配置';
@@ -342,12 +391,6 @@ taskPage = applyPatches(taskPage, [
   @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {`],
   ["Text(this.runningTaskId === task.id ? '执行中' : task.enabled ? '已开启' : '已关闭')",
     "Text(this.runningTaskId === task.id ? '执行中' : (task.enabled ? '已开启' : '已关闭') + ' · ' + this.androidTaskService(task))"],
-  ["Text(task.enabled ? task.lastStatus : '已暂停')",
-    "Text(task.enabled ? (isBuiltInAlipayCollection(task) ? '单次采集' : task.lastStatus) : '已暂停')"],
-  ["Text('最近运行：' + task.lastRun)",
-    "Text(isBuiltInAlipayCollection(task) ? '打开支付宝后，请自行进入账单页' : '最近运行：' + task.lastRun)"],
-  ["Text(task.lastMessage)",
-    "Text(isBuiltInAlipayCollection(task) ? '预览确认后，可在本机采集记录中查看' : task.lastMessage)"],
   ["Text('来源模块：' + task.source)", "Text('来源模块：' + task.source + ' · ' + this.androidTaskService(task))"]
 ]);
 taskPage = replaceChecked(taskPage, '  @Builder ToolEditor() {', `  private async pickAndroidWorkflowImage(): Promise<void> {
@@ -387,15 +430,7 @@ taskPage = applyPatches(taskPage, [
   ['  aboutToDisappear(): void {', '  aboutToDisappear(): void {\n    this.batchCancellation?.cancel();']
 ]);
 taskPage = applyPatches(taskPage, [
-  ["    this.tasks = WorkflowStorage.updateTaskRun(this.filesDir, currentTask.id, '运行中', 'Workflow 正在执行');\n    try {\n      this.batchCancellation = new WorkflowCancellation();",
-    `    try {
-      if (this.taskControlMode === 'phone' && isBuiltInAlipayCollection(currentTask)) {
-        await Bridge.createBridge('ClawMatePlatform').callMethod('guiAlipayCollectionOpen');
-        return;
-      }
-      this.tasks = WorkflowStorage.updateTaskRun(this.filesDir, currentTask.id, '运行中', 'Workflow 正在执行');
-      this.batchCancellation = new WorkflowCancellation();`],
-  ["Button(this.runningTaskId === task.id ? '执行中' : '运行')", "Button(this.runningTaskId === task.id ? '停止' : this.taskControlMode === 'phone' && isBuiltInAlipayCollection(task) ? '采集账单' : '运行')"],
+  ["Button(this.runningTaskId === task.id ? '执行中' : '运行')", "Button(this.runningTaskId === task.id ? '停止' : '运行')"],
   ["this.runningTaskId === task.id ? '#A9B7E9' : '#276EF1'", "this.runningTaskId === task.id ? '#B42318' : '#276EF1'"],
   ['            .enabled(!this.isTaskExecutionBusy())\n            .onClick(() => { this.runTask(task); })', '            .enabled(this.runningTaskId === task.id || !this.isTaskExecutionBusy())\n' +
     '            .onClick(() => { if (this.runningTaskId === task.id) { this.batchCancellation?.cancel(); } else { this.runTask(task); } })']
@@ -414,7 +449,7 @@ taskPage = replaceChecked(taskPage, '  private closeConfigView(): void {\n    th
 taskPage = replaceChecked(taskPage, '.onClick(() => { this.editorOpen = false; })', '.onClick(() => { this.requestCloseEditor(); })');
 taskPage = replaceChecked(taskPage, "Text(subtitle + ' · ' + files.length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(files)))",
   "Text(subtitle + ' · ' + this.androidManagedFiles(category).length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(this.androidManagedFiles(category))))");
-overlay('pages/task/TaskPage.ets', patchWeiboTaskPage(taskPage));
+overlay('pages/task/TaskPage.ets', patchCollectionTaskPage(taskPage));
 writeJson('entry/src/main/resources/base/profile/main_pages.json', { src: [
   'pages/Index', 'pages/gallery/GalleryPage', 'pages/collection/CollectionGroupDetailPage',
   'pages/task/WorkflowFileViewer', 'pages/settings/DesktopCompanionPage', 'pages/settings/SelfHdcTestPage',

@@ -10,6 +10,7 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN
+import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP
 import android.widget.FrameLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -25,6 +26,11 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 internal const val GUI_COLLECTION_PAGE_LIMIT = 3
+internal enum class CollectionDirection {
+    DOWN, UP;
+
+    val action get() = if (this == DOWN) ACTION_SCROLL_DOWN else ACTION_SCROLL_UP
+}
 private const val MAX_COLLECTION_LINES = 80
 private const val MAX_COLLECTION_CHARS = 6000
 
@@ -65,7 +71,7 @@ internal data class GuiCollection(
             bounds: Rect,
             sourcePackage: String,
             sourceLabel: String,
-            findScroll: Boolean,
+            scroll: CollectionDirection?,
         ): GuiCollectionPage {
             val deadline = SystemClock.elapsedRealtime() + 2000
             val lines = linkedSetOf<String>()
@@ -82,7 +88,7 @@ internal data class GuiCollection(
                 ) return
                 node.getBoundsInScreen(nodeBounds)
                 if (!Rect.intersects(bounds, nodeBounds)) return
-                if (findScroll && !ambiguousScroll && node.canScrollCollectionDown(sourcePackage, bounds)) {
+                if (scroll != null && !ambiguousScroll && node.canScrollCollection(sourcePackage, bounds, scroll)) {
                     if (scrollNode == null) {
                         scrollNode = node
                     } else if (scrollNode != node) {
@@ -127,9 +133,9 @@ internal data class GuiCollection(
 internal data class GuiCollectionPage(val record: GuiCollection, val scrollNode: AccessibilityNodeInfo?)
 
 @RequiresApi(34)
-internal fun AccessibilityNodeInfo.canScrollCollectionDown(sourcePackage: String, area: Rect): Boolean =
+internal fun AccessibilityNodeInfo.canScrollCollection(sourcePackage: String, area: Rect, scroll: CollectionDirection): Boolean =
     packageName?.toString() == sourcePackage && isVisibleToUser && isEnabled && isScrollable &&
-        !isPassword && !isEditable && !isAccessibilityDataSensitive && ACTION_SCROLL_DOWN in actionList &&
+        !isPassword && !isEditable && !isAccessibilityDataSensitive && scroll.action in actionList &&
         Rect.intersects(area, Rect().also(::getBoundsInScreen))
 
 /** Keeps first-seen order and applies the existing record limits across all pages. */
