@@ -10,12 +10,16 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
 import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlinx.coroutines.TimeoutCancellationException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.encodeToJsonElement
@@ -206,17 +210,25 @@ class CodexTransport(
     ): CodexEnvelope {
         val generationAtStart = generation
         // Only a read may be retried, and only once.
-        val retryable = body == null && !route.contains("waitMs=")
+        val retryable = body == null && route != "/v1/health" && !route.contains("waitMs=")
+        val budgetMs = clampTimeout(timeoutMs, if (route == "/v1/health") HEALTH_TIMEOUT_MS else CALL_TIMEOUT_MS)
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(budgetMs)
         var attempt = 0
         while (true) {
             try {
-                return fetchOnce(route, body, authenticated, generationAtStart, timeoutMs)
+                val remainingMs = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()).coerceAtLeast(1L)
+                return fetchOnce(route, body, authenticated, generationAtStart, remainingMs)
             } catch (e: CodexTransportException) {
-                val mayRetry = retryable && attempt == 0 && e.retryable && generation == generationAtStart
-                if (!mayRetry) throw e
-                attempt += 1
-                kotlinx.coroutines.delay(RETRY_DELAY_MS + (0..RETRY_DELAY_JITTER_MS).random())
                 if (generation != generationAtStart) throw CodexConnectionChangedException()
+                val backoff = RETRY_DELAY_MS + (0..RETRY_DELAY_JITTER_MS).random()
+                if (!retryable || attempt != 0 || !e.retryable ||
+                    deadline - System.nanoTime() < TimeUnit.MILLISECONDS.toNanos(backoff + MIN_TIMEOUT_MS)
+                ) {
+                    if (e is CodexNetworkException) onReachability(false, e.message.orEmpty())
+                    throw e
+                }
+                attempt += 1
+                delay(backoff)
             }
         }
     }
@@ -226,8 +238,35 @@ class CodexTransport(
         body: String?,
         authenticated: Boolean,
         generationAtStart: Int,
-        requestedTimeoutMs: Long = 0L,
+        remainingMs: Long,
     ): CodexEnvelope {
+        val call = newCall(route, body, authenticated, generationAtStart)
+        // OkHttp's call deadline includes DNS, headers and the entire response body.
+        call.timeout().timeout(remainingMs, TimeUnit.MILLISECONDS)
+        try {
+            // Bound the coroutine's wait even when a system DNS lookup cannot be interrupted.
+            return withTimeoutOrNull(remainingMs) {
+                call.awaitResponse {
+                    if (generation != generationAtStart) throw CodexConnectionChangedException()
+                    interpret(it, authenticated).also {
+                        if (generation != generationAtStart) throw CodexConnectionChangedException()
+                    }
+                }
+            } ?: throw SocketTimeoutException()
+        } catch (e: IOException) {
+            if (generation != generationAtStart) throw CodexConnectionChangedException()
+            // A Wi-Fi/USB change can leave sockets from the previous route in the pool.
+            // Active calls keep their sockets. The next read can establish a fresh route.
+            client?.connectionPool?.evictAll()
+            throw classify(e, call.request().url.host)
+        } finally {
+            synchronized(this) { active.remove(call) }
+        }
+    }
+
+    @Synchronized
+    private fun newCall(route: String, body: String?, authenticated: Boolean, generationAtStart: Int): Call {
+        if (generation != generationAtStart) throw CodexConnectionChangedException()
         if (!isConfigured()) throw CodexValidationException("请先连接 Codex 服务器")
         val http = client ?: throw CodexValidationException("请先连接 Codex 服务器")
         val url = try {
@@ -245,49 +284,37 @@ class CodexTransport(
         if (authenticated) builder.header("Authorization", "Bearer $token")
         if (body == null) builder.get() else builder.post(body.toRequestBody(JSON_MEDIA_TYPE))
 
-        val call = http.newCall(builder.build())
-        synchronized(this) { active[call] = generationAtStart }
-        val timeoutMs = clampTimeout(requestedTimeoutMs, if (route == "/v1/health") HEALTH_TIMEOUT_MS else CALL_TIMEOUT_MS)
-        try {
-            val response = await(call, timeoutMs)
-            if (generation != generationAtStart) throw CodexConnectionChangedException()
-            response.use { resp -> return interpret(resp, generationAtStart) }
-        } finally {
-            synchronized(this) { active.remove(call) }
-        }
+        return http.newCall(builder.build()).also { active[it] = generationAtStart }
     }
 
-    private fun interpret(response: Response, generationAtStart: Int): CodexEnvelope {
+    private fun interpret(response: Response, authenticated: Boolean): CodexEnvelope {
         val code = response.code
         // Status classification comes first: a 3xx/401/429 body is irrelevant and may be
         // empty, so reporting "no response body" there would hide the real cause.
         when {
             code in 300..399 -> throw CodexValidationException("服务器重定向已拒绝，请填写最终 HTTPS 地址")
+            code == 401 && !authenticated && response.request.url.encodedPath == "/v1/pair" ->
+                throw CodexHttpException(401, "配对码已过期、已使用或无效，请在电脑端重新生成", false)
             code == 401 -> {
                 onReachability(false, "连接授权已失效，请重新配对")
                 throw CodexAuthException()
             }
             code == 429 -> throw CodexHttpException(429, "请求过于频繁，请稍后重试", false)
         }
+        if (response.header("Content-Encoding").equals("gzip", ignoreCase = true)) {
+            // OkHttp normally removes this header when it inflates the response.
+            gzipEnabled = false
+            throw CodexTransportException("压缩响应未能解析，将改用普通传输，请同步会话后重试", retryable = true)
+        }
         val text = bodyText(response) ?: throw CodexTransportException(
-            if (verificationNeedFor(response) == "gzip") {
-                // A compressed body that cannot be read means this device cannot inflate it.
-                gzipEnabled = false
-                "压缩响应未能解析，将改用普通传输，请同步会话后重试"
-            } else {
-                "服务器未返回有效的文本响应，请稍后重试"
-            },
-            retryable = true,
+            "服务器未返回有效的文本响应，请稍后重试", retryable = code == 502 || code == 504,
         )
         onReachability(true, "")
         val envelope: CodexEnvelope = try {
             json.decodeFromString(CodexEnvelope.serializer(), text)
-        } catch (e: Exception) {
-            // Include a short excerpt so a protocol mismatch is diagnosable from the message.
-            // The body comes from the bridge and never carries the bearer token.
-            throw CodexProtocolException(
-                "服务器响应不是有效的 Codex 协议数据（${code}）：" + text.take(160).replace('\n', ' '),
-            )
+        } catch (e: IllegalArgumentException) {
+            // A malformed pairing response could contain an issued token.
+            throw CodexProtocolException("服务器响应不是有效的 Codex 协议数据（$code）")
         }
         // The bridge reports a failure as a non-2xx status plus `error`. 502/504 are
         // transient and may be retried for reads only.
@@ -298,57 +325,44 @@ class CodexTransport(
         return envelope
     }
 
-    /**
-     * The content encoding that was requested for this response.
-     *
-     * OkHttp already inflates a `gzip` body it was told about, so a body still labelled
-     * `gzip` here means the bytes could not be decoded.
-     */
-    private fun verificationNeedFor(response: Response): String =
-        if (response.header("Content-Encoding").equals("gzip", ignoreCase = true)) "gzip" else "identity"
-
     /** Returns the decoded body, or `null` when it cannot be used. */
     private fun bodyText(response: Response): String? {
-        val bytes = try {
-            response.body?.bytes()
-        } catch (e: Exception) {
-            // A body that cannot be read (unexpected content encoding) is reported as absent
-            // so `interpret` can decide whether it is a compression problem.
-            return null
-        } ?: return null
-        if (bytes.isEmpty()) return null
-        if (bytes.size > MAX_RESPONSE_BYTES) throw CodexProtocolException("服务器响应过大")
-        val text = try {
-            String(bytes, Charsets.UTF_8)
-        } catch (e: Exception) {
-            return null
+        val body = response.body ?: return null
+        val source = body.source()
+        if (body.contentLength() > MAX_RESPONSE_BYTES || source.request(MAX_RESPONSE_BYTES.toLong() + 1)) {
+            throw CodexProtocolException("服务器响应过大")
         }
-        return text.takeIf { it.isNotBlank() }
+        return source.readUtf8().takeIf { it.isNotBlank() }
     }
 
-    /**
-     * Awaits [call] with an explicit deadline. A timeout cancels the call so the socket is
-     * closed instead of leaking a pending request; a cancelled call is reported as a
-     * connection change rather than a timeout.
-     */
-    private suspend fun await(call: Call, timeoutMs: Long): Response = try {
-        withTimeout(timeoutMs) { call.await() }
-    } catch (_: TimeoutCancellationException) {
-        call.cancel()
-        throw CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", retryable = true)
-    } catch (e: IOException) {
-        throw classify(e)
-    }
-
-    /** Maps an I/O failure to the transport error the UI reports. */
-    fun classify(e: IOException): CodexTransportException = when {        e is SocketTimeoutException -> CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", true)
-        e is InterruptedIOException && e.message.orEmpty().contains("timeout", true) ->
-            CodexTransportException("连接电脑超时，请检查网络后重试；已下发的任务请先同步状态", true)
-        else -> {
-            // The user-facing text stays generic, but the real cause is logged: a TLS, DNS
-            // and plain TCP failure all read the same to the user yet need different fixes.
-            lastFailureClass = e.javaClass.simpleName
-            CodexTransportException("与电脑的网络连接中断，请稍后重试", true)
+    /** Maps socket failures to safe, actionable messages without exposing exception details. */
+    internal fun classify(e: IOException, host: String): CodexNetworkException {
+        val causes = generateSequence<Throwable>(e) { it.cause }.take(12).toList()
+        val loopback = host == "localhost" || host == "::1" || host.startsWith("127.")
+        return when {
+            causes.any { it is SSLHandshakeException || it is SSLPeerUnverifiedException } -> CodexNetworkException(
+                "电脑的 HTTPS 证书校验失败，请核对手机时间，并在电脑端用当前连接地址重新生成配对信息", false,
+            )
+            causes.any { it is UnknownHostException } -> CodexNetworkException(
+                "无法解析电脑地址，请核对配对地址，并检查 DNS 或 Tailscale 是否已连接", false,
+            )
+            causes.any { it is NoRouteToHostException || it.message.orEmpty().let { detail ->
+                detail.contains("EHOSTUNREACH") || detail.contains("ENETUNREACH") ||
+                    detail.contains("No route to host", ignoreCase = true)
+            } } -> CodexNetworkException(
+                "当前网络无法访问电脑，请让两台设备接入能互访的 Wi-Fi，或使用同一 Tailscale 网络", false,
+            )
+            causes.any { it is SocketTimeoutException ||
+                it is InterruptedIOException && it.message.orEmpty().contains("timeout", ignoreCase = true) } ->
+                CodexNetworkException(
+                    if (loopback) "电脑连接超时，请检查 USB 转发和电脑端桥接服务"
+                    else "电脑连接超时，请检查手机能否访问电脑，以及防火墙是否允许桥接端口", true,
+                )
+            e is ConnectException -> CodexNetworkException(
+                if (loopback) "无法连接本机端口。使用 USB 调试时，请重新插线并恢复端口转发"
+                else "无法连接电脑端口，请检查桥接服务是否运行、端口是否正确及防火墙是否放行", true,
+            )
+            else -> CodexNetworkException("与电脑的网络连接中断，请检查网络后重试", true)
         }
     }
 
@@ -359,16 +373,6 @@ class CodexTransport(
      * asked for more is capped instead of being left to time out at the bridge. A zero or
      * negative request keeps [fallback].
      */
-    /**
-     * Class name of the most recent non-timeout transport failure.
-     *
-     * The message shown to the user is deliberately generic — a TLS, DNS and TCP failure all
-     * look the same from the outside — but for diagnosis (and for a host that can log it)
-     * the concrete cause is kept here instead of being discarded.
-     */
-    @Volatile var lastFailureClass: String = ""
-        private set
-
     private fun clampTimeout(requested: Long, fallback: Long): Long =
         if (requested <= 0L) fallback else requested.coerceIn(MIN_TIMEOUT_MS, fallback)
 
@@ -420,8 +424,10 @@ open class CodexTransportException(
     val retryable: Boolean = false,
 ) : Exception(message)
 
-/** Suspends until this call completes, or throws the failure as an [IOException]. */
-internal suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
+class CodexNetworkException(message: String, retryable: Boolean) : CodexTransportException(message, retryable)
+
+/** Keep the call cancellable while its body is being read on the OkHttp dispatcher. */
+private suspend fun <T> Call.awaitResponse(read: (Response) -> T): T = suspendCancellableCoroutine { continuation ->
     continuation.invokeOnCancellation { cancel() }
     enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
@@ -429,7 +435,8 @@ internal suspend fun Call.await(): Response = suspendCancellableCoroutine { cont
         }
 
         override fun onResponse(call: Call, response: Response) {
-            if (!continuation.isCompleted) continuation.resume(response) else response.close()
+            val result = runCatching { response.use { read(it) } }
+            if (!continuation.isCompleted) continuation.resumeWith(result)
         }
     })
 }

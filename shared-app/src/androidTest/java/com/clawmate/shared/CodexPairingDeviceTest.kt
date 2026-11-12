@@ -46,6 +46,13 @@ class CodexPairingDeviceTest {
                 assertEquals(200, exchange("/v1/info", oldToken).getInt("status"))
                 assertEquals("Bearer $oldToken", server.takeRequest(1, TimeUnit.SECONDS)!!.getHeader("Authorization"))
 
+                server.enqueue(MockResponse().setResponseCode(401))
+                val denied = exchange("/v1/pair", pairingCode, JSONObject().put("code", pairingCode))
+                assertEquals(401, denied.getInt("status"))
+                assertEquals("配对码已过期、已使用或无效，请在电脑端重新生成",
+                    JSONObject(denied.getString("text")).getString("error"))
+                assertNull(server.takeRequest(1, TimeUnit.SECONDS)!!.getHeader("Authorization"))
+
                 server.enqueue(MockResponse().setBody(JSONObject().put("token", deviceToken).toString()))
                 val paired = exchange("/v1/pair", pairingCode, JSONObject().put("code", pairingCode))
                 assertEquals(deviceToken, JSONObject(paired.getString("text")).getString("token"))

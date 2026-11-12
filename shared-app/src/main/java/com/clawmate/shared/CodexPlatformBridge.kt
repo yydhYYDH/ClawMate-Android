@@ -12,9 +12,9 @@ import com.clawmate.platform.codex.CodexBackend
 import com.clawmate.platform.codex.CodexConnection
 import com.clawmate.platform.codex.CodexCredentialStore
 import com.clawmate.platform.codex.CodexHttpException
+import com.clawmate.platform.codex.CodexNetworkException
 import com.clawmate.platform.codex.CodexRunException
 import com.clawmate.platform.codex.CodexTransport
-import com.clawmate.platform.codex.CodexTransportException
 import com.clawmate.platform.codex.EncryptedCodexSecretStorage
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -189,10 +189,6 @@ class CodexPlatformBridge(private val context: Context) {
             exchanges[ticket] = slot
             slot.job.start()
             return buildJsonObject { put("ticket", ticket) }.toString()
-        } catch (e: CodexTransportException) {
-            // Report the status the caller must reason about, plus the reason it failed.
-            val text = buildJsonObject { put("error", e.message.orEmpty()) }.toString()
-            failure(e.message.orEmpty(), transportFailure = e.retryable, gzipUnsupported = false, text = text)
         } catch (e: Exception) {
             failureJson(e)
         }
@@ -201,13 +197,12 @@ class CodexPlatformBridge(private val context: Context) {
     /**
      * Turns an exchange failure into the reply the page expects.
      *
-     * A transport failure reports its retryable flag so the page can decide whether the
-     * remote may still be working; anything else is a plain failure.
+     * Network failures are reported independently of whether they can be retried.
      */
     private fun failureJson(e: Exception): String = when (e) {
         is CodexAuthException -> httpFailure(401, e)
         is CodexHttpException -> httpFailure(e.status, e)
-        is CodexTransportException -> failure(e.message.orEmpty(), transportFailure = e.retryable, gzipUnsupported = false)
+        is CodexNetworkException -> failure(e.message.orEmpty(), transportFailure = true, gzipUnsupported = false)
         else -> failure(e.message ?: "Codex 请求失败", transportFailure = false, gzipUnsupported = false)
     }
 

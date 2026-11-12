@@ -3,11 +3,10 @@
 // The HarmonyOS implementation used the RCP session for every request. On Android the
 // request itself must be performed by the native side, because only Kotlin can supply a
 // trust store scoped to one paired connection and a cancellation model that survives the
-// ArkTS page being rebuilt. Everything the UI observes — validation, retry policy, status
-// classification and the envelope shape — stays here so the page behaviour is unchanged.
+// ArkTS page being rebuilt. The native transport owns the HarmonyOS retry policy.
 //
 // Native methods (see CodexPlatformBridge.kt):
-//   codexRequest(json) -> json   performs one HTTP exchange, no redirects, no auto-retry
+//   codexRequestStart/Poll      performs a bounded HTTP exchange without blocking ArkUI
 //   codexCancel(id)              cancels the in-flight request with that id
 //   codexConnectionSave/list/load/forget  encrypted credential storage
 
@@ -60,17 +59,6 @@ interface CodexPolledReply {
 const EXCHANGE_DEADLINE_MS: number = 60000;
 const EXCHANGE_POLL_MS: number = 120;
 
-export class CodexRequestFailure extends Error {
-  retryable: boolean;
-  transportFailure: boolean;
-  constructor(message: string, retryable: boolean = false, transportFailure: boolean = false) {
-    super(message); this.retryable = retryable; this.transportFailure = transportFailure;
-  }
-}
-
-/** Status shared with the UI so a failure can be classified without parsing messages. */
-export const CODEX_AUTH_FAILURE: string = 'auth';
-
 export class CodexClient {
   private origin: string = '';
   private token: string = '';
@@ -90,12 +78,12 @@ export class CodexClient {
    * returns a ticket, and this polls until the answer is ready.
    */
   private static async exchangeOnce(payload: string): Promise<string> {
-    const started = JSON.parse(
-      await CodexClient.bridge().callMethod('codexRequestStart', payload) as string) as CodexTicket;
-    if (started === null || !started.ticket) {
+    const raw = await CodexClient.bridge().callMethod('codexRequestStart', payload) as string;
+    const started = JSON.parse(raw) as CodexTicket;
+    if (started === null) { throw new Error('无法开始请求，请重新连接'); }
+    if (!started.ticket) {
       // The native side answered immediately (a validation failure with no exchange).
-      return JSON.stringify({ status: 0, text: '', gzipUnsupported: false,
-        failure: '无法开始请求，请重新连接', transportFailure: false });
+      return raw;
     }
     const deadline = Date.now() + EXCHANGE_DEADLINE_MS;
     while (Date.now() < deadline) {
@@ -106,13 +94,13 @@ export class CodexClient {
         continue;
       }
       if (polled !== null && polled.status === 'expired') {
-        throw new CodexRequestFailure('请求超时，请同步会话后重试', true, true);
+        throw new Error('请求超时，请同步会话后重试');
       }
       // Anything that is not a pending/expired marker is the exchange result itself.
       return JSON.stringify(polled);
     }
     await CodexClient.bridge().callMethod('codexRequestCancel', started.ticket);
-    throw new CodexRequestFailure('请求超时，请同步会话后重试', true, true);
+    throw new Error('请求超时，请同步会话后重试');
   }
 
   private static bridge(): ESObject { return Bridge.createBridge('ClawMatePlatform'); }
@@ -171,24 +159,6 @@ export class CodexClient {
   private async request(route: string,
     body: CodexCreateBody | CodexTurnBody | CodexUploadBody | CodexApprovalBody | CodexPairBody | CodexForkBody | CodexResumeBody | undefined,
     authenticated: boolean): Promise<CodexEnvelope> {
-    const generation = this.generation;
-    for (let attempt: number = 0; ; attempt++) {
-      try { return await this.exchange(route, body, authenticated); }
-      catch (e) {
-        const failure = e as CodexRequestFailure;
-        // Only idempotent reads may retry. Never resend a task, upload, pairing, stop or
-        // approval after an ambiguous transport failure.
-        if (body !== undefined || route === '/v1/health' || route.includes('waitMs=') || attempt >= 1 ||
-          !failure.retryable || generation !== this.generation) { throw failure; }
-        await new Promise<void>((resolve): void => { setTimeout(resolve, 600 + Math.floor(Math.random() * 600)); });
-        if (generation !== this.generation) { throw new Error('连接已更换'); }
-      }
-    }
-  }
-
-  private async exchange(route: string,
-    body: CodexCreateBody | CodexTurnBody | CodexUploadBody | CodexApprovalBody | CodexPairBody | CodexForkBody | CodexResumeBody | undefined,
-    authenticated: boolean): Promise<CodexEnvelope> {
     if (!this.origin || !this.token) { throw new Error('请先连接 Codex 服务器'); }
     const generation = this.generation;
     const id = util.generateRandomUUID(true);
@@ -202,10 +172,8 @@ export class CodexClient {
         id: id, origin: this.origin, method: body === undefined ? 'GET' : 'POST', route: route,
         body: encoded, authenticated: authenticated,
         caCertificate: this.caCertificate, token: this.token,
-        // The platform bridge call itself is capped (~60 s), so a single exchange must ask
-        // for less than that or the bridge times out before the request does. Long polls use
-        // waitMs=12000; a follow-up exchange gets the remaining headroom.
-        timeoutMs: route === '/v1/health' ? 15000 : 45000,
+        // The deadline includes any native retry and stays below the bridge polling deadline.
+        timeoutMs: route === '/v1/health' ? 15000 : route === '/v1/pair' ? 18000 : 45000,
         expectGzip: this.compressionEnabled
       };
       const raw = await CodexClient.exchangeOnce(JSON.stringify(payload));
@@ -213,26 +181,29 @@ export class CodexClient {
       const response = JSON.parse(raw) as CodexNativeResponse;
       if (response.failure && response.failure.length > 0) {
         if (response.transportFailure) { this.onReachability(false, response.failure); }
-        throw new CodexRequestFailure(response.failure, true, response.transportFailure);
+        throw new Error(response.failure);
       }
       if (response.gzipUnsupported && this.compressionEnabled) {
         this.compressionEnabled = false;
-        throw new CodexRequestFailure('压缩响应未能解析，将改用普通传输，请同步会话后重试', true);
+        throw new Error('压缩响应未能解析，将改用普通传输，请同步会话后重试');
       }
       if (response.status !== 401) { this.onReachability(true, ''); }
       if (response.status >= 300 && response.status < 400) {
         throw new Error('服务器重定向已拒绝，请填写最终 HTTPS 地址');
       }
       if (response.status === 401) {
+        if (!authenticated && route === '/v1/pair') {
+          const pairingError = JSON.parse(response.text) as CodexEnvelope;
+          throw new Error(pairingError.error || '配对码无效，请在电脑端重新生成');
+        }
         this.onReachability(false, '连接授权已失效，请重新配对');
-        throw new CodexRequestFailure('令牌无效或已撤销，请在连接设置中更新', false, false);
+        throw new Error('令牌无效或已撤销，请在连接设置中更新');
       }
       if (response.status === 429) { throw new Error('请求过于频繁，请稍后重试'); }
       const text = codexResponseText(undefined, response.text);
       const envelope = JSON.parse(text) as CodexEnvelope;
       if (response.status < 200 || response.status >= 300) {
-        throw new CodexRequestFailure(envelope.error || '服务器请求失败',
-          response.status === 502 || response.status === 504, false);
+        throw new Error(envelope.error || '服务器请求失败');
       }
       return envelope;
     } finally {

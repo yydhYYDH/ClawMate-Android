@@ -1,5 +1,13 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## U04 Codex 配对与连接恢复（2026-11-12）
+
+- 对照鸿蒙 `CodexClient` 的 HTTPS 配对、服务器 ID 校验和重试规则。Android 原生层接管重试，普通 GET 遇到临时故障最多重试一次，健康检查、长轮询和 POST 各发一次。请求和读取响应共享总时限，网络故障后清理空闲连接。
+- 区分网络不可达、端口拒绝、DNS、HTTPS 校验和配对码失效。开启「记住此连接」时，已核验的设备令牌先写入本机加密存储，工作区加载失败后可沿用原授权重连。
+- ArkTS、共享版 Debug APK、非会议设备测试 APK 和手册检查通过。Codex JVM 73 项通过，14 项 live 跳过，OPPO 设备协议测试 1 项通过。
+- OPPO 用原 `MSI` 授权经 USB 连接真实 Windows 1.1.15 桥接。隔离测试中配对成功后 `/v1/info` 连续两次返回 502，重启应用后沿用同一条保存的连接进入工作区。详见 [真机记录](docs/CODEX_DEVICE_VERIFICATION.md#2026-11-12-连接恢复与错误诊断)。
+- 当前 OPPO 与电脑的 WLAN 邻居解析失败，手机访问 8787 返回 `No route to host`。无线配对待可互访的 Wi-Fi、热点或同一 Tailscale 网络验收。
+
 ## P01/P04 内置 Android 后台屏底层（2026-11-12）
 
 - 在 `:android-capabilities` 内置通用后台屏会话，应用确认的启动入口经 Binder 交给同 APK 的 Android shell 助手。辅助进程绑定 ClawMate UID，并按会话结束、应用进程退出或超时回收显示器。Android 14 及以上试验使用授权 USB 调试启动，应用内无线引导待接入。

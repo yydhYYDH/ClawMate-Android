@@ -14,6 +14,8 @@ assert.match(page, /CodexPickers\.scanPairingCode\(\)/);
 assert.match(page, /CodexPickers\.pickDocument\('pairing'\)/);
 assert.match(page, /CodexPickers\.pickDocument\(image \? 'image' : 'file'\)/);
 assert.doesNotMatch(page, /DocumentViewPicker|@kit\.ScanKit/);
+const pair = page.slice(page.indexOf('private async pairFromInput()'), page.indexOf('private chooseModel('));
+assert.match(pair, /await candidate\.pair\(bundle\)[\s\S]*?if \(this\.remember\) \{\s*try \{ await CodexCredentialStore\.save\(connection, bundle\.name\); \}[\s\S]*?await this\.connect\('', bundle\.name\)/);
 
 const approval = adaptCodexApprovalCard(read('pages/codex/CodexApprovalCard.ets'));
 assert.match(approval, /Button\('拒绝'\)\.enabled\(!this\.busy\)\.onClick\(.*'decline'/);

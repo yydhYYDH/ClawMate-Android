@@ -14,6 +14,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
+import java.net.ConnectException
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLPeerUnverifiedException
 
 /**
  * Transport contract against a real HTTP server.
@@ -100,6 +103,40 @@ class CodexTransportTest {
         assertTrue(failure is CodexAuthException)
         assertEquals(1, server.requestCount)
         assertEquals(false, reachable)
+    }
+
+    @Test
+    fun `health and task update reads leave retries to the poller`() = runBlocking {
+        val transport = transport()
+        for (route in listOf("/v1/health", "/v1/tasks/task/updates?waitMs=12000")) {
+            server.enqueue(MockResponse().setResponseCode(502).setBody("""{"error":"unavailable"}"""))
+            val failure = failureOf { transport.get(route) }
+            assertEquals(502, (failure as CodexHttpException).status)
+        }
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `the timeout also covers a stalled response body`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"name":"${"x".repeat(60)}"}""")
+            .throttleBody(1, 80, TimeUnit.MILLISECONDS))
+        val failure = failureOf { transport().get("/v1/info", timeoutMs = 3_000L) }
+        assertTrue("unexpected: $failure", failure is CodexNetworkException)
+        assertTrue(failure.message.orEmpty().contains("超时"))
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `route TLS and loopback failures have distinct recovery messages`() {
+        val transport = CodexTransport()
+        val noRoute = transport.classify(ConnectException("connect failed: EHOSTUNREACH"), "192.168.1.2")
+        assertTrue(noRoute.message.orEmpty().contains("互访"))
+        assertFalse(noRoute.retryable)
+        val tls = transport.classify(SSLPeerUnverifiedException("hostname mismatch"), "192.168.1.2")
+        assertTrue(tls.message.orEmpty().contains("证书"))
+        assertFalse(tls.retryable)
+        val usb = transport.classify(ConnectException("Connection refused"), "127.0.0.1")
+        assertTrue(usb.message.orEmpty().contains("USB"))
     }
 
     @Test

@@ -1,13 +1,13 @@
 // Android adaptations applied to pages/codex/CodexPage.ets at prepare time.
 //
 // Every patch is anchored on exact upstream text, so an upstream change fails the build
-// instead of silently shipping an unadapted Huawei-platform call. The three adaptations:
+// instead of silently shipping an unadapted Huawei-platform call. The main adaptations:
 //
 //   1. ScanKit is replaced by the native camera and album QR scanner;
 //   2. CameraKit and MediaLibraryKit are replaced by the native photo pickers;
 //   3. FrostedPage's HarmonyOS-only `titleFadeHeight` parameter is dropped.
 //
-// Everything else — state, polling, approval flow, attachment upload — runs unchanged.
+// Pairing also preserves the issued device grant before loading the workbench.
 
 import { replaceChecked } from '../../../source-patches.mjs';
 
@@ -49,6 +49,23 @@ export function adaptCodexPage(source) {
     }`);
   out = replaceChecked(out, "import { fileIo, fileUri, picker } from '@kit.CoreFileKit';",
     "import { fileIo } from '@kit.CoreFileKit';");
+
+  // A valid pairing already consumed the one-time code. Persist the verified grant before
+  // contacting /v1/info, so closing Setup after a workbench failure still allows a reconnect.
+  out = replaceChecked(out,
+    `      this.originInput = bundle.origin; this.tokenInput = ''; this.pairingInput = '';
+      this.connectionOperation = false; this.busy = false;
+      await this.connect('', bundle.name);`,
+    `      this.originInput = bundle.origin; this.tokenInput = ''; this.pairingInput = '';
+      if (this.remember) {
+        try { await CodexCredentialStore.save(connection, bundle.name); }
+        catch (e) { throw new Error('已配对，但无法保存连接。请解锁手机后点「重试连接」'); }
+        if (epoch !== this.epoch) { return; }
+        await this.restoreConnections();
+        if (epoch !== this.epoch) { return; }
+      }
+      this.connectionOperation = false; this.busy = false;
+      await this.connect('', bundle.name);`);
 
   // 2. ScanKit -> native scanner. The pairing check that follows is unchanged.
   out = replaceChecked(out,
