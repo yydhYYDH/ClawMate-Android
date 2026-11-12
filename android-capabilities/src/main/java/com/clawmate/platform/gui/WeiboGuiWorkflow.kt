@@ -68,7 +68,16 @@ internal object WeiboGuiWorkflow {
 
     @RequiresApi(34)
     fun hotTabButton(tab: AccessibilityNodeInfo, area: Rect): AccessibilityNodeInfo? =
-        tab.parent?.parent?.takeIf { it.viewIdResourceName == TAB_BUTTON && it.isEnabled && it.isClickable && readable(it, area) }
+        generateSequence(tab.parent) { it.parent }.take(4).firstOrNull {
+            it.viewIdResourceName == TAB_BUTTON && it.isEnabled && it.isClickable && readable(it, area)
+        }
+
+    @RequiresApi(34)
+    fun hotTabBounds(tab: AccessibilityNodeInfo, area: Rect): Rect? =
+        tab.weiboBounds().takeIf {
+            tab.viewIdResourceName == TAB && tab.text?.toString() == "热搜" && tab.isEnabled &&
+                readable(tab, area) && !it.isEmpty && area.contains(it)
+        }
 
     @RequiresApi(34)
     fun read(root: AccessibilityNodeInfo, area: Rect): WeiboVisiblePage? {

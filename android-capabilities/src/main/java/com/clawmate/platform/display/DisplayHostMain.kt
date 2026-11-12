@@ -92,6 +92,7 @@ private class DisplayHost(
 
         // These AOSP flags require the shell's trusted-display permission.
         val trusted = 1 shl 10
+        val supportsTouch = 1 shl 6
         val destroyOnRemoval = 1 shl 8
         val ownFocus = 1 shl 14
         val preventFocusSteal = 1 shl 16
@@ -104,7 +105,7 @@ private class DisplayHost(
         try {
             val surface = checkNotNull(manager.createVirtualDisplay("ClawMate background", metrics.widthPixels, metrics.heightPixels,
                 metrics.densityDpi, buffer.surface, DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY or
-                    trusted or destroyOnRemoval or ownFocus or preventFocusSteal))
+                    trusted or supportsTouch or destroyOnRemoval or ownFocus or preventFocusSteal))
             display = surface
             handler.postDelayed(expiry, 125_000)
             val id = surface.display.displayId

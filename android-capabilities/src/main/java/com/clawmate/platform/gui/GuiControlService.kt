@@ -433,13 +433,7 @@ class GuiControlService : AccessibilityService() {
                             "已打开微博榜单"
                         }
                         WeiboGuiWorkflow.SELECT -> {
-                            val tab = awaitHotTab(id, bounds, area)
-                            if (!tab.isSelected) {
-                                val button = checkNotNull(WeiboGuiWorkflow.hotTabButton(tab, area)) { "无法识别热搜标签按钮" }
-                                check(performCollectionAction(button, id, bounds, AccessibilityNodeInfo.ACTION_CLICK)) {
-                                    "微博未接受热搜标签操作"
-                                }
-                            }
+                            selectWeiboHotTab(id, bounds, area)
                             awaitHotTab(id, bounds, area, selected = true)
                             "已进入公开热搜标签"
                         }
@@ -562,13 +556,33 @@ class GuiControlService : AccessibilityService() {
     private suspend fun scrollWeibo(id: Int, bounds: Rect, list: Rect): Boolean {
         val height = list.height()
         if (height < 200) return false
-        val display = authorizeCollectionAction(id, bounds).displayId
         val start = list.bottom - height * .22f
         val end = list.top + height * .34f
         val stroke = Path().apply { moveTo(list.centerX().toFloat(), start); lineTo(list.centerX().toFloat(), end) }
+        return dispatchCollectionGesture(id, bounds, stroke, 830)
+    }
+
+    @RequiresApi(34)
+    private suspend fun selectWeiboHotTab(id: Int, bounds: Rect, area: Rect) {
+        val tab = awaitHotTab(id, bounds, area)
+        if (tab.isSelected) return
+        val button = WeiboGuiWorkflow.hotTabButton(tab, area)
+        if (button != null && performCollectionAction(button, id, bounds, AccessibilityNodeInfo.ACTION_CLICK)) return
+
+        // Some displays expose the label without its clickable ancestor.
+        val fresh = awaitHotTab(id, bounds, area)
+        if (fresh.isSelected) return
+        val target = checkNotNull(WeiboGuiWorkflow.hotTabBounds(fresh, area)) { "无法识别热搜标签位置" }
+        val tap = Path().apply { moveTo(target.exactCenterX(), target.exactCenterY()) }
+        check(dispatchCollectionGesture(id, bounds, tap, 70)) { "微博未接受热搜标签操作" }
+    }
+
+    @RequiresApi(34)
+    private suspend fun dispatchCollectionGesture(id: Int, bounds: Rect, stroke: Path, duration: Long): Boolean {
+        val display = authorizeCollectionAction(id, bounds).displayId
         return suspendCancellableCoroutine { ready ->
             val gesture = GestureDescription.Builder().setDisplayId(display)
-                .addStroke(GestureDescription.StrokeDescription(stroke, 0, 830)).build()
+                .addStroke(GestureDescription.StrokeDescription(stroke, 0, duration)).build()
             val callback = object : GestureResultCallback() {
                 override fun onCompleted(description: GestureDescription?) { if (ready.isActive) ready.resume(true) }
                 override fun onCancelled(description: GestureDescription?) { if (ready.isActive) ready.resume(false) }
