@@ -28,15 +28,15 @@ SH-15 页面/业务准备清单包含144个ArkTS文件：76个与锁定上游逐
 | 启动、四页引导 | FirstLaunchOnboarding / OnboardingTypes | 原始页面；完成版本实际持久化，更新与重启不重复引导 |
 | 主导航、主题 | MainTabConfig / FloatingMainTabs / AppTheme / FrostedPage | 六个底栏入口及悬浮胶囊尺寸取锁定源码；颜色资源跟随系统主题。Android 使用 ArkUI 基础模糊，系统栏由宿主管理 |
 | 首页、提醒、推荐、关怀 | HomePage / HomeSecretary / HomeSecretaryDesk / CalendarWeekDialog | 复用小 C、便签、提醒和陪伴。日历弹窗使用 Android 已启用的本机数据来源，提醒完成状态保存在 ClawMate。邮箱入口按配置显示 |
-| 聊天、会话、消息 | ChatPage / ChatMessageList / ChatSessionDrawer / ChatSessionStorage | 流式回复、思考参数、文件保存、会话管理；只读 query_events 工具往返已接通，最多3次查询；不执行任意模型工具 |
+| 聊天、会话、消息 | ChatPage / ChatMessageList / ChatSessionDrawer / ChatSessionStorage / SharedAgent | 流式聊天、会话管理和有界资料查询；支持确认后向电脑 Codex 委托，云端聊天可发起单应用 Mika 手机任务、查看虚拟屏实况和实时进度 |
 | 图片聊天 | ChatPage / ChatImages / 共用 AndroidChatImagePreparer | 相册/拍照、逐次确认、最多4张去元数据 JPEG、当前回合多模态 SSE、私有历史图片；真实视觉模型与相机实拍未验收 |
 | 上下文预算与自动摘要 | ChatContextBudget / 原 Index 压缩编排 / ChatContext | 阈值与保留轮数生效；摘要、增量覆盖、会话重载复用及本地抽取回退已接入。完整原文保留；取消/撤回阻断迟到结果，仍超预算时明确报错；真实模型摘要质量待验收 |
 | 汇总、事件详情 | CollectionPage / CollectionGroupDetailPage | 读取真实索引，支持原详情与分页；同步调用原数据管线，空数据不伪造同步时间 |
 | 图库、筛选、检索、问答 | GalleryPage / GalleryStorage / GallerySearchService / GalleryAnalyzer | 原页面与存储/云协议；系统选图可打开和取消。OCR 经 URI 桥接到共用本地引擎，失败明确返回；未上传私人照片或做真实模型分析；HDC 批量读图受限 |
 | 图库批次暂停/恢复 | 原GalleryScanSession / GalleryWorkQueue / GalleryScanCheckpoint | 最多9张显式选图的私有JPEG快照，原子进度、内容校验、暂停派发与继续、遗留运行态恢复为暂停；日期记为导入日，不自动上传，不枚举全相册 |
 | 数据管理 | DataManagerFacade / ChatMemorySync / IndexService / MemorySyncPage | 显式近7天范围确认、保存的模型名、进度/取消、检查点去重；本地索引重建不发云请求。共享文件独立，未导入旧应用私有数据 |
-| 任务与工作流 | TaskPage / WorkflowStorage / AndroidWorkflow / 共用 WorkflowRunnerImpl | 原图/JSON与文件管理；已接有界等待/条件/循环/echo/summary、单任务/批量停止、真实结果/日志；GUI和其他模型工具仍受限。任务开关控制批量候选，不自行后台执行 |
-| 工作流视觉问答 | 原ToolEditor / WorkflowVlm / 共用可选模型接口 | 本机图片导入、保存的Decider视觉模型、逐次发送确认、取消/超时、步骤输出与成功摘要；GUI截图仍阻断，真实模型质量与完整schema验证待验收 |
+| 任务与工作流 | TaskPage / WorkflowStorage / AndroidWorkflow / 共用 WorkflowRunnerImpl | 原图/JSON与文件管理、有界本机步骤、停止和结果保存。12 个内置采集模板经同一按次会话进入底层，自定义图可运行；各业务模板和后台屏端到端验收见迁移待办 |
+| 工作流视觉问答 | 原 ToolEditor / WorkflowVlm / 共用可选模型接口 | 本机图片和目标窗口 Decider 模型读屏均有按次授权入口。真机验收计算器单页截图、真实 Decider 请求、预览和保存；真实多页、复杂节点、业务结果及模型质量待验收 |
 | 每日采集提醒 | CollectionReminderPanel / 原策略 / Kotlin CollectionReminderEngine | 实际通知权限、每日近似闹钟、改时/撤销及通知跳转；前台解锁后再次确认才执行任务。原时间迁移一次；真实非空摘要保存后更新采集时间；省电送达和多厂商待验收 |
 | 设置与服务 | SettingsCenterPage / SettingsCenterControls / PeopleInfoPage / AvatarManagementPage | 人物资料在「汇总 → 个人信息」，数字分身参考照片、生成和历史在「我的 → 模型与智能体」 |
 | 账号与隐私 | HuaweiAccountCard / PrivacyConsent / PrivacyConsentDialog | 「我的」显示共享账号卡片，点登录可见 Android 能力说明。「个人与隐私」管理自配云服务授权；小艺 A2A 待接入 |
@@ -91,7 +91,7 @@ Gradle 检查共用能力和 Compose 基线。主机检查不代替 ArkTS 编译
 未保存编辑的返回确认、文件数量实时刷新、会话新建/置顶/重命名/重启恢复/删除。
 只操作独立共享包；测试任务、会话和 `.invalid` 测试下载地址已清理，授权恢复关闭。
 
-迁移进度、验证结果和修正统一见 [迁移日志](../MIGRATION_STATUS.md)。
+接手从 [迁移交接](../docs/MIGRATION_HANDOFF.md) 开始。迁移进度、验证结果和修正统一见 [迁移日志](../MIGRATION_STATUS.md)。
 精确证据保留在本目录的 `verification-*.json`；原始日志、截图和XML在忽略目录。
 
 两版职责与数据归属见 `../docs/SHARED_ARCHITECTURE.md`，页面对齐边界见 `../docs/FRONTEND_PARITY.md`。

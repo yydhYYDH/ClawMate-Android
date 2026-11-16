@@ -11,8 +11,8 @@
 `codex/shared-frontend`；`main`跟随上游。先完成技术路线闭环，再由用户与 fellow 讨论是否递交 PR。
 
 共享版为 `com.clawmate.shared`，名称“ClawMate 共享前端”，版本 `0.3-integrated`。
-包含引导、五入口、首页建议/陪伴、会话与流式聊天、图片聊天、query_events、长期记忆管理、
-图库/汇总、工作流编辑与有界运行、设置和系统 OCR/ASR/TTS。
+包含首页、汇总、聊天、Codex、任务和「我的」六个入口，支持引导、首页建议与陪伴、流式会话、图片聊天、记忆查询、
+图库、工作流编辑与有界运行、设置和系统 OCR/ASR/TTS。云端聊天还接入 Mika 的按次手机控制、虚拟屏预览和运行进度。
 云端能力需用户自行配置和授权；真实模型质量与平台待办不能视为已验收。
 
 | 模块 | 职责 |
@@ -36,7 +36,6 @@ SDK、运行库和生成工程留在忽略目录，本机路径只作参数：
 node shared-frontend/verify.mjs
 node shared-frontend/verify-native.mjs
 node shared-frontend/verify-integration.mjs
-node shared-frontend/verify-meeting.mjs
 node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/reference
 ./gradlew.bat :android-capabilities:testDebugUnitTest :app:testDebugUnitTest
 ```
@@ -45,8 +44,8 @@ node experiments/arkui-x/verify-contracts.mjs --source-root .arkui-x-validation/
 共享 APK：`shared-app/build/outputs/apk/debug/shared-app-debug.apk`。
 当前调试包为 arm64、最低 API26；发布签名、包体裁剪与发布等级尚未验收。
 
-共享版新增“汇总 → 本机会议 · 录音与纪要”，包含离线转写、会议管理和主动保存到本机记录。
-源码依赖、模型准备及数据归属见[会议集成说明](docs/MEETING_INTEGRATION.md)。
+共享版保留「汇总 → 本机会议 · 录音与纪要」。真实会议引擎与专项测试排在迁移最后阶段。
+源码依赖、模型准备及历史验收见[会议集成说明](docs/MEETING_INTEGRATION.md)。
 
 ```powershell
 adb install -r shared-app/build/outputs/apk/debug/shared-app-debug.apk
@@ -64,14 +63,14 @@ Compose 基线仍可运行 `./gradlew.bat :app:assembleDebug`；不要用日常�
 旧 Compose 的可选配置模板为 `app/src/main/res/raw/config_example.properties`。
 凭据、签名、私有数据库、SDK路径和设备状态禁止提交。
 
-本机工作流支持有界等待、条件、循环、echo/summary 和取消；共享版另接本机图片`vlm_qa`，
-使用配置的Decider视觉模型并逐次确认；GUI和其他模型工具仍明确受限。
+本机工作流支持有界等待、条件、循环、echo/summary 和取消。12 个内置采集模板共用按次会话底层，图编辑支持配置通用采集和 Decider 模型读屏。
 每日采集提醒与聊天自动摘要已接通，实际后台送达与模型质量仍需验收。
-HDC/Python、微信采集、MiMO、MNN/HiAI、照片参考分身等仍有待办。
+HDC/Python、真实微信采集、MiMO 服务质量、MNN/HiAI 推理和照片参考分身的完成状态见[迁移待办](MIGRATION_BACKLOG.md)。
 当前证据来自一台 OPPO 手机，不能推断小米等厂商或 iOS 已通过。
 
 ## 开发与验证记录
 
+- [迁移交接与复测入口](docs/MIGRATION_HANDOFF.md)
 - [当前状态与实际检查](MIGRATION_STATUS.md)
 - [共享架构与数据归属](docs/SHARED_ARCHITECTURE.md)
 - [共享页面对齐边界](docs/FRONTEND_PARITY.md)

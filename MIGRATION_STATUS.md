@@ -1,5 +1,11 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## 迁移交接核对（2026-11-16）
+
+- 新增 [迁移交接](docs/MIGRATION_HANDOFF.md)，汇总实现基准 `602f34a`、各功能最近证据、剩余范围、代码入口及复测步骤。同步梳理 [当前待办](MIGRATION_BACKLOG.md) 和 [Mika 功能对照](docs/MIKA_PARITY.md)。
+- 只读核对 OPPO PKB110。当前 `com.clawmate.shared` 的 APK SHA-256 与 `602f34a` 的记录一致，无障碍仍开启，后台屏助手进程存在，空闲时只有主屏显示器 `0`。本轮为文档交接，没有重新安装应用或执行功能任务。
+- 交接文档的 110 个相对文件链接、`git diff --check`、`node shared-frontend/verify-integration.mjs`（21 项受控契约）和 `python docs/user-manual/build.py --check` 通过。
+
 ## Mika 实时后台预览和聊天进度（2026-11-16）
 
 - 主屏右侧任务浮窗用 Android 渲染表面显示虚拟屏实况，可停止任务。预览随会话释放，画面留在本机。云端聊天显示当前手机任务状态和步骤，结束后保留同一条消息的任务过程。
