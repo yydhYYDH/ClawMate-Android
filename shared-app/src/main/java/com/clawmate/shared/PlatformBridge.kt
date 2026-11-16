@@ -408,6 +408,17 @@ class PlatformBridge(private val activity: StageActivity) :
             .put("status", job.value?.status.orEmpty()).put("message", job.value?.message.orEmpty())
             .put("progress", job.progress).toString()
     }
+    /** 最近的 Mika 运行摘要（手机任务与本机采集）；只读本机私有记录，不含截图。 */
+    fun mikaRunHistory(raw: String): String {
+        val limit = runCatching { JSONObject(raw.ifBlank { "{}" }).optInt("limit", 20) }.getOrDefault(20)
+        val records = com.clawmate.platform.gui.MikaRunLog.recent(activity, limit)
+        return JSONObject().put("v", 1).put("records", JSONArray(records.map { record ->
+            JSONObject().put("at", record.at).put("kind", record.kind).put("app", record.app)
+                .put("label", record.label).put("goal", record.goal).put("status", record.status)
+                .put("steps", record.steps).put("pages", record.pages).put("items", record.items)
+                .put("note", record.note)
+        })).toString()
+    }
     fun mikaPhoneCancel(id: String): Boolean { mikaJobs.cancel(id); return true }
     fun captureStart(): String = onUi { (activity as SharedActivity).startCapture() }
     fun guiScreenshotStart(): String = onUi {

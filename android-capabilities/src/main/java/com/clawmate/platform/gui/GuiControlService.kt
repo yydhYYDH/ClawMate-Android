@@ -998,6 +998,14 @@ class GuiControlService : AccessibilityService() {
                 status?.text = "Mika 已读 ${record.pages} 页 · ${lines.size} 条"
                 run?.readyToPreview("已读 ${record.pages} 页、${lines.size} 条")
                 showCollectionPreview(record, "Mika 采集 · ${collected.stoppedBecause}", turn, windowId, bounds) { saved ->
+                    if (saved) {
+                        runCatching {
+                            MikaRunLog.append(this@GuiControlService, MikaRunLog.record(
+                                "collect", target, label, "", "success",
+                                pages = record.pages, items = lines.size, note = collected.stoppedBecause,
+                            ))
+                        }
+                    }
                     if (run != null && turn == epoch) {
                         run.finish(if (saved) RunStatus.SUCCESS else RunStatus.CANCELLED,
                             if (saved) "已保存 ${lines.size} 条到本机（Mika）" else "已取消预览，未保存采集内容")

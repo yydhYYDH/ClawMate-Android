@@ -187,7 +187,12 @@ object MikaPhoneEntry {
                 val port = MikaSystemScreen(activity, run.goal)
                 val finished = withTimeoutOrNull(85_000) { run.execute(port) { } }
                 val reply = if (finished != null) run.result.await() else MikaPhoneResult("cancelled", "系统任务已超时")
-                port.receipt ?: if (reply.status == "success") MikaPhoneResult("needs_user", reply.message) else reply
+                val result = port.receipt ?: if (reply.status == "success") MikaPhoneResult("needs_user", reply.message) else reply
+                withContext(Dispatchers.IO) {
+                    MikaRunLog.append(activity, MikaRunLog.record("phone", "", "系统动作", run.goal, result.status,
+                        note = result.message))
+                }
+                result
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: IllegalStateException) {
@@ -233,7 +238,13 @@ object MikaPhoneEntry {
                 run.report(if (useBackground) "在虚拟屏打开 $label" else "在主屏打开 $label")
                 delay(250)
                 service.startSession(request, useBackground) { GuiControlEntry.foreground(activity) }
-                withTimeoutOrNull(115_000) { run.result.await() } ?: MikaPhoneResult("cancelled", "手机任务已超时")
+                val reply = withTimeoutOrNull(115_000) { run.result.await() }
+                    ?: MikaPhoneResult("cancelled", "手机任务已超时")
+                withContext(Dispatchers.IO) {
+                    MikaRunLog.append(activity, MikaRunLog.record("phone", packageName, label, run.goal, reply.status,
+                        note = reply.message))
+                }
+                reply
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: IllegalStateException) {
