@@ -1,4 +1,20 @@
-﻿# ClawMate Android 迁移状态与日志
+# ClawMate Android 迁移状态与日志
+
+## Mika 第一档能力接入：知识、看屏、手势与表单输入（2026-11-17）
+
+- 内核从 `eb10b34` 升到 `9fd0be4`（0.1.45）：`core/src/main` 18 个文件、资源无变化；5 处 Kotlin 1.9 兼容改动与本仓库的能力白名单原样保留。提交 `d7cf5f8`。
+- 云端手机任务接入随内核打包的 33 个 App 知识、25 个站点知识与 6 份技能索引；`knowledge_search/read`、`skill_search/read` 只读工具随界面任务提供。闹钟与日历任务保持原有白名单，不注入知识索引。
+- 新增看图模型通道：页面「云模型」里的 Decider 视觉模型经 `mikaPhoneStartWithVision` 传入，`describe`/`find_visually` 用它看 `AccessibilityService.takeScreenshotOfWindow`（API 34）截到的目标窗口。未配置视觉模型时工具缺席、不截图，也不伪造描述。主模型仍未开图片输入。
+- 坐标点按、双击、滑动与多点手势改由 `dispatchGesture` 执行，夹在应用内容区域内；窗口变化、点在内容区外或被控制面板遮挡时拒绝。文本输入不再限定搜索框，但内容必须来自用户请求原文（≤200 字，无控制字符）；清空任意输入框不受此限。提交 `d1fa19e`。
+- 交接：`pinned` 基线、接线与剩余差距见 [Mika 上游对照](docs/MIKA_UPSTREAM_DIFF.md)，逐条验收条件见 [Mika 功能对照](docs/MIKA_PARITY.md)。
+
+检查：
+
+- `./gradlew.bat :mika-core:compileKotlin` 在升级后通过（仅上游既有的告警）。
+- `./gradlew.bat :android-capabilities:testDebugUnitTest`：334 项、0 失败、14 跳过；新增 `MikaEndpointsTest`、`MikaVisionConfigTest`、`MikaInputTest`、`MikaKnowledgeTest`（断言知识工具只在接入目录时出现）。
+- `shared-frontend/build.ps1` 的 ArkUI-X 工具链检查、源码准备、hvigor `assembleHap`、运行包导出与 `build-state.mjs verify`（441 个运行时文件，摘要 `240553bf…`）通过；`:shared-app:assembleDebug` 通过，APK 内含 `knowledge/index.json` 与 App/站点知识。
+- 脚本最后一步 `verify-meeting-native.py` 在本机失败：会议 SDK 用的是 `.arkui-x-validation/meeting-sdk-stub` 占位，缺 `android/meeting-sdk/src/main/jniLibs/arm64-v8a` 下的原生库，`llvm-readelf` 报错退出。该失败发生在 APK 生成之后，属会议专项的本机限制，与本轮 Mika 改动无关。
+- 未做真机验收。手势、窗口截图看屏、看图定位与表单输入都需在 OPPO 上用合成页或授权页面复核；本轮只声称构建、单测和静态打包通过。
 
 ## 迁移交接核对（2026-11-16）
 
