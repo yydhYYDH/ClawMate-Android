@@ -10,11 +10,14 @@ import com.wangzan101.mika.core.model.ToolSpec
 import com.wangzan101.mika.core.uistate.ActionResult
 import com.wangzan101.mika.core.uistate.ScreenPort
 import com.wangzan101.mika.core.uistate.ScreenSnapshot
+import com.wangzan101.mika.core.uistate.SystemAction
+import com.wangzan101.mika.core.uistate.SystemActionResult
 import com.wangzan101.mika.core.uistate.UiElement
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.ZonedDateTime
 
 class MikaPhoneRunTest {
     @Test fun upstreamAgentReadsTheApprovedPortAndReturnsItsAnswer() = runTest {
@@ -38,7 +41,43 @@ class MikaPhoneRunTest {
         assertTrue(screen.reads > 0)
     }
 
-    private class FixtureScreen : ScreenPort {
+    @Test fun upstreamAlarmToolUsesTheSystemPortAndKeepsUiToolsOut() = runTest {
+        val actions = mutableListOf<SystemAction>()
+        val screen = object : FixtureScreen() {
+            override suspend fun systemAction(action: SystemAction): SystemActionResult {
+                actions.add(action)
+                return SystemActionResult(ActionResult.Ok(), handledBy = "example.clock")
+            }
+        }
+        val model = object : ChatModel {
+            override val capabilities = Capabilities(true, false, 16_000, false)
+            override suspend fun complete(system: String, messages: List<Message>, tools: List<ToolSpec>): ModelReply {
+                val reply = messages.flatMap { it.parts }.filterIsInstance<Part.ToolResult>()
+                if (reply.isEmpty()) {
+                    assertTrue(tools.any { it.name == "phone_set_alarm" })
+                    assertTrue(tools.none { it.name in setOf("phone_tap", "phone_observe", "phone_system_command") })
+                    val call = Part.ToolCall("alarm", "phone_set_alarm", """{"hour":10,"minute":0}""")
+                    return ModelReply(listOf(call), StopReason.ToolUse, null)
+                }
+                assertTrue(reply.any { it.callId == "alarm" && "example.clock" in it.content })
+                return ModelReply(listOf(Part.Text("Clock received the request")), StopReason.EndTurn, null)
+            }
+        }
+        val run = MikaPhoneRun("Set an alarm at 10 AM", model)
+        run.execute(screen, system = true) {}
+        assertEquals(listOf(SystemAction.SetAlarm(10, 0)), actions)
+        assertEquals("success", run.result.await().status)
+    }
+
+    @Test fun nextAlarmRespectsPassedTimesAndRepeatDays() {
+        val now = ZonedDateTime.parse("2026-11-16T15:00:00+08:00[Asia/Shanghai]")
+        val once = MikaSystemScreen.nextOccurrence(SystemAction.SetAlarm(10, 0), now)
+        assertEquals(now.plusDays(1).withHour(10).toInstant().toEpochMilli(), once)
+        val monday = MikaSystemScreen.nextOccurrence(SystemAction.SetAlarm(10, 0, days = listOf(2)), now)
+        assertEquals(now.plusWeeks(1).withHour(10).toInstant().toEpochMilli(), monday)
+    }
+
+    private open class FixtureScreen : ScreenPort {
         var reads = 0
         override suspend fun snapshot(): ScreenSnapshot {
             reads++

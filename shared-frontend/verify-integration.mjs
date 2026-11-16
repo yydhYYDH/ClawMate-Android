@@ -43,7 +43,7 @@ await check('Mika phone delegation runs once and returns its receipt to the matc
     assert.ok(request.tools.some(entry => entry.function.name === 'run_phone_task'));
     if (++turns === 1) {
       return { content: '', toolCalls: [
-        { ...tool('run_phone_task'), id: 'phone-one' },
+        { ...tool('run_phone_system_task'), id: 'phone-one' },
         { ...tool('run_phone_task'), id: 'phone-duplicate' }
       ] };
     }
@@ -55,7 +55,8 @@ await check('Mika phone delegation runs once and returns its receipt to the matc
     return { content: '', toolCalls: [] };
   } };
   await SharedAgent.run(client, options(), () => '', () => true, () => {}, () => {},
-    undefined, undefined, undefined, async () => {
+    undefined, undefined, undefined, async (system) => {
+      assert.equal(system, true);
       runs++;
       return '{"status":"success","message":"已读取测试页面"}';
     });

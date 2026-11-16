@@ -26,12 +26,14 @@ export interface SharedAgentBudgets {
 
 export const DEFAULT_SHARED_AGENT_BUDGETS: SharedAgentBudgets = { maxTurns: 4, maxQueries: 3, maxDelegations: 1 };
 
-function phoneTaskDefinition(): CloudChatToolDefinition {
+function phoneTaskDefinition(system: boolean): CloudChatToolDefinition {
   const definition: CloudChatToolDefinition = {
     type: 'function',
     function: {
-      name: 'run_phone_task',
-      description: '仅当用户当前这条消息明确要求实际操作手机上的 App 时使用。用户将在手机上选择应用并确认。整条原始请求会交给手机助手，无需参数。',
+      name: system ? 'run_phone_system_task' : 'run_phone_task',
+      description: system ?
+        '仅当用户当前消息明确要求设置手机闹钟或计时器、打开闹钟列表或打开日程表单时使用。用户会核对具体参数。原始请求会交给 Mika，无需传参。根据实际回执回复，未核实的操作不可报告为已完成。' :
+        '仅当用户当前消息明确要求实际操作手机上的 App 时使用。闹钟、计时器和日程请使用手机系统工具。用户将在手机上选择应用并确认。原始请求会交给 Mika，无需传参。',
       parameters: JSON.parse('{"type":"object","properties":{},"additionalProperties":false}') as Object
     }
   };
@@ -43,13 +45,13 @@ export class SharedAgent {
     query: (raw: string) => string, active: () => boolean,
     delta: (text: string) => void, trace: (message: string) => void,
     codex?: CodexDelegation, budgets: SharedAgentBudgets = DEFAULT_SHARED_AGENT_BUDGETS,
-    collections?: (raw: string) => Promise<string>, phone?: () => Promise<string>): Promise<void> {
+    collections?: (raw: string) => Promise<string>, phone?: (system: boolean) => Promise<string>): Promise<void> {
     options.tools = [MemoryQuery.definition(), PersonalSources.definition('calendar'), PersonalSources.definition('mail')];
     if (collections !== undefined) { options.tools.push(CollectedMemory.definition()); }
     // The tool is only advertised when a delegation sink exists, so the model cannot call
     // something that would fail.
     if (codex !== undefined) { options.tools.push(runCodexTaskDefinition()); }
-    if (phone !== undefined) { options.tools.push(phoneTaskDefinition()); }
+    if (phone !== undefined) { options.tools.push(phoneTaskDefinition(false), phoneTaskDefinition(true)); }
     options.toolChoice = 'auto';
     let queries = 0;
     let delegations = 0;
@@ -63,12 +65,13 @@ export class SharedAgent {
       options.messages.push(assistant);
       for (let call of response.toolCalls) {
         if (!active()) { throw new Error('用户取消请求'); }
-        if (call.function.name === 'run_phone_task') {
+        const systemPhone = call.function.name === 'run_phone_system_task';
+        if (call.function.name === 'run_phone_task' || systemPhone) {
           let result = JSON.stringify({ status: 'blocked', message: '本轮未开启手机控制或已尝试过一次' });
           if (phone !== undefined && !phoneUsed) {
             phoneUsed = true;
-            trace('等待确认 Mika 手机控制');
-            result = await phone();
+            trace(systemPhone ? '等待确认 Mika 系统操作' : '等待确认 Mika 手机控制');
+            result = await phone(systemPhone);
             trace('Mika 手机任务已结束');
           }
           if (!active()) { throw new Error('用户取消请求'); }

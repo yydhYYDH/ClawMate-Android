@@ -134,6 +134,8 @@ fun toolDispatcher(
     notices: com.wangzan101.mika.core.proactive.NoticeSource? = null,
     /** 用户在 UI 发起任务时可访问的设备文件。 */
     deviceFiles: com.wangzan101.mika.core.cap.devicefiles.DeviceFilesPort? = null,
+    // ClawMate: a host can expose only the tools backed by the selected port.
+    allowedToolNames: Set<String>? = null,
 ): ToolDispatcher {
     val screenshotStore = sandbox?.takeIf {
         it.status() !is com.wangzan101.mika.core.cap.sandbox.SandboxStatus.Unsupported &&
@@ -175,7 +177,7 @@ fun toolDispatcher(
                 com.wangzan101.mika.core.cap.devicefiles.DeviceFilesCapability(port, workspace) else null
         }
     }) + mcpServers.map(::McpClientProvider)
-    return RunAssembler(providers).assemble(runSpec, config, stableRefs, FORMER_PREFIX, RENAMED, RETIRED, MOVED)
+    return RunAssembler(providers).assemble(runSpec, config, stableRefs, FORMER_PREFIX, RENAMED, RETIRED, MOVED, allowedToolNames)
 }
 
 /** 改名前各能力工具名的前缀:手机的没有前缀,网页的是 browser_。 */

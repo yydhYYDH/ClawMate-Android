@@ -9,3 +9,5 @@ and the upstream third-party notices are included in the module resources.
 The ClawMate build uses Kotlin 1.9.24, coroutines 1.8.1 and serialization 1.6.3.
 Compatibility edits are marked in the source of `LocalPortScan.kt`,
 `AppTools.kt`, `RequestConfirmation.kt`, `DeviceCode.kt` and `XaiAuth.kt`.
+ClawMate also adds an optional per-host capability allowlist in
+`TaskTools.kt` and `RunAssembler.kt`. The default retains the upstream assembly.

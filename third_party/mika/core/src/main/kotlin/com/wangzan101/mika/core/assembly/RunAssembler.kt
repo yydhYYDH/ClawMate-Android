@@ -21,7 +21,8 @@ internal interface CapabilityProvider {
 internal class RunAssembler(private val providers: List<CapabilityProvider>) {
     fun assemble(spec: RunSpec, config: ToolConfig, stableRefs: Boolean,
         formerPrefix: Map<String, String>, renamed: Map<String, String>,
-        retired: Map<String, String>, moved: Map<String, List<String>>): ToolDispatcher {
+        retired: Map<String, String>, moved: Map<String, List<String>>,
+        allowedToolNames: Set<String>? = null): ToolDispatcher {
         check(providers.map { it.id }.distinct().size == providers.size) { "duplicate capability provider ids" }
         val child = spec.provenance.origin == RunOrigin.Child
         val readOnly = spec.readOnly || child
@@ -36,7 +37,9 @@ internal class RunAssembler(private val providers: List<CapabilityProvider>) {
             .filter { !readOnly || it.risk == Risk.Read }
         val capabilityTools = capabilities.flatMap { it.tools() }.filter { !readOnly || it.risk == Risk.Read ||
             it.capability == "web" && it.verb == Verb.Navigate }
-        return ToolDispatcher(capabilities, general + capabilityTools,
+        // ClawMate: check the same host allowlist for declarations and dispatch.
+        val offered = (general + capabilityTools).filter { allowedToolNames == null || it.name in allowedToolNames }
+        return ToolDispatcher(capabilities, offered,
             listOf(CoreSections) + capabilities, config, { ctx -> Interfaces.attach(ctx, capabilities.mapNotNull { it.surface }, stableRefs) },
             formerPrefix, renamed, retired, moved)
     }

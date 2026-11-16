@@ -649,7 +649,8 @@ struct Index {
             assistant.trace.push(message); this.messages = this.messages.slice(); this.scheduleChatSave();
           }, allowCodex ? this.codexDelegation(text, generation) : undefined, DEFAULT_SHARED_AGENT_BUDGETS,
           (raw: string): Promise<string> => CollectedMemory.share(raw, options, (): boolean => generation === this.generation),
-          allowCodex && text.length <= 1000 ? (): Promise<string> => this.runMikaPhoneTask(text, options, ensureActive) : undefined);
+          allowCodex && text.length <= 1000 ?
+            (system: boolean): Promise<string> => this.runMikaPhoneTask(text, options, ensureActive, system) : undefined);
         }
       } catch (error) {
         if (generation === this.generation) {
@@ -663,13 +664,15 @@ struct Index {
     finally { if (!stored) { ChatImages.discard(paths); } this.preparing = false; this.sending = false; }
   }
 
-  private async runMikaPhoneTask(goal: string, options: CloudChatCompletionOptions, checkActive: () => void): Promise<string> {
+  private async runMikaPhoneTask(goal: string, options: CloudChatCompletionOptions,
+    checkActive: () => void, system: boolean): Promise<string> {
     const bridge = Bridge.createBridge('ClawMatePlatform');
     let id = '';
     this.mikaStarting = true;
     try {
       checkActive();
-      id = await bridge.callMethod('mikaPhoneStart', goal, options.baseUrl, options.model || '', options.apiKey || '') as string;
+      id = await bridge.callMethod(system ? 'mikaSystemTaskStart' : 'mikaPhoneStart',
+        goal, options.baseUrl, options.model || '', options.apiKey || '') as string;
       checkActive();
       this.mikaRunId = id;
       this.mikaStarting = false;

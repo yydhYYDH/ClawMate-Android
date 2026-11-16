@@ -1,5 +1,13 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## Mika 系统时钟与日程动作（2026-11-16）
+
+- 云端聊天新增 Mika 系统动作入口，使用原版 `phone_set_alarm`、`phone_set_timer`、`phone_show_alarms` 和 `phone_add_calendar_event` 工具。系统端口用 Android 时钟和日历服务处理，用户确认参数后执行，路径无需无障碍或后台屏。闹钟核对系统的下一条闹钟时间。系统只报告更早的闹钟或时间无法核实时，回执明确提示去时钟检查；日程交给用户在预填表单内保存。
+- 系统任务只调度已接通的工具。相同动作在同一次任务内复用回执，避免重复触发。旧手机控制和图工作流继续使用各自入口。
+- 已按固定版本、上游文档和清单记录完整功能差异与验收条件，见 [Mika 功能对照](docs/MIKA_PARITY.md)。
+- 共享 ArkUI-X 打包、`node shared-frontend/verify-integration.mjs`（19 项）、`python docs/user-manual/build.py --check`、`./gradlew.bat :mika-core:jar :android-capabilities:testDebugUnitTest --offline`（306 通过、14 跳过）与 `./gradlew.bat :shared-app:assembleDebug --offline` 通过，会议运行测试暂缓。
+- OPPO PKB110 原位更新 `com.clawmate.shared`，APK SHA-256 `ec60307854081a9f8525eb92ed75585f558baed4f567071153f794817d576c57`。配置、Codex 连接和既有采集历史的摘要一致，无障碍仍关闭。用原有云模型创建一次性测试闹钟，在确认框核对 23:47 和标签，通过 Android 下一条闹钟、时钟界面和聊天回执复核，随后删除测试闹钟和测试会话。重复闹钟、计时器和日程的真机验收仍待执行。
+
 ## Mika 云端聊天手机控制（2026-11-16）
 
 - 云端文字聊天新增 `run_phone_task` 工具，传递用户原始目标。每轮最多委托一次，由手机本机选择应用和确认目标、模型地址及屏幕。原有聊天配置、历史和 APK 包名 `com.clawmate.shared` 沿用。

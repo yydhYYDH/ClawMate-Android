@@ -376,9 +376,13 @@ class PlatformBridge(private val activity: StageActivity) :
         } else (activity as SharedActivity).reminderWindowReady()
     }
     fun workflowCancel(id: String): Boolean { workflowModels.remove(id)?.close(); workflowJobs.cancel(id); return true }
-    fun mikaPhoneStart(goal: String, url: String, model: String, key: String): String {
+    fun mikaPhoneStart(goal: String, url: String, model: String, key: String): String =
+        startMika(goal, url, model, key, system = false)
+    fun mikaSystemTaskStart(goal: String, url: String, model: String, key: String): String =
+        startMika(goal, url, model, key, system = true)
+    private fun startMika(goal: String, url: String, model: String, key: String, system: Boolean): String {
         require(goal.length <= 1000 && url.length <= 2048 && model.length <= 180 && key.length <= 4096)
-        return mikaJobs.start { runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key) } }
+        return mikaJobs.start { runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, system) } }
     }
     fun mikaPhonePoll(id: String): String {
         val job = mikaJobs.poll(id)
