@@ -1,6 +1,7 @@
 package com.clawmate.platform.display
 
 import android.content.AttributionSource
+import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ProviderInfo
@@ -15,6 +16,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Process
+import android.view.Surface
 import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
@@ -71,6 +73,7 @@ private class DisplayHost(
 ) : IDisplayHost.Stub() {
     private var display: VirtualDisplay? = null
     private var frames: ImageReader? = null
+    private var preview: Surface? = null
     private val expiry = Runnable { release() }
 
     @Synchronized
@@ -84,11 +87,16 @@ private class DisplayHost(
                 data.scheme !in setOf(null, "content", "file", "intent") && data.toString().length <= 2048)) {
             "后台屏不支持该启动方式"
         }
-        val launch = Intent(target.action, data).setPackage(pkg)
-        if (target.action == Intent.ACTION_MAIN) launch.addCategory(Intent.CATEGORY_LAUNCHER)
-        target.component?.let { launch.component = it }
+        val launch = if (target.action == Intent.ACTION_MAIN) {
+            shell.packageManager.getLaunchIntentForPackage(pkg)
+                ?: Intent.makeMainActivity(checkNotNull(target.component))
+        } else {
+            Intent(Intent.ACTION_VIEW, data).setPackage(pkg)
+        }
         val resolved = checkNotNull(launch.resolveActivity(shell.packageManager)) { "目标应用没有可用入口" }
         check(resolved.packageName == pkg)
+        launch.component = resolved
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         // These AOSP flags require the shell's trusted-display permission.
         val trusted = 1 shl 10
@@ -112,21 +120,59 @@ private class DisplayHost(
             display = surface
             handler.postDelayed(expiry, 125_000)
             val id = surface.display.displayId
-            val command = mutableListOf("/system/bin/am", "start", "--display", id.toString(),
-                "-a", launch.action!!, "-n", resolved.flattenToString(),
-                "-f", (Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK).toString())
-            data?.let { command.addAll(listOf("-d", it.toString())) }
-            val process = ProcessBuilder(command).redirectErrorStream(true).start()
-            try {
-                check(process.waitFor(6, TimeUnit.SECONDS)) { "后台屏启动应用超时" }
-                val output = process.inputStream.bufferedReader().use { it.readText() }
-                check(process.exitValue() == 0 && "Error" !in output && "Warning:" !in output) { "系统拒绝在后台屏启动目标应用" }
-            } finally { process.destroy() }
+            launchOnDisplay(launch, id)
             return id
         } catch (failure: Exception) {
             release()
             throw failure
         }
+    }
+
+    private fun launchOnDisplay(intent: Intent, displayId: Int) {
+        val options = ActivityOptions.makeBasic().setLaunchDisplayId(displayId).toBundle()
+        // Use the same ActivityTaskManager launch path as Mika; keep the shell command for API variants.
+        val result = runCatching {
+            val manager = Class.forName("android.app.ActivityTaskManager").getMethod("getService").invoke(null)!!
+            val start = manager.javaClass.methods.first { it.name == "startActivityAsUser" && it.parameterTypes.size == 12 }
+            start.invoke(manager, null, "com.android.shell", null, intent, null, null, null, 0, 0, null, options, -2) as Int
+        }.getOrNull()
+        if (result != null) {
+            check(result >= 0) { "系统拒绝在后台屏启动目标应用（$result）" }
+            return
+        }
+        val command = mutableListOf("/system/bin/am", "start", "--display", displayId.toString(),
+            "-a", intent.action!!, "-n", checkNotNull(intent.component).flattenToString(),
+            "-f", intent.flags.toString())
+        intent.categories?.forEach { command.addAll(listOf("-c", it)) }
+        intent.dataString?.let { command.addAll(listOf("-d", it)) }
+        val process = ProcessBuilder(command).redirectErrorStream(true).start()
+        try {
+            check(process.waitFor(6, TimeUnit.SECONDS)) { "后台屏启动应用超时" }
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            check(process.exitValue() == 0 && "Error" !in output) { "系统拒绝在后台屏启动目标应用" }
+        } finally {
+            process.destroy()
+        }
+    }
+
+    @Synchronized
+    override fun setPreviewSurface(displayId: Int, surface: Surface?) {
+        enforceOwner()
+        val current = display
+        if (current == null || current.display.displayId != displayId) {
+            surface?.release()
+            return
+        }
+        val next = surface?.takeIf { it.isValid }
+        if (surface != null && next == null) surface.release()
+        try {
+            current.surface = next ?: frames?.surface
+        } catch (failure: RuntimeException) {
+            next?.release()
+            throw failure
+        }
+        preview?.release()
+        preview = next
     }
 
     @Synchronized
@@ -144,6 +190,8 @@ private class DisplayHost(
         handler.removeCallbacks(expiry)
         display?.release()
         display = null
+        preview?.release()
+        preview = null
         frames?.close()
         frames = null
     }

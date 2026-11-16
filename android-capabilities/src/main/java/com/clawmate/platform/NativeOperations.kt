@@ -5,7 +5,7 @@ import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
-data class NativeOperation<T>(val state: String, val value: T? = null)
+data class NativeOperation<T>(val state: String, val value: T? = null, val progress: String = "")
 
 /** Bounded, cancellable native work. Poll consumes terminal results; late work is discarded. */
 class NativeOperations<T>(private val limit: Int = 4) : Closeable {
@@ -14,7 +14,9 @@ class NativeOperations<T>(private val limit: Int = 4) : Closeable {
     private val executor = Executors.newFixedThreadPool(2)
     private var closed = false
 
-    @Synchronized fun start(work: () -> T): String {
+    fun start(work: () -> T): String = startWithProgress { work() }
+
+    @Synchronized fun startWithProgress(work: ((String) -> Unit) -> T): String {
         check(!closed) { "能力已关闭" }
         val expired = jobs.filterValues { System.nanoTime() - it.created > 60_000_000_000L }.keys.toList()
         expired.forEach { jobs.remove(it)?.future?.cancel(true) }
@@ -23,11 +25,21 @@ class NativeOperations<T>(private val limit: Int = 4) : Closeable {
         val entry = Entry<T>(NativeOperation("running"))
         jobs[id] = entry
         entry.future = executor.submit {
-            val result = try { NativeOperation("done", work()) } catch (_: InterruptedException) {
+            val result = try {
+                NativeOperation("done", work { message ->
+                    synchronized(this) {
+                        if (jobs[id] === entry && entry.result.state == "running") {
+                            entry.result = NativeOperation("running", progress = message)
+                        }
+                    }
+                })
+            } catch (_: InterruptedException) {
                 NativeOperation<T>("cancelled")
             } catch (_: Exception) { NativeOperation<T>("failed") }
             synchronized(this) {
-                if (jobs[id] === entry && entry.result.state == "running") entry.result = result
+                if (jobs[id] === entry && entry.result.state == "running") {
+                    entry.result = result.copy(progress = entry.result.progress)
+                }
             }
         }
         return id

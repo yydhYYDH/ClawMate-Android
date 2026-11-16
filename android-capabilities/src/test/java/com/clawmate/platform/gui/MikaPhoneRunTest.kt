@@ -21,6 +21,15 @@ import java.time.Instant
 import java.time.ZonedDateTime
 
 class MikaPhoneRunTest {
+    @Test fun explicitAppLaunchFindsInstalledLabelWithoutMatchingDiscussionOrPrefixes() {
+        val apps = listOf("com.xingin.xhs" to "小红书", "fixture.notes" to "小红", "fixture.clock" to "Calculator")
+        assertEquals("com.xingin.xhs", MikaAppRequest.target("打开小红书，总结一下近期热点", apps))
+        assertEquals("fixture.clock", MikaAppRequest.target("Please open the system Calculator app.", apps))
+        assertEquals(null, MikaAppRequest.target("怎么打开小红书？", apps))
+        assertEquals(null, MikaAppRequest.target("打开小红书助手", apps))
+        assertEquals(null, MikaAppRequest.target("打开小红书", apps + ("fixture.other" to "小红书")))
+    }
+
     @Test fun upstreamAgentReadsTheApprovedPortAndReturnsItsAnswer() = runTest {
         val screen = FixtureScreen()
         var calls = 0

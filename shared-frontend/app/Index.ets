@@ -63,7 +63,8 @@ import { ChatVoiceMetadata, VoiceInteractionStatus, TtsVoiceRuntimeStatus, creat
 interface CodexStarted { id: string; failure: string; }
 /** Native poll response for a chat delegation. */
 interface CodexPolled { v: number; status: string; result?: string; }
-interface MikaPhonePoll { state: string; status: string; message: string; }
+interface MikaPhonePoll { state: string; status: string; message: string; progress: string; }
+interface MikaPhoneReceipt { status: string; message: string; }
 
 interface CaptureResult { v: number; status: string; uri: string; }
 
@@ -638,20 +639,32 @@ struct Index {
         assistant.streamingVersion = (assistant.streamingVersion || 0) + 1;
         this.messages = this.messages.slice(); this.scheduleChatSave();
       };
+      let addTrace = (message: string): void => {
+        if (generation !== this.generation || assistant.trace[assistant.trace.length - 1] === message) { return; }
+        assistant.trace.push(message); this.messages = this.messages.slice(); this.scheduleChatSave();
+      };
       try {
         if (selected.length > 0) {
           await this.client.chatCompletionStream(options, { onContentDelta: onDelta });
         } else {
-          await SharedAgent.run(this.client, options, (raw: string): string => {
-            this.ensureGeneration(generation);
-            if (this.facade === null) { return '{"ok":false,"error":"数据管理器未就绪"}'; }
-            return MemoryQuery.execute(this.facade, raw);
-          }, (): boolean => generation === this.generation, onDelta, (message: string): void => {
-            assistant.trace.push(message); this.messages = this.messages.slice(); this.scheduleChatSave();
-          }, allowCodex ? this.codexDelegation(text, generation) : undefined, DEFAULT_SHARED_AGENT_BUDGETS,
-          (raw: string): Promise<string> => CollectedMemory.share(raw, options, (): boolean => generation === this.generation),
-          allowCodex && text.length <= 1000 ?
-            (method: string): Promise<string> => this.runMikaPhoneTask(text, options, ensureActive, method) : undefined);
+          const phone = allowCodex && text.length <= 1000 ?
+            (method: string): Promise<string> => this.runMikaPhoneTask(text, options, ensureActive, method, addTrace) : undefined;
+          const explicitApp = phone !== undefined &&
+            await Bridge.createBridge('ClawMatePlatform').callMethod('mikaHasExplicitApp', text) as boolean;
+          ensureActive();
+          if (explicitApp && phone !== undefined) {
+            const result = JSON.parse(await phone('mikaPhoneStart')) as MikaPhoneReceipt;
+            ensureActive();
+            onDelta(result.message || '手机任务已结束');
+          } else {
+            await SharedAgent.run(this.client, options, (raw: string): string => {
+              this.ensureGeneration(generation);
+              if (this.facade === null) { return '{"ok":false,"error":"数据管理器未就绪"}'; }
+              return MemoryQuery.execute(this.facade, raw);
+            }, (): boolean => generation === this.generation, onDelta, addTrace,
+            allowCodex ? this.codexDelegation(text, generation) : undefined, DEFAULT_SHARED_AGENT_BUDGETS,
+            (raw: string): Promise<string> => CollectedMemory.share(raw, options, (): boolean => generation === this.generation), phone);
+          }
         }
       } catch (error) {
         if (generation === this.generation) {
@@ -666,12 +679,13 @@ struct Index {
   }
 
   private async runMikaPhoneTask(goal: string, options: CloudChatCompletionOptions,
-    checkActive: () => void, method: string): Promise<string> {
+    checkActive: () => void, method: string, trace: (message: string) => void): Promise<string> {
     const bridge = Bridge.createBridge('ClawMatePlatform');
     let id = '';
     this.mikaStarting = true;
     try {
       checkActive();
+      trace('Mika · 准备手机任务');
       id = await bridge.callMethod(method, goal, options.baseUrl, options.model || '', options.apiKey || '') as string;
       checkActive();
       this.mikaRunId = id;
@@ -682,6 +696,7 @@ struct Index {
         let status = await bridge.callMethod('mikaPhonePoll', id) as string;
         checkActive();
         let state = JSON.parse(status) as MikaPhonePoll;
+        if (state.progress) { trace('Mika · ' + state.progress); }
         if (state.state === 'done') {
           return JSON.stringify({ status: state.status, message: state.message });
         }

@@ -187,6 +187,19 @@ messageList = replaceChecked(messageList, '  private replayAvailable(): boolean 
 messageList = replaceChecked(messageList, '          .opacity(this.synthesizing() ? 0.72 : 1)',
   "          .opacity(this.synthesizing() ? 0.72 : 1)\n          .accessibilityText(this.playing() ? '暂停朗读' : this.synthesizing() ? '取消语音生成' : this.detail.voice.status === 'paused' ? '继续朗读' : '朗读消息')");
 messageList = replaceChecked(messageList, '          .enabled(this.replayAvailable())', "          .enabled(this.replayAvailable())\n          .accessibilityText('重播缓存语音')");
+messageList = replaceChecked(messageList, "Text('已执行 ' + String(chatToolCallCount(this.role, this.kind, this.detail)) + ' 次工具调用')",
+  'Text(this.activitySummary())');
+messageList = replaceChecked(messageList,
+  '  build() {\n    if (chatToolCallCount(this.role, this.kind, this.detail) > 0) {',
+  `  private activitySummary(): string {
+    const updates = this.detail.trace.filter((line: string): boolean => line.startsWith('Mika · '));
+    if (updates.length > 0) {
+      return this.detail.streamingActive ? updates[updates.length - 1] : 'Mika 手机任务过程';
+    }
+    return '已执行 ' + String(chatToolCallCount(this.role, this.kind, this.detail)) + ' 次工具调用';
+  }
+  build() {
+    if (chatToolCallCount(this.role, this.kind, this.detail) > 0) {`);
 overlay('pages/chat/ChatMessageList.ets', replaceChecked(buildChatAvatarMessages(messageList), 'app.media.chat_assistant_avatar', 'app.media.clawmate_secretary'));
 overlay('pages/chat/DigitalAvatarView.ets', applyPatches(buildChatAvatarView(read('pages/chat/DigitalAvatarView.ets')), [
   ['app.media.chat_assistant_avatar', 'app.media.clawmate_secretary'],

@@ -377,6 +377,7 @@ class PlatformBridge(private val activity: StageActivity) :
         } else (activity as SharedActivity).reminderWindowReady()
     }
     fun workflowCancel(id: String): Boolean { workflowModels.remove(id)?.close(); workflowJobs.cancel(id); return true }
+    fun mikaHasExplicitApp(goal: String): Boolean = MikaPhoneEntry.hasExplicitApp(activity, goal)
     fun mikaPhoneStart(goal: String, url: String, model: String, key: String): String =
         startMika(goal, url, model, key, MikaPhoneMode.SCREEN)
     fun mikaSystemTaskStart(goal: String, url: String, model: String, key: String): String =
@@ -385,12 +386,15 @@ class PlatformBridge(private val activity: StageActivity) :
         startMika(goal, url, model, key, MikaPhoneMode.CALENDAR_BATCH)
     private fun startMika(goal: String, url: String, model: String, key: String, mode: MikaPhoneMode): String {
         require(goal.length <= 1000 && url.length <= 2048 && model.length <= 180 && key.length <= 4096)
-        return mikaJobs.start { runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, mode) } }
+        return mikaJobs.startWithProgress { progress ->
+            runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, mode, progress) }
+        }
     }
     fun mikaPhonePoll(id: String): String {
         val job = mikaJobs.poll(id)
         return JSONObject().put("state", job.state)
-            .put("status", job.value?.status.orEmpty()).put("message", job.value?.message.orEmpty()).toString()
+            .put("status", job.value?.status.orEmpty()).put("message", job.value?.message.orEmpty())
+            .put("progress", job.progress).toString()
     }
     fun mikaPhoneCancel(id: String): Boolean { mikaJobs.cancel(id); return true }
     fun captureStart(): String = onUi { (activity as SharedActivity).startCapture() }

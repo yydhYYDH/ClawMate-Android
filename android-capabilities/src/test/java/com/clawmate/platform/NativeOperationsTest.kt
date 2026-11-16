@@ -6,6 +6,24 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class NativeOperationsTest {
+    @Test fun progressIsScopedToTheRunningOperation() {
+        NativeOperations<String>().use { jobs ->
+            val reported = CountDownLatch(1)
+            val finish = CountDownLatch(1)
+            val id = jobs.startWithProgress { report ->
+                report("reading the screen")
+                reported.countDown()
+                finish.await(2, TimeUnit.SECONDS)
+                "done"
+            }
+            assertTrue(reported.await(2, TimeUnit.SECONDS))
+            assertEquals("reading the screen", jobs.poll(id).progress)
+            jobs.cancel(id)
+            finish.countDown()
+            assertEquals("", jobs.poll(id).progress)
+        }
+    }
+
     @Test fun resultIsDeliveredOnce() {
         NativeOperations<String>().use { jobs ->
             val completed = CountDownLatch(1)

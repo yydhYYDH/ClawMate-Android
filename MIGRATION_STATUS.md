@@ -1,5 +1,12 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## Mika 实时后台预览和聊天进度（2026-11-16）
+
+- 主屏右侧任务浮窗用 Android 渲染表面显示虚拟屏实况，可停止任务。预览随会话释放，画面留在本机。云端聊天显示当前手机任务状态和步骤，结束后保留同一条消息的任务过程。
+- 用户原句「打开小红书，总结一下近期热点」的历史回执没有手机工具调用。新增基于手机已安装应用名的明确启动识别，共用手机执行器并直接进入目标、屏幕和数据共享确认。随后真机复测发现旧启动方式可能把小红书带到主屏，后台助手已改用 Mika 的 `ActivityTaskManager` 启动路径，带选定的显示器 ID。
+- OPPO PKB110 原位更新 `com.clawmate.shared`，APK SHA-256 `319c2e0755d579bdf1d7e501d47d6bc01a22299dd06a08f21c7f2ce27eba079d`。原模型设置、无障碍、Codex 连接和采集历史通过校验。计算器完成预览与聊天进度验收。用上述原句复测，小红书在独立屏 19 通过可见控件读取「发现」页并回传摘要，主屏保持聊天。另一轮从小红书预览浮窗停止，虚拟屏完成回收。测试会话已清理。站内热搜榜待验收，浮窗交互接管待接入。
+- ArkUI-X 打包和封存校验、`./gradlew.bat :shared-app:assembleDebug :android-capabilities:testDebugUnitTest --offline --console=plain`（309 通过、14 跳过）、`node shared-frontend/verify-integration.mjs`（21 项）、`node shared-frontend/verify-chat-avatar.mjs`（10 项）及中文手册检查通过。
+
 ## Mika 后台屏与悬浮窗真机验收（2026-11-16）
 
 - OPPO PKB110 / Android 16 实测私有虚拟屏能启动计算器，主屏焦点保持在显示器 0。Android 的无障碍显示器清单只有主屏，原会话因此读不到计算器窗口、没有浮窗，并在等待超时后回收显示器。

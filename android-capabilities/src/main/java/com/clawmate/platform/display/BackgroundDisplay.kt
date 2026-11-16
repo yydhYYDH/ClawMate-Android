@@ -8,11 +8,16 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Bundle
 import android.os.IBinder
+import android.view.Surface
 import java.io.Closeable
 
 /** A display belongs to one approved launch and one app process. */
 class BackgroundDisplay private constructor(val id: Int, private val host: IDisplayHost) : Closeable {
     val connected: Boolean get() = host.asBinder().isBinderAlive
+
+    internal fun showOn(surface: Surface?) {
+        runCatching { host.setPreviewSurface(id, surface) }
+    }
 
     override fun close() {
         runCatching { host.close(id) }

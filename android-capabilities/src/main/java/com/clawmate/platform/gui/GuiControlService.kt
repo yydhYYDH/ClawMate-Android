@@ -9,6 +9,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -16,6 +17,8 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowInsets
@@ -94,6 +97,9 @@ class GuiControlService : AccessibilityService() {
                 if (panel != null) currentWindow(allowInputMethod = mikaRun != null || pageRun?.awaitingPage == true && !busy) else {
                     check(SystemClock.elapsedRealtime() <= armedUntil) {
                         when {
+                            backgroundDisplay != null && windows.any {
+                                it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.root?.packageName?.toString() == grant?.target
+                            } -> "目标应用打开到了主屏，后台屏任务已停止"
                             backgroundDisplay != null -> "后台屏未在时限内打开已确认的页面"
                             weiboRun != null -> "微博榜单未在时限内打开"
                             else -> "目标应用未进入前台"
@@ -311,7 +317,11 @@ class GuiControlService : AccessibilityService() {
             })
         } else if (mika != null) {
             status.text = "正在启动 Mika 手机控制"
-            if (backgroundDisplay == null) {
+            status.maxLines = 2
+            val display = backgroundDisplay
+            if (display != null) {
+                addMikaPreview(layout, checkNotNull(style), display)
+            } else {
                 layout.addView(requireNotNull(style).action("人工接管") { stop("已交给你操作，Mika 已停止") })
             }
         } else if (collectOnly) {
@@ -348,6 +358,29 @@ class GuiControlService : AccessibilityService() {
                 if (mikaRun === mika) stop("Mika 手机任务已结束")
             }
         }
+    }
+
+    private fun addMikaPreview(layout: LinearLayout, style: GuiCollectionStyle, display: BackgroundDisplay) {
+        val source = getSystemService(DisplayManager::class.java).getDisplay(display.id) ?: return
+        val metrics = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        source.getRealMetrics(metrics)
+        if (metrics.widthPixels <= 0 || metrics.heightPixels <= 0) return
+        val widthLimit = minOf(style.dp(148), resources.displayMetrics.widthPixels / 2 - style.dp(24))
+        val scale = minOf(widthLimit.toFloat() / metrics.widthPixels, style.dp(228).toFloat() / metrics.heightPixels)
+        if (scale <= 0) return
+        val preview = SurfaceView(this).apply {
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            holder.setFixedSize(metrics.widthPixels, metrics.heightPixels)
+            holder.addCallback(object : SurfaceHolder.Callback {
+                override fun surfaceCreated(holder: SurfaceHolder) = display.showOn(holder.surface)
+                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+                override fun surfaceDestroyed(holder: SurfaceHolder) = display.showOn(null)
+            })
+        }
+        layout.addView(preview, LinearLayout.LayoutParams(
+            (metrics.widthPixels * scale).toInt(), (metrics.heightPixels * scale).toInt(),
+        ).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = style.dp(8) })
     }
 
     internal fun mikaWindow(run: MikaPhoneRun): AccessibilityWindowInfo {
