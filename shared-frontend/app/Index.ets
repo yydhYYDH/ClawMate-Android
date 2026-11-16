@@ -686,7 +686,16 @@ struct Index {
     try {
       checkActive();
       trace('Mika · 准备手机任务');
-      id = await bridge.callMethod(method, goal, options.baseUrl, options.model || '', options.apiKey || '') as string;
+      const deciderUrl = (AppStorage.get<string>('cloudDeciderBaseUrl') || '').trim();
+      const deciderModel = (AppStorage.get<string>('cloudDeciderModel') || '').trim();
+      const deciderKey = AppStorage.get<string>('cloudDeciderApiKey') || '';
+      if (method === 'mikaPhoneStart' && /^https:\/\/[^/?#@\s]+(?::\d+)?(?:\/[^?#\s]*)?$/.test(deciderUrl) && deciderModel.length > 0) {
+        trace('Mika · 使用看图模型 ' + deciderModel);
+        id = await bridge.callMethod('mikaPhoneStartWithVision', goal, options.baseUrl, options.model || '', options.apiKey || '',
+          deciderUrl, deciderModel, deciderKey) as string;
+      } else {
+        id = await bridge.callMethod(method, goal, options.baseUrl, options.model || '', options.apiKey || '') as string;
+      }
       checkActive();
       this.mikaRunId = id;
       this.mikaStarting = false;

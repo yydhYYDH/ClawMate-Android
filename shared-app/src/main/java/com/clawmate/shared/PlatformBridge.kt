@@ -380,14 +380,26 @@ class PlatformBridge(private val activity: StageActivity) :
     fun mikaHasExplicitApp(goal: String): Boolean = MikaPhoneEntry.hasExplicitApp(activity, goal)
     fun mikaPhoneStart(goal: String, url: String, model: String, key: String): String =
         startMika(goal, url, model, key, MikaPhoneMode.SCREEN)
+    /**
+     * 带看图模型的手机任务：视觉配置来自页面「云模型」里的 Decider 视觉模型。
+     * 配置不合法与未配置一样按不可用处理，任务照常只靠控件树执行，不静默降级成假视觉。
+     */
+    fun mikaPhoneStartWithVision(goal: String, url: String, model: String, key: String,
+        visionUrl: String, visionModel: String, visionKey: String): String {
+        require(visionUrl.length <= 2048 && visionModel.length <= 180 && visionKey.length <= 4096)
+        val vision = com.clawmate.platform.mika.MikaVisionConfig.parse(visionUrl, visionModel, visionKey)
+        return startMika(goal, url, model, key, MikaPhoneMode.SCREEN, vision)
+    }
     fun mikaSystemTaskStart(goal: String, url: String, model: String, key: String): String =
         startMika(goal, url, model, key, MikaPhoneMode.SYSTEM)
     fun mikaCalendarBatchStart(goal: String, url: String, model: String, key: String): String =
         startMika(goal, url, model, key, MikaPhoneMode.CALENDAR_BATCH)
-    private fun startMika(goal: String, url: String, model: String, key: String, mode: MikaPhoneMode): String {
+    private fun startMika(goal: String, url: String, model: String, key: String, mode: MikaPhoneMode,
+        vision: com.clawmate.platform.mika.MikaVisionConfig? = null,
+    ): String {
         require(goal.length <= 1000 && url.length <= 2048 && model.length <= 180 && key.length <= 4096)
         return mikaJobs.startWithProgress { progress ->
-            runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, mode, progress) }
+            runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, mode, progress, vision) }
         }
     }
     fun mikaPhonePoll(id: String): String {

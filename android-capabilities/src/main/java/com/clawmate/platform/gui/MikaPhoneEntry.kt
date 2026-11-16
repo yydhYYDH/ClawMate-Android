@@ -8,14 +8,19 @@ import android.content.pm.ResolveInfo
 import android.os.Build
 import android.widget.CheckBox
 import com.clawmate.platform.display.BackgroundDisplay
+import com.clawmate.platform.mika.MikaEndpoints
+import com.clawmate.platform.mika.MikaVisionConfig
+import com.clawmate.platform.mika.mikaVisionService
 import com.wangzan101.mika.core.agent.AgentLoop
 import com.wangzan101.mika.core.agent.TaskState
 import com.wangzan101.mika.core.assembly.toolDispatcher
 import com.wangzan101.mika.core.cap.phone.PHONE
+import com.wangzan101.mika.core.knowledge.GuideCatalog
 import com.wangzan101.mika.core.model.Capabilities
 import com.wangzan101.mika.core.model.ChatModel
 import com.wangzan101.mika.core.model.OpenAiCompatModel
 import com.wangzan101.mika.core.uistate.ScreenPort
+import com.wangzan101.mika.core.vision.VisionService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +34,6 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -41,6 +45,10 @@ internal class MikaPhoneRun(
     private val model: ChatModel,
     private val mode: MikaPhoneMode = MikaPhoneMode.SCREEN,
     private val progress: (String) -> Unit = {},
+    /** 打包在内核里的 App/站点知识与技能索引；为空时模型看不到做法，也调不到 knowledge_* / skill_*。 */
+    private val skills: GuideCatalog? = null,
+    /** 看图模型；没配置时 describe / find_visually 不出现，也不截图。 */
+    private val vision: VisionService? = null,
 ) {
     val result = CompletableDeferred<MikaPhoneResult>()
 
@@ -56,7 +64,10 @@ internal class MikaPhoneRun(
             MikaPhoneMode.SYSTEM -> MIKA_SYSTEM_TOOLS
             MikaPhoneMode.CALENDAR_BATCH -> MIKA_CALENDAR_BATCH_TOOLS
         }
-        val tools = toolDispatcher(screen, allowedToolNames = allowed).apply { expand(PHONE) }
+        // 知识与技能只给界面任务：闹钟/日历任务用不到 App 做法，加上只是白占提示词。
+        val catalog = skills.takeIf { allowed == null }
+        val tools = toolDispatcher(screen, skills = catalog, vision = vision, allowedToolNames = allowed)
+            .apply { expand(PHONE) }
         val instruction = when (mode) {
             MikaPhoneMode.SCREEN -> "你是 ClawMate 的手机控制助手。本次仅限用户确认的一个前台应用。" +
                 "仅使用可见控件执行浏览、搜索和读取，搜索词必须来自用户请求。" +
@@ -71,6 +82,7 @@ internal class MikaPhoneRun(
         }
         val engine = AgentLoop(model, tools, instruction,
             maxSteps = 12, confirmTimeoutMs = 12_000, inputTimeoutMs = 12_000,
+            skills = catalog,
         )
         val work = async { engine.run(goal) }
         val meter = launch {
@@ -132,6 +144,12 @@ object MikaPhoneEntry {
         .callTimeout(25, TimeUnit.SECONDS)
         .build()
 
+    /**
+     * 随 `:mika-core` 打包的 App/站点知识与技能索引。
+     * 由内核自己的 classloader 读 `knowledge/index.json`（随 APK 打包），不联网、不读本地文件。
+     */
+    private val skills: GuideCatalog by lazy { GuideCatalog.loadBundled() }
+
     fun hasExplicitApp(activity: Activity, goal: String): Boolean =
         goal.length <= 1000 && explicitApp(activity, goal, GuiControlEntry.launchers(activity)) != null
 
@@ -144,21 +162,22 @@ object MikaPhoneEntry {
     suspend fun runCloud(activity: Activity, goal: String, baseUrl: String, modelName: String, key: String,
         mode: MikaPhoneMode = MikaPhoneMode.SCREEN,
         progress: (String) -> Unit = {},
+        visionConfig: MikaVisionConfig? = null,
     ): MikaPhoneResult {
-        val endpoint = baseUrl.trim().toHttpUrlOrNull()
-        if (endpoint == null || !endpoint.isHttps || endpoint.username.isNotEmpty() || endpoint.password.isNotEmpty() ||
-            endpoint.query != null || endpoint.fragment != null || modelName.isBlank() || modelName.length > 180 ||
+        val endpoint = MikaEndpoints.parse(baseUrl)
+        if (endpoint == null || modelName.isBlank() || modelName.length > 180 ||
             goal.isBlank() || goal.length > 1000
         ) return MikaPhoneResult("blocked", "请检查 HTTPS 云端模型配置和 1–1000 字的任务")
         if (mode == MikaPhoneMode.CALENDAR_BATCH && !MikaCalendarWriter.hasAccess(activity)) {
             return MikaPhoneResult("blocked", MIKA_CALENDAR_PERMISSION_GUIDANCE)
         }
-        val url = endpoint.toString().trimEnd('/').removeSuffix("/chat/completions")
-        val base = if (url.endsWith("/v1") || endpoint.encodedPath.endsWith("/chat/completions")) url else "$url/v1"
+        val (url, base) = endpoint
         val model = OpenAiCompatModel(base, key.ifBlank { null }, modelName,
             Capabilities(toolCalls = true, vision = false, contextTokens = 16_000, reasoning = true), http)
-        val task = MikaPhoneRun(goal, model, mode, progress)
-        return if (mode == MikaPhoneMode.SCREEN) run(activity, task, endpoint.host) else runSystem(activity, task)
+        // 看图模型只在界面任务里用；系统动作与日历批量没有屏幕可看。
+        val vision = visionConfig.takeIf { mode == MikaPhoneMode.SCREEN }?.let { mikaVisionService(it, http) }
+        val task = MikaPhoneRun(goal, model, mode, progress, skills, vision)
+        return if (mode == MikaPhoneMode.SCREEN) run(activity, task, url.host) else runSystem(activity, task)
     }
 
     private suspend fun runSystem(activity: Activity, run: MikaPhoneRun): MikaPhoneResult =

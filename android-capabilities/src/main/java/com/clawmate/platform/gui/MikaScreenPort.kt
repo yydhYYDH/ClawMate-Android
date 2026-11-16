@@ -8,11 +8,15 @@ import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
 import com.wangzan101.mika.core.uistate.ActionResult
 import com.wangzan101.mika.core.cap.phone.PHONE_SNAPSHOT_PREFIX
+import com.wangzan101.mika.core.uistate.DOUBLE_TAP_GAP_MS
 import com.wangzan101.mika.core.uistate.ScreenPort
 import com.wangzan101.mika.core.uistate.ScreenSnapshot
 import com.wangzan101.mika.core.uistate.UiElement
 import com.wangzan101.mika.core.uistate.normalize
 import kotlinx.coroutines.delay
+
+/** 单次点按的手势时长；够短，系统会当成一次点击而不是长按。 */
+private const val TAP_MS = 60L
 
 @RequiresApi(34)
 internal class MikaScreenPort(
@@ -29,7 +33,7 @@ internal class MikaScreenPort(
 
     override suspend fun checkAppAccess() { service.mikaWindow(run) }
     override suspend fun listApps() = listOf(target to label)
-    override suspend fun screenshotPng(): ByteArray? = null
+    override suspend fun screenshotPng(): ByteArray? = service.mikaScreenshot(run)
     override suspend fun snapshot() = readFrame().also { previous = it }.screen
     override suspend fun peek() = readFrame().screen
 
@@ -99,18 +103,30 @@ internal class MikaScreenPort(
 
     override suspend fun tapRef(ref: String, snapshotId: String) =
         act(ref, snapshotId, AccessibilityNodeInfo.ACTION_CLICK) { it.clickable }
-    override suspend fun tapXY(x: Int, y: Int) = ActionResult.Failed("observe_and_use_element")
-    override suspend fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, durationMs: Long) =
-        ActionResult.Failed("use_scroll_element")
+
+    /** 坐标点按：与读屏同一坐标系里的像素点，交给无障碍手势执行（浮窗、内容区域由服务端把关）。 */
+    override suspend fun tapXY(x: Int, y: Int): ActionResult = tapPoint(x, y)
+
+    override suspend fun doubleTapXY(x: Int, y: Int): ActionResult {
+        val first = tapPoint(x, y)
+        if (first !is ActionResult.Ok) return first
+        delay(DOUBLE_TAP_GAP_MS)
+        return tapPoint(x, y)
+    }
+
+    private suspend fun tapPoint(x: Int, y: Int): ActionResult =
+        service.mikaGesture(run, previous?.window, listOf(listOf(x to y, x to y)), TAP_MS)
+
+    override suspend fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, durationMs: Long): ActionResult =
+        service.mikaGesture(run, previous?.window, listOf(listOf(x1 to y1, x2 to y2)), durationMs)
+
+    override suspend fun gesture(paths: List<List<Pair<Int, Int>>>, durationMs: Long): ActionResult =
+        service.mikaGesture(run, previous?.window, paths, durationMs)
 
     override suspend fun typeText(ref: String?, snapshotId: String?, text: String): ActionResult {
-        if (text.length > 120 || text.any(Char::isISOControl) || (text.isNotEmpty() && !run.goal.contains(text))) {
-            return ActionResult.Failed("enter_only_search_text_from_user_request")
-        }
+        if (!MikaInput.allowed(run.goal, text)) return ActionResult.Failed("enter_only_text_from_user_request")
         val data = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
-        return act(ref, snapshotId, AccessibilityNodeInfo.ACTION_SET_TEXT, data) {
-            it.editable && it.searchField && (ref != null || it.focused)
-        }
+        return act(ref, snapshotId, AccessibilityNodeInfo.ACTION_SET_TEXT, data) { it.editable && (ref != null || it.focused) }
     }
 
     override suspend fun clearText(ref: String?, snapshotId: String?) = typeText(ref, snapshotId, "")
@@ -131,7 +147,7 @@ internal class MikaScreenPort(
     override suspend fun pressKey(keyCode: Int) = when (keyCode) {
         KeyEvent.KEYCODE_BACK -> back()
         KeyEvent.KEYCODE_ENTER -> act(null, null, AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id) {
-            it.focused && it.editable && it.searchField
+            it.focused && it.editable
         }
         else -> ActionResult.Failed("unsupported_key")
     }

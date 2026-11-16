@@ -406,6 +406,124 @@ class GuiControlService : AccessibilityService() {
         return if (accepted) ActionResult.Ok() else ActionResult.Failed("action_rejected")
     }
 
+    /**
+     * Mika 看图用的这一屏截图：只截目标窗口（不含浮窗），尺寸与窗口边界一致。
+     * 受保护页面、尺寸不符或系统拒绝时返回 null，由核心按「读不到画面」处理，不伪造空白图。
+     */
+    @RequiresApi(34)
+    internal suspend fun mikaScreenshot(run: MikaPhoneRun): ByteArray? = withContext(Dispatchers.Main.immediate) {
+        val window = mikaWindow(run)
+        val bounds = mikaBounds(window)
+        if (bounds.width() <= 0 || bounds.height() <= 0) return@withContext null
+        val bytes = CompletableDeferred<ByteArray?>()
+        val windowId = window.id
+        takeScreenshotOfWindow(windowId, mainExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(result: ScreenshotResult) {
+                val png = runCatching { encodeWindow(result, bounds, windowId) }.getOrNull()
+                if (bytes.isActive) bytes.complete(png)
+            }
+
+            override fun onFailure(@Suppress("UNUSED_PARAMETER") errorCode: Int) {
+                if (bytes.isActive) bytes.complete(null)
+            }
+        })
+        withTimeoutOrNull(6_000) { bytes.await() }
+    }
+
+    private fun encodeWindow(result: ScreenshotResult, bounds: Rect, windowId: Int): ByteArray? {
+        val buffer = result.hardwareBuffer
+        try {
+            val hardware = Bitmap.wrapHardwareBuffer(buffer, result.colorSpace) ?: return null
+            try {
+                val software = hardware.copy(Bitmap.Config.ARGB_8888, false) ?: return null
+                try {
+                    if (software.width != bounds.width() || software.height != bounds.height()) return null
+                    if (currentWindowIdOrNull() != windowId) return null
+                    return encodePng(software)
+                } finally {
+                    software.recycle()
+                }
+            } finally {
+                hardware.recycle()
+            }
+        } finally {
+            buffer.close()
+        }
+    }
+
+    private fun currentWindowIdOrNull(): Int? = runCatching { currentWindow().id }.getOrNull()
+
+    private fun encodePng(bitmap: Bitmap): ByteArray? = try {
+        java.io.ByteArrayOutputStream().use { out ->
+            if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) out.toByteArray() else null
+        }
+    } catch (_: Exception) {
+        null
+    }
+
+    /**
+     * Mika 的坐标手势：点是目标窗口内的像素（与读屏快照同一坐标系），这里加上窗口原点并夹在可操作区域内。
+     * 与手动控制共用会话额度（一次手势算一次动作）；窗口变了、点被浮窗盖住或不在内容区域时不执行。
+     */
+    @RequiresApi(34)
+    internal suspend fun mikaGesture(run: MikaPhoneRun, expectedWindow: Int?, paths: List<List<Pair<Int, Int>>>,
+        durationMs: Long,
+    ): ActionResult = withContext(Dispatchers.Main.immediate) {
+        val window = mikaWindow(run)
+        if (expectedWindow != null && window.id != expectedWindow) return@withContext ActionResult.Failed("stale_snapshot")
+        val bounds = mikaBounds(window)
+        if (bounds.width() <= 0 || bounds.height() <= 0) return@withContext ActionResult.Failed("no_window")
+        val safe = safeBounds(bounds)
+        val covered = Rect()
+        if (panel != null && window.displayId == android.view.Display.DEFAULT_DISPLAY) {
+            val position = IntArray(2)
+            panel?.getLocationOnScreen(position)
+            covered.set(position[0], position[1], position[0] + (panel?.width ?: 0), position[1] + (panel?.height ?: 0))
+        }
+        val strokes = ArrayList<GestureDescription.StrokeDescription>(paths.size)
+        for (points in paths) {
+            if (points.size < 2 || points.size > 32) return@withContext ActionResult.Failed("invalid_gesture")
+            val pixels = points.map { (rawX, rawY) ->
+                val x = (bounds.left + rawX).coerceIn(bounds.left, bounds.right - 1)
+                val y = (bounds.top + rawY).coerceIn(bounds.top, bounds.bottom - 1)
+                if (!safe.contains(x, y)) return@withContext ActionResult.Failed("outside_app_area")
+                if (!covered.isEmpty && covered.contains(x, y)) return@withContext ActionResult.Failed("covered_by_panel")
+                x.toFloat() to y.toFloat()
+            }
+            val path = Path().apply {
+                moveTo(pixels.first().first, pixels.first().second)
+                if (pixels.size == 2 && pixels[0] == pixels[1]) {
+                    // 单点点按也要有一段路径，系统才认这是手势。
+                    lineTo(pixels.first().first + 0.5f, pixels.first().second + 0.5f)
+                } else {
+                    pixels.drop(1).forEach { (x, y) -> lineTo(x, y) }
+                }
+            }
+            strokes += GestureDescription.StrokeDescription(path, 0, durationMs.coerceIn(40, 5_000))
+        }
+        if (strokes.isEmpty()) return@withContext ActionResult.Failed("invalid_gesture")
+        val session = checkNotNull(grant)
+        session.consume(SystemClock.elapsedRealtime(), session.target,
+            !getSystemService(KeyguardManager::class.java).isKeyguardLocked, 1)
+        val finished = CompletableDeferred<Boolean>()
+        val gesture = GestureDescription.Builder().also { builder -> strokes.forEach(builder::addStroke) }.build()
+        val accepted = dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                if (finished.isActive) finished.complete(true)
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                if (finished.isActive) finished.complete(false)
+            }
+        }, null)
+        if (!accepted) return@withContext ActionResult.Failed("gesture_rejected")
+        when (withTimeoutOrNull(durationMs.coerceIn(40, 5_000) + 3_000) { finished.await() }) {
+            true -> ActionResult.Ok()
+            false -> ActionResult.Failed("gesture_cancelled")
+            null -> ActionResult.Failed("gesture_timeout")
+        }
+    }
+
     private fun requireTargetOffMainScreen(target: String) {
         check(windows.none { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.root?.packageName?.toString() == target }) {
             "目标应用正在主屏使用，请先离开该应用"
