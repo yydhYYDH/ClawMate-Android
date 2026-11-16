@@ -267,6 +267,14 @@ class GuiControlService : AccessibilityService() {
             if(other.type==AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY &&
                 overlayOwnership.isOwned(other.id,other.root?.packageName?.toString(),packageName))continue
             val covered=Rect().also{other.getBoundsInScreen(it)}
+            // 别的无障碍服务的浮动按钮（例如 Mika 的胶囊）只占一角时不算遮挡目标，
+            // 否则两台助手同装时一次采集都开不起来；遮住大半个内容区仍按遮挡处理。
+            if (other.type == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) {
+                val overlap = Rect(safe).apply { if (!intersect(covered)) setEmpty() }
+                val area = safe.width().toLong() * safe.height()
+                val hit = overlap.width().toLong() * overlap.height()
+                if (area > 0 && hit * 2 < area) continue
+            }
             check(!Rect.intersects(safe,covered)) { "输入法、系统面板或其他浮层遮挡目标，控制已停止" }
         }
         return window
@@ -318,6 +326,19 @@ class GuiControlService : AccessibilityService() {
                         .onFailure { stop(it.message ?: "无法读取页面") }
                 }
             })
+            layout.addView(Button(this).apply {
+                text = "Mika 采集（最多 ${pages.plan.pages} 页）"
+                textSize = 12f
+                setOnClickListener {
+                    if (busy) return@setOnClickListener
+                    if (sessionWindows().any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }) {
+                        status.text = "请收起键盘再开始读取"
+                        return@setOnClickListener
+                    }
+                    runCatching { collectWithMika(pages.plan.pages, pages.plan.direction, pages, status) }
+                        .onFailure { stop(it.message ?: "Mika 无法读取页面") }
+                }
+            })
         } else if (mika != null) {
             status.text = "正在启动 Mika 手机控制"
             status.maxLines = 2
@@ -330,7 +351,7 @@ class GuiControlService : AccessibilityService() {
         } else if (collectOnly) {
             button("采集当前页"){collectPages(1)}
             button("采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectPages(GUI_COLLECTION_PAGE_LIMIT)}
-            button("Mika 采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectWithMika(status)}
+            button("Mika 采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectWithMika(GUI_COLLECTION_PAGE_LIMIT, CollectionDirection.DOWN, null, status)}
         } else {
             button("截图 / 点按"){capturePreview()}
             button("向上滑动"){confirmGesture("向上滑动",null)}
@@ -941,7 +962,7 @@ class GuiControlService : AccessibilityService() {
      * 用 Mika 内核的 `phone_collect` 读取当前页及后续页：
      * 同一套工具、同一套去重与停止条件，结果先在本机预览，确认后写入本机采集记录。
      */
-    private fun collectWithMika(status: TextView?) {
+    private fun collectWithMika(maxPages: Int, direction: CollectionDirection, run: PageGuiRun?, status: TextView?) {
         check(Build.VERSION.SDK_INT >= 34 && collectOnly)
         val window = currentWindow()
         val windowId = window.id
@@ -953,29 +974,36 @@ class GuiControlService : AccessibilityService() {
         status?.text = "Mika 正在读取…"
         val job = collectionScope.launch(start = CoroutineStart.LAZY) {
             try {
-                val pages = withTimeout(45_000) {
+                val collected = withTimeout(45_000) {
                     toolDispatcher(CollectionScreenPort(target)).collectPages(
-                        direction = CollectionDirection.DOWN.name.lowercase(),
-                        pages = GUI_COLLECTION_PAGE_LIMIT,
+                        direction = direction.name.lowercase(),
+                        pages = maxPages,
                         maxItems = 300,
                     )
                 }
                 if (turn != epoch) return@launch
-                val lines = MikaCollect.lines(pages.text)
+                val lines = MikaCollect.lines(collected.text)
                 if (lines.isEmpty()) {
                     busy = false
-                    lastStatus = "Mika 没有读到可采集的文字（${pages.stoppedBecause}）"
+                    lastStatus = "Mika 没有读到可采集的文字（${collected.stoppedBecause}）"
                     status?.text = lastStatus
                     Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
                     return@launch
                 }
-                val partial = pages.truncated || pages.stoppedBecause !in setOf("page_limit", "item_limit")
+                val partial = collected.truncated || collected.stoppedBecause !in setOf("page_limit", "item_limit")
                 val record = GuiCollection(
                     target, "$label · Mika", System.currentTimeMillis(), lines,
-                    partial = partial, pages = pages.pages.coerceAtLeast(1),
+                    partial = partial, pages = collected.pages.coerceAtLeast(1),
                 )
                 status?.text = "Mika 已读 ${record.pages} 页 · ${lines.size} 条"
-                showCollectionPreview(record, "Mika 采集 · ${pages.stoppedBecause}", turn, windowId, bounds) {}
+                run?.readyToPreview("已读 ${record.pages} 页、${lines.size} 条")
+                showCollectionPreview(record, "Mika 采集 · ${collected.stoppedBecause}", turn, windowId, bounds) { saved ->
+                    if (run != null && turn == epoch) {
+                        run.finish(if (saved) RunStatus.SUCCESS else RunStatus.CANCELLED,
+                            if (saved) "已保存 ${lines.size} 条到本机（Mika）" else "已取消预览，未保存采集内容")
+                        stop(if (saved) "Mika 采集已结束" else "已取消 Mika 采集")
+                    }
+                }
             } catch (_: TimeoutCancellationException) {
                 if (turn == epoch) {
                     stop("Mika 采集超时，未保存采集内容")
