@@ -16,27 +16,37 @@ import com.wangzan101.mika.core.uistate.ScreenSnapshot
 import com.wangzan101.mika.core.uistate.SystemAction
 import com.wangzan101.mika.core.uistate.SystemActionResult
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 internal val MIKA_SYSTEM_TOOLS = setOf(
-    "phone_set_alarm", "phone_set_timer", "phone_show_alarms", "phone_add_calendar_event", "ask_user", "end_not_done",
+    "phone_set_alarm", "phone_set_timer", "phone_show_alarms", "phone_add_calendar_event",
+    "ask_user", "end_not_done",
 )
+internal val MIKA_CALENDAR_BATCH_TOOLS = setOf("phone_calendar_bulk_insert", "ask_user", "end_not_done")
+internal const val MIKA_CALENDAR_PERMISSION_GUIDANCE =
+    "请在系统设置的 ClawMate 应用权限中允许日历访问，再重新发送批量写入请求"
 
 /** System actions have no screen attached and use only the platform intents listed here. */
 internal class MikaSystemScreen(private val activity: Activity, private val goal: String) : ScreenPort {
     private data class Dispatch(val result: SystemActionResult, val receipt: MikaPhoneResult)
     private val completed = linkedMapOf<SystemAction, Dispatch>()
+    private var batch: Pair<List<SystemAction.AddCalendarEvent>, Dispatch>? = null
+
+    private fun receipts() = completed.values.map { it.receipt } + listOfNotNull(batch?.second?.receipt)
 
     val receipt: MikaPhoneResult?
         get() {
-            val replies = completed.values.map { it.receipt }
+            val replies = receipts()
             if (replies.size <= 1) return replies.singleOrNull()
             val status = replies.map { it.status }.distinct().singleOrNull() ?: "partial"
             return MikaPhoneResult(status, replies.joinToString("\n") { it.message })
@@ -44,11 +54,52 @@ internal class MikaSystemScreen(private val activity: Activity, private val goal
 
     override suspend fun systemAction(action: SystemAction): SystemActionResult {
         completed[action]?.let { return it.result }
-        if (completed.values.any { it.receipt.status in setOf("cancelled", "opened", "needs_user") }) {
+        if (waitingForUser()) {
             return SystemActionResult(ActionResult.Failed("user_control_required"))
         }
         return dispatch(action).also { completed[action] = it }.result
     }
+
+    override suspend fun bulkCalendarInsert(events: List<SystemAction.AddCalendarEvent>): SystemActionResult {
+        batch?.let { (requested, answer) ->
+            return if (requested == events) answer.result else SystemActionResult(ActionResult.Failed("calendar_batch_already_run"))
+        }
+        if (waitingForUser()) return SystemActionResult(ActionResult.Failed("user_control_required"))
+        return writeCalendar(events).also { batch = events.toList() to it }.result
+    }
+
+    private fun waitingForUser(): Boolean = receipts().any {
+        it.status in setOf("cancelled", "opened", "needs_user")
+    } || batch?.second?.receipt?.status == "unverified"
+
+    private suspend fun writeCalendar(events: List<SystemAction.AddCalendarEvent>): Dispatch {
+        if (events.size !in 1..100) return fail("invalid_calendar_batch", "批量日程需要 1–100 条")
+        if (!MikaCalendarWriter.hasAccess(activity)) return calendarPermission()
+        val target = try {
+            withContext(Dispatchers.IO) { MikaCalendarWriter.defaultTarget(activity) }
+        } catch (_: SecurityException) {
+            return calendarPermission()
+        } catch (_: RuntimeException) {
+            currentCoroutineContext().ensureActive()
+            return fail("calendar_unavailable", "暂时无法访问日历提供方")
+        } ?: return fail("no_writable_calendar", "没有可写入的日历，请在系统日历中创建或启用日历")
+        val calendar = target.name.ifBlank { "系统日历" }
+        val entries = events.joinToString("\n\n") { event -> describe(event, utcAllDay = true) }
+        if (!confirm(calendar, "写入 ${events.size} 条日程", entries)) {
+            return fail("user_cancelled", "已取消批量写入日程", "cancelled")
+        }
+        GuiControlEntry.foreground(activity)
+        val result = withContext(Dispatchers.IO) { MikaCalendarWriter.insert(activity, target, events) }
+        return when (result.result) {
+            is ActionResult.Ok -> Dispatch(result, MikaPhoneResult("success", "日历提供方已确认保存 ${events.size} 条日程到「$calendar」"))
+            ActionResult.Failed("calendar_permission_required") -> calendarPermission()
+            else -> Dispatch(result, MikaPhoneResult("unverified", "日历未能确认整批写入，请核对现有日程后再试"))
+        }
+    }
+
+    private fun calendarPermission() = fail(
+        "calendar_permission_required", MIKA_CALENDAR_PERMISSION_GUIDANCE,
+    )
 
     private suspend fun dispatch(action: SystemAction): Dispatch {
         val intent = intentFor(action)
@@ -114,11 +165,13 @@ internal class MikaSystemScreen(private val activity: Activity, private val goal
             before.getOrNull(), next, before.isSuccess && alarmClock != null), reply)
     }
 
-    private suspend fun confirm(app: String, details: String): Boolean {
+    private suspend fun confirm(app: String, title: String, entries: String? = null): Boolean {
         GuiControlEntry.foreground(activity)
         val reply = CompletableDeferred<Boolean>()
-        val dialog = AlertDialog.Builder(activity).setTitle(details)
-            .setMessage("将交给手机上的 $app。\n\n你的请求\n$goal")
+        val message = if (entries == null) "将交给手机上的 $app。\n\n你的请求\n$goal"
+            else "写入日历「$app」\n\n$entries\n\n你的请求\n$goal"
+        val dialog = AlertDialog.Builder(activity).setTitle(title)
+            .setMessage(message)
             .setPositiveButton("确认") { _, _ -> reply.complete(true) }
             .setNegativeButton("取消", null).create()
         dialog.setOnDismissListener { reply.complete(false) }
@@ -182,7 +235,7 @@ internal class MikaSystemScreen(private val activity: Activity, private val goal
         private fun localDateTime(timestamp: Long): String = DateTimeFormatter.ofPattern("MM-dd HH:mm")
             .format(Instant.ofEpochMilli(timestamp).atZone(java.time.ZoneId.systemDefault()))
 
-        private fun describe(action: SystemAction): String = when (action) {
+        private fun describe(action: SystemAction, utcAllDay: Boolean = false): String = when (action) {
             is SystemAction.SetAlarm -> {
                 val time = String.format(Locale.ROOT, "%02d:%02d", action.hour, action.minute)
                 val days = listOf("日", "一", "二", "三", "四", "五", "六")
@@ -193,9 +246,17 @@ internal class MikaSystemScreen(private val activity: Activity, private val goal
             is SystemAction.SetTimer -> "设置 ${action.seconds} 秒计时器" + (action.label?.let { " · $it" } ?: "")
             SystemAction.ShowAlarms -> "打开闹钟列表"
             is SystemAction.AddCalendarEvent -> buildString {
-                append("打开「${action.title}」日程表单")
-                append("\n${localDateTime(action.beginMs)}")
-                action.endMs?.let { append(" 至 ${localDateTime(it)}") }
+                append(if (utcAllDay) action.title else "打开「${action.title}」日程表单")
+                if (utcAllDay && action.allDay) {
+                    val first = Instant.ofEpochMilli(action.beginMs).atOffset(ZoneOffset.UTC).toLocalDate()
+                    val last = action.endMs?.takeIf { it > action.beginMs }
+                        ?.let { Instant.ofEpochMilli(it - 1).atOffset(ZoneOffset.UTC).toLocalDate() }
+                    append("\n$first")
+                    if (last != null && last != first) append(" 至 $last")
+                } else {
+                    append("\n${localDateTime(action.beginMs)}")
+                    action.endMs?.let { append(" 至 ${localDateTime(it)}") }
+                }
                 if (action.allDay) append(" · 全天")
                 action.location?.let { append("\n地点 $it") }
                 action.description?.let { append("\n备注 $it") }

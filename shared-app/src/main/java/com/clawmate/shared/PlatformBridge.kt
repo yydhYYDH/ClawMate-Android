@@ -24,6 +24,7 @@ import com.clawmate.platform.LocalImageAccess
 import com.clawmate.platform.NativeOperations
 import com.clawmate.platform.SharedNativeWork
 import com.clawmate.platform.gui.MikaPhoneEntry
+import com.clawmate.platform.gui.MikaPhoneMode
 import com.clawmate.platform.gui.MikaPhoneResult
 import com.clawmate.platform.avatar.AndroidAvatarForeground
 import com.clawmate.platform.avatar.AvatarForegroundRgba
@@ -377,12 +378,14 @@ class PlatformBridge(private val activity: StageActivity) :
     }
     fun workflowCancel(id: String): Boolean { workflowModels.remove(id)?.close(); workflowJobs.cancel(id); return true }
     fun mikaPhoneStart(goal: String, url: String, model: String, key: String): String =
-        startMika(goal, url, model, key, system = false)
+        startMika(goal, url, model, key, MikaPhoneMode.SCREEN)
     fun mikaSystemTaskStart(goal: String, url: String, model: String, key: String): String =
-        startMika(goal, url, model, key, system = true)
-    private fun startMika(goal: String, url: String, model: String, key: String, system: Boolean): String {
+        startMika(goal, url, model, key, MikaPhoneMode.SYSTEM)
+    fun mikaCalendarBatchStart(goal: String, url: String, model: String, key: String): String =
+        startMika(goal, url, model, key, MikaPhoneMode.CALENDAR_BATCH)
+    private fun startMika(goal: String, url: String, model: String, key: String, mode: MikaPhoneMode): String {
         require(goal.length <= 1000 && url.length <= 2048 && model.length <= 180 && key.length <= 4096)
-        return mikaJobs.start { runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, system) } }
+        return mikaJobs.start { runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, mode) } }
     }
     fun mikaPhonePoll(id: String): String {
         val job = mikaJobs.poll(id)

@@ -41,10 +41,11 @@ await check('Mika phone delegation runs once and returns its receipt to the matc
   let turns = 0;
   const client = { async chatCompletionStream(request) {
     assert.ok(request.tools.some(entry => entry.function.name === 'run_phone_task'));
+    assert.ok(request.tools.some(entry => entry.function.name === 'run_phone_calendar_batch'));
     if (++turns === 1) {
       return { content: '', toolCalls: [
-        { ...tool('run_phone_system_task'), id: 'phone-one' },
-        { ...tool('run_phone_task'), id: 'phone-duplicate' }
+        { ...tool('run_phone_calendar_batch'), id: 'phone-one' },
+        { ...tool('run_phone_system_task'), id: 'phone-duplicate' }
       ] };
     }
     const receipts = request.messages.filter(entry => entry.role === 'tool');
@@ -55,8 +56,8 @@ await check('Mika phone delegation runs once and returns its receipt to the matc
     return { content: '', toolCalls: [] };
   } };
   await SharedAgent.run(client, options(), () => '', () => true, () => {}, () => {},
-    undefined, undefined, undefined, async (system) => {
-      assert.equal(system, true);
+    undefined, undefined, undefined, async (method) => {
+      assert.equal(method, 'mikaCalendarBatchStart');
       runs++;
       return '{"status":"success","message":"已读取测试页面"}';
     });
