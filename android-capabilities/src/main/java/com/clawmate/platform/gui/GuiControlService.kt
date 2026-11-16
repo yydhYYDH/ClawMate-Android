@@ -26,6 +26,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -350,6 +351,7 @@ class GuiControlService : AccessibilityService() {
             } else {
                 actions.addView(requireNotNull(style).action("人工接管") { stop("已交给你操作，Mika 已停止") })
             }
+            actions.addView(requireNotNull(style).action("插话…") { promptMikaSteer(mika) })
         } else if (collectOnly) {
             button("采集当前页"){collectPages(1)}
             button("采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectPages(GUI_COLLECTION_PAGE_LIMIT)}
@@ -559,6 +561,32 @@ class GuiControlService : AccessibilityService() {
             false -> ActionResult.Failed("gesture_cancelled")
             null -> ActionResult.Failed("gesture_timeout")
         }
+    }
+
+    /** 任务运行中补一句话：交给 Mika 的 RunInbox，在下一步之前读到，不另开任务。 */
+    private fun promptMikaSteer(run: MikaPhoneRun) {
+        val input = EditText(this).apply {
+            hint = "补充要求或更正；任务会在下一步之前读到"
+            maxLines = 4
+            setTextColor(0xff172033.toInt())
+        }
+        overlayDialog(AlertDialog.Builder(this)
+            .setTitle("插话给 Mika")
+            .setMessage("这句话接在当前任务后面，不会另开新任务。")
+            .setView(input)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("发送") { _, _ ->
+                val text = input.text?.toString()?.trim().orEmpty()
+                if (text.isNotEmpty()) {
+                    val receipt = run.inbox.steer("steer-" + System.currentTimeMillis(), text.take(2000))
+                    lastStatus = if (receipt == com.wangzan101.mika.core.run.InputReceipt.Accepted) {
+                        "已插话：" + text.take(40)
+                    } else {
+                        "任务已结束，未发送插话"
+                    }
+                    Toast.makeText(this, lastStatus, Toast.LENGTH_SHORT).show()
+                }
+            }, secure = true)
     }
 
     private fun requireTargetOffMainScreen(target: String) {

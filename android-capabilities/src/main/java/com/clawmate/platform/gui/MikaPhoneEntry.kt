@@ -50,6 +50,9 @@ internal class MikaPhoneRun(
     /** 看图模型；没配置时 describe / find_visually 不出现，也不截图。 */
     private val vision: VisionService? = null,
 ) {
+    /** 用户插话走这里；任务结束后队列不再接收。 */
+    val inbox = com.wangzan101.mika.core.run.RunInbox()
+
     val result = CompletableDeferred<MikaPhoneResult>()
 
     fun complete(status: String, message: String) {
@@ -84,7 +87,13 @@ internal class MikaPhoneRun(
             maxSteps = 12, confirmTimeoutMs = 12_000, inputTimeoutMs = 12_000,
             skills = catalog,
         )
-        val work = async { engine.run(goal) }
+        val work = async {
+            engine.run(com.wangzan101.mika.core.run.RunSpec(
+                com.wangzan101.mika.core.run.RunId("mika-phone-" + System.nanoTime()),
+                goal,
+                threadId = "clawmate-phone",
+            ), inbox)
+        }
         val meter = launch {
             engine.state.collect { state ->
                 if (state is TaskState.Running) {
