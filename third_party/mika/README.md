@@ -11,6 +11,9 @@ Compatibility edits are marked in the source of `LocalPortScan.kt`,
 `AppTools.kt`, `RequestConfirmation.kt`, `DeviceCode.kt` and `XaiAuth.kt`.
 ClawMate also adds an optional per-host capability allowlist in
 `TaskTools.kt` and `RunAssembler.kt`. The default retains the upstream assembly.
+`assembly/ClawMateCollection.kt` adds `ToolDispatcher.collectPages`, which runs
+the upstream `phone_collect` tool without a model so the task page can collect
+the current screen and the following pages locally.
 
 Upgrade history:
 

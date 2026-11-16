@@ -32,6 +32,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.wangzan101.mika.core.uistate.ActionResult
+import com.wangzan101.mika.core.assembly.collectPages
+import com.wangzan101.mika.core.assembly.toolDispatcher
+import com.wangzan101.mika.core.uistate.ScreenPort
 import com.clawmate.app.task.runner.RunStatus
 import com.clawmate.platform.display.BackgroundDisplay
 import java.security.MessageDigest
@@ -327,6 +330,7 @@ class GuiControlService : AccessibilityService() {
         } else if (collectOnly) {
             button("采集当前页"){collectPages(1)}
             button("采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectPages(GUI_COLLECTION_PAGE_LIMIT)}
+            button("Mika 采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectWithMika(status)}
         } else {
             button("截图 / 点按"){capturePreview()}
             button("向上滑动"){confirmGesture("向上滑动",null)}
@@ -874,6 +878,119 @@ class GuiControlService : AccessibilityService() {
                 if (turn == epoch) stop(failure.message ?: "采集已停止，请在目标页面重试")
             } finally {
                 if (turn == epoch) collectionJob = null
+            }
+        }
+        collectionJob = job
+        job.start()
+    }
+
+    /**
+     * 任务页的本机采集端口：读当前会话窗口，只开放读屏与滚动。
+     * 采集不点、不输入、不返回，避免“采集”变成看不见的界面操作。
+     */
+    @RequiresApi(34)
+    private inner class CollectionScreenPort(private val target: String) : ScreenPort {
+        private var sequence = 0
+        private var previous: MikaFrame? = null
+
+        private fun readFrame(): MikaFrame {
+            clearCache()
+            val window = currentWindow(allowInputMethod = true)
+            val bounds = Rect().also(window::getBoundsInScreen)
+            val root = checkNotNull(window.root) { "无法读取目标窗口" }
+            return readMikaFrame(root, bounds, target, "p" + ++sequence)
+        }
+
+        override suspend fun snapshot() = readFrame().also { previous = it }.screen
+        override suspend fun peek() = readFrame().screen
+        override suspend fun screenshotPng(): ByteArray? = null
+        override suspend fun listApps() = listOf(target to targetLabel)
+
+        override suspend fun scroll(ref: String?, snapshotId: String?, down: Boolean): ActionResult {
+            val frame = previous ?: readFrame()
+            if (snapshotId != null && snapshotId != frame.screen.snapshotId) return ActionResult.Failed("stale_snapshot")
+            val scrollable = frame.nodes.filter { it.description.scrollable }
+            val node = (if (ref != null) scrollable.firstOrNull { it.description.ref == ref } else scrollable.firstOrNull())
+                ?: return ActionResult.Failed("no_scrollable")
+            val window = currentWindow(allowInputMethod = true)
+            if (window.id != frame.window) return ActionResult.Failed("stale_snapshot")
+            val bounds = Rect().also(window::getBoundsInScreen)
+            val action = if (down) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+            else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+            return if (performCollectionAction(node.node, window.id, bounds, action)) ActionResult.Ok()
+            else ActionResult.Failed("scroll_rejected")
+        }
+
+        override suspend fun waitStable(timeoutMs: Long): Boolean {
+            val first = peek()
+            delay(timeoutMs.coerceIn(0, 260))
+            return first.elements == peek().elements
+        }
+
+        override suspend fun tapRef(ref: String, snapshotId: String) = ActionResult.Failed("collect_only")
+        override suspend fun tapXY(x: Int, y: Int) = ActionResult.Failed("collect_only")
+        override suspend fun typeText(ref: String?, snapshotId: String?, text: String) = ActionResult.Failed("collect_only")
+        override suspend fun clearText(ref: String?, snapshotId: String?) = ActionResult.Failed("collect_only")
+        override suspend fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, durationMs: Long) = ActionResult.Failed("collect_only")
+        override suspend fun back() = ActionResult.Failed("collect_only")
+        override suspend fun pressKey(keyCode: Int) = ActionResult.Failed("collect_only")
+        override suspend fun openApp(packageName: String, cold: Boolean) = ActionResult.Failed("collect_only")
+    }
+
+    /**
+     * 用 Mika 内核的 `phone_collect` 读取当前页及后续页：
+     * 同一套工具、同一套去重与停止条件，结果先在本机预览，确认后写入本机采集记录。
+     */
+    private fun collectWithMika(status: TextView?) {
+        check(Build.VERSION.SDK_INT >= 34 && collectOnly)
+        val window = currentWindow()
+        val windowId = window.id
+        val bounds = Rect().also(window::getBoundsInScreen)
+        val target = checkNotNull(grant).target
+        val label = targetLabel
+        val turn = epoch
+        busy = true
+        status?.text = "Mika 正在读取…"
+        val job = collectionScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val pages = withTimeout(45_000) {
+                    toolDispatcher(CollectionScreenPort(target)).collectPages(
+                        direction = CollectionDirection.DOWN.name.lowercase(),
+                        pages = GUI_COLLECTION_PAGE_LIMIT,
+                        maxItems = 300,
+                    )
+                }
+                if (turn != epoch) return@launch
+                val lines = MikaCollect.lines(pages.text)
+                if (lines.isEmpty()) {
+                    busy = false
+                    lastStatus = "Mika 没有读到可采集的文字（${pages.stoppedBecause}）"
+                    status?.text = lastStatus
+                    Toast.makeText(this@GuiControlService, lastStatus, Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                val partial = pages.truncated || pages.stoppedBecause !in setOf("page_limit", "item_limit")
+                val record = GuiCollection(
+                    target, "$label · Mika", System.currentTimeMillis(), lines,
+                    partial = partial, pages = pages.pages.coerceAtLeast(1),
+                )
+                status?.text = "Mika 已读 ${record.pages} 页 · ${lines.size} 条"
+                showCollectionPreview(record, "Mika 采集 · ${pages.stoppedBecause}", turn, windowId, bounds) {}
+            } catch (_: TimeoutCancellationException) {
+                if (turn == epoch) {
+                    stop("Mika 采集超时，未保存采集内容")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (turn == epoch) {
+                    stop(failure.message ?: "Mika 采集已停止，请在目标页面重试")
+                }
+            } finally {
+                if (turn == epoch) {
+                    collectionJob = null
+                    busy = false
+                }
             }
         }
         collectionJob = job

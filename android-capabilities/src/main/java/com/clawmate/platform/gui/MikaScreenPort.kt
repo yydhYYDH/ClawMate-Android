@@ -1,7 +1,6 @@
 package com.clawmate.platform.gui
 
 import android.accessibilityservice.AccessibilityService
-import android.graphics.Rect
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -10,9 +9,7 @@ import com.wangzan101.mika.core.uistate.ActionResult
 import com.wangzan101.mika.core.cap.phone.PHONE_SNAPSHOT_PREFIX
 import com.wangzan101.mika.core.uistate.DOUBLE_TAP_GAP_MS
 import com.wangzan101.mika.core.uistate.ScreenPort
-import com.wangzan101.mika.core.uistate.ScreenSnapshot
 import com.wangzan101.mika.core.uistate.UiElement
-import com.wangzan101.mika.core.uistate.normalize
 import kotlinx.coroutines.delay
 
 /** 单次点按的手势时长；够短，系统会当成一次点击而不是长按。 */
@@ -25,11 +22,8 @@ internal class MikaScreenPort(
     private val target: String,
     private val label: String,
 ) : ScreenPort {
-    private data class Element(val node: AccessibilityNodeInfo, val description: UiElement)
-    private data class Frame(val screen: ScreenSnapshot, val window: Int, val nodes: List<Element>)
-
     private var sequence = 0
-    private var previous: Frame? = null
+    private var previous: MikaFrame? = null
 
     override suspend fun checkAppAccess() { service.mikaWindow(run) }
     override suspend fun listApps() = listOf(target to label)
@@ -37,52 +31,12 @@ internal class MikaScreenPort(
     override suspend fun snapshot() = readFrame().also { previous = it }.screen
     override suspend fun peek() = readFrame().screen
 
-    private fun readFrame(): Frame {
+    private fun readFrame(): MikaFrame {
         service.clearCache()
         val window = service.mikaWindow(run)
         val bounds = service.mikaBounds(window)
         val root = checkNotNull(window.root) { "无法读取目标窗口" }
-        val elements = ArrayList<Element>()
-        var remaining = 360
-        val source = Rect()
-        fun visit(node: AccessibilityNodeInfo, depth: Int) {
-            if (depth > 32 || remaining-- <= 0 || node.packageName?.toString() != target ||
-                !node.isVisibleToUser || node.isPassword || node.isAccessibilityDataSensitive) return
-            node.getBoundsInScreen(source)
-            if (!Rect.intersects(bounds, source)) return
-            val editable = node.isEditable
-            val name = (if (editable) node.hintText ?: node.contentDescription else
-                node.text?.takeIf { it.isNotBlank() } ?: node.contentDescription)?.toString().orEmpty().take(280)
-            val element = UiElement(
-                ref = "@e${elements.size + 1}",
-                role = node.className?.toString()?.substringAfterLast('.').orEmpty(),
-                name = name,
-                centerX = source.centerX() - bounds.left,
-                centerY = source.centerY() - bounds.top,
-                bounds = listOf(normalize(source.left - bounds.left, bounds.width()),
-                    normalize(source.top - bounds.top, bounds.height()),
-                    normalize(source.right - bounds.left, bounds.width()),
-                    normalize(source.bottom - bounds.top, bounds.height())),
-                resourceId = node.viewIdResourceName,
-                clickable = node.isEnabled && node.isClickable,
-                editable = node.isEnabled && editable,
-                scrollable = node.isEnabled && node.isScrollable,
-                hint = editable,
-                focused = node.isFocused,
-                placeholder = node.hintText?.toString()?.take(100),
-                searchField = editable && (node.viewIdResourceName?.substringAfterLast('/')?.contains("search", true) == true ||
-                    name.contains("搜索") || name.contains("search", true)),
-            )
-            if (element.meaningful && elements.size < 120) elements += Element(node, element)
-            for (i in 0 until node.childCount) {
-                if (remaining <= 0 || elements.size >= 120) break
-                node.getChild(i)?.let { visit(it, depth + 1) }
-            }
-        }
-        visit(root, 0)
-        val screen = ScreenSnapshot(PHONE_SNAPSHOT_PREFIX + ++sequence, target, elements.map { it.description },
-            bounds.width(), bounds.height())
-        return Frame(screen, window.id, elements)
+        return readMikaFrame(root, bounds, target, PHONE_SNAPSHOT_PREFIX + ++sequence)
     }
 
     private fun act(ref: String?, snapshotId: String?, action: Int, args: Bundle? = null,
