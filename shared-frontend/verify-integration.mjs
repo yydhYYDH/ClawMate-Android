@@ -141,12 +141,14 @@ await check('all task cards use the same interactive workflow entry in phone mod
   const calls = [];
   const runTask = runInNewContext(stripTypeScriptTypes('({' + entry[1] + '}).runTask'), {
     WorkflowCancellation: class {},
-    WorkflowStorage: { updateTaskRun: () => calls.push('record'), loadTasks: () => [] }
+    WorkflowStorage: { updateTaskRun: () => calls.push('record'), loadTasks: () => [] },
+    AppLogger: { info() {}, errorCause(_tag, _message, error) { throw error; } },
+    setTimeout
   });
   let task = { id: 'default_alipay_bill', enabled: true };
   const view = {
     taskControlMode: 'phone', isTaskExecutionBusy: () => false, flushTaskContextDrafts: () => true,
-    refreshCardContextInputs() {}, findTask: () => task, refreshStatsText() {},
+    findTask: () => task, invalidateFileStats() {},
     runSelectedWorkflow: async (_task, _cancel, interactive) => {
       assert.equal(interactive, true); calls.push('workflow');
     }, onEnsureDesktopCompanion: async () => { calls.push('pc'); return false; }

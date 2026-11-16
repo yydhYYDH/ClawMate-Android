@@ -368,6 +368,131 @@
       "path": "entry/src/main/resources/rawfile/workflows/configs/default_xiaohongshu_history.json",
       "gitBlob": "d1eeed8e60137f9f5dfc0ba0f3253fb1825f09d8",
       "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/clawmate_secretary.webp",
+      "gitBlob": "f674db22394bd1137ce9e0cffe7245a44382c98e",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/collection_secretary.webp",
+      "gitBlob": "a0019f8e49fbbef96f46ad1f61ca3d0d22bb5b5f",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_account.svg",
+      "gitBlob": "fc424a8dab31b21f2c85da603849081c712e0fb0",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_automation.svg",
+      "gitBlob": "ef2359475d92a27ec8a98d9aa62922e742b3ae88",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_collection.svg",
+      "gitBlob": "1cd229d0c43bf0f72c0868ec4c075adccaf9488a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_debug.svg",
+      "gitBlob": "838efe6edeeb99b614127cb6f87ca911a333ba7e",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_desktop.svg",
+      "gitBlob": "e29a5f820fb2e5e6ac81cc0dff313597d16726bf",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_model.svg",
+      "gitBlob": "41e1099808de5aef0b9fb914dd1e07a45d59bcfc",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_people.svg",
+      "gitBlob": "a53641c4b603daeb8e7eb9e4961ca136a5e69aa3",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_phone.svg",
+      "gitBlob": "8f184c7ce9c748f109ffe41b68535b4dd89f4801",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_privacy.svg",
+      "gitBlob": "f8c1a84494d240b51f4e7531b52d8a5a41d25d66",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/settings_storage.svg",
+      "gitBlob": "75423d12faccfe4f8491c854663f20ad723a25c6",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/source_recording_white.svg",
+      "gitBlob": "7893e68a380ee1a4d96d6f798f3eb208c3ec2b17",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_account.svg",
+      "gitBlob": "f9df95b8b437b9112dc39134e69ccf09f2fd4e86",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_automation.svg",
+      "gitBlob": "8d43584e3989ccfa8659e5194dafa478e2c16d26",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_collection.svg",
+      "gitBlob": "c3578bdc494645237e8de0c16d6ef2e6a36803f7",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_debug.svg",
+      "gitBlob": "1255c5e9f05655bfb52c40a99f51ebbd1d3691c0",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_desktop.svg",
+      "gitBlob": "787c449426516ed1d9429498038869bfc238c40e",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_model.svg",
+      "gitBlob": "accf359bf0284aea3bc7b2379de1c74e8f0acc19",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_people.svg",
+      "gitBlob": "3b4671c6df76afe0464fa46ab8d4c8d00bfc51f8",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_phone.svg",
+      "gitBlob": "afa183fe91b898e88a5dd429542985b2009d9475",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_privacy.svg",
+      "gitBlob": "08f4f8eb0197f2bd342ab420a4205537b6844a84",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/dark/media/settings_storage.svg",
+      "gitBlob": "d1cb97ae462d30b969a3385cc6e55d9850a46c21",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/source_gallery.svg",
+      "gitBlob": "b673bb4dac2f4bf6e581c26d934ebfda5028d479",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/source_wechat.svg",
+      "gitBlob": "b21cbbe7e9ece154822c6d2b5090e3e71391ef13",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     }
   ]
 }

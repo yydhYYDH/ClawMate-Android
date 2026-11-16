@@ -27,7 +27,7 @@ export class AndroidAvatar {
       let config = AndroidAvatar.config();
       let model = mode === 'image_to_image' ? config.imageToImageModel : config.textToImageModel;
       if (!/^https:\/\/[^/?#@\s]+(?:\/[^?#\s]*)?$/.test(config.imageBaseUrl) || model.length === 0 || config.apiKey.trim().length === 0) {
-        throw new Error('请在“个人与隐私”配置 HTTPS 图片服务、API Key 和本次使用的生成模型');
+        throw new Error('请在“模型与智能体 → 云端模型设置”配置 HTTPS 图片服务、API Key 和生成模型');
       }
       let image = '';
       let request = facade.buildAvatarGenerateRequest(mode, mode === 'image_to_image' ? source : '', '', mode === 'image_to_image' ? source : '');

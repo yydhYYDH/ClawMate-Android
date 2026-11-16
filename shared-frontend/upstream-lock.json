@@ -14,8 +14,8 @@
     },
     {
       "path": "entry/src/main/ets/components/CollectionReminderPanel.ets",
-      "gitBlob": "39bd955f8fda9eac8ddc80902b7be8f02dd43a8c",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "197fa8153deb3dc5a23857f91c9cd8b640ec0337",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/components/GalleryHdcBatchOptions.ets",
@@ -34,8 +34,8 @@
     },
     {
       "path": "entry/src/main/ets/components/TaskDeviceControlPanel.ets",
-      "gitBlob": "7ee3e7c6127ceb14d6eca27e1e1f6c686a15c9b8",
-      "ref": "0bc301573e47e5e6f6d0fd03fdd9f54143f298df"
+      "gitBlob": "cc4671af9a8b5a0c92a512c41bb42b5b924feb9a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/config/ModelDownloadConfig.ets",
@@ -84,8 +84,8 @@
     },
     {
       "path": "entry/src/main/ets/pages/codex/CodexChatTargetPicker.ets",
-      "ref": "4e86f6250c7739d0ea922e2379eeedad2d35d450",
-      "gitBlob": "65e49934f28049aa64ef7b4ca1065768b4a5d0f2"
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054",
+      "gitBlob": "e0a4acfac21c503f048d72ee3ded6dd8453a3845"
     },
     {
       "path": "entry/src/main/ets/pages/codex/CodexChatTypes.ets",
@@ -124,8 +124,8 @@
     },
     {
       "path": "entry/src/main/ets/pages/codex/CodexPage.ets",
-      "ref": "e876199f382f32530af850dff20cfd6178a55554",
-      "gitBlob": "40e307c12cc636ea0496a407d0852a333319c958"
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054",
+      "gitBlob": "75c3d47416ba41550982c5c5c064e77df59034a7"
     },
     {
       "path": "entry/src/main/ets/pages/codex/CodexPairingInput.ets",
@@ -154,8 +154,8 @@
     },
     {
       "path": "entry/src/main/ets/pages/collection/CollectionPage.ets",
-      "gitBlob": "18696516334515a50ec930a681b5a0c4bd4a1561",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "9403dbc9c74f2402e95286c333197c80c9bb83ea",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/pages/gallery/GalleryPage.ets",
@@ -194,13 +194,13 @@
     },
     {
       "path": "entry/src/main/ets/pages/settings/SettingsCenterControls.ets",
-      "gitBlob": "339c6fa91c0a4016f958599b0bdb43f1fd85f03c",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "bd31c4e5f3566f6408f641cb72b8853db30e71c3",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/pages/settings/SettingsCenterPage.ets",
-      "gitBlob": "04f20dce1be48e783588e2e364be657a9a8467da",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "c04390d097263c4c2da34ca3ebd3af783dce31a4",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/pages/settings/SettingsCenterTheme.ets",
@@ -209,18 +209,18 @@
     },
     {
       "path": "entry/src/main/ets/pages/settings/SettingsCenterTypes.ets",
-      "gitBlob": "6d30871e7b3fe1418a452c806e8bf3396e33d9c5",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "c64d64bd00104ea51838de7ff246760993150a73",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/pages/task/TaskPage.ets",
-      "gitBlob": "9776513834e19b32b394fb1dbb1bdb7d2d7ee440",
-      "ref": "0bc301573e47e5e6f6d0fd03fdd9f54143f298df"
+      "gitBlob": "842f6ff4dbdf172ddcff300a5a34f496b88bed49",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/pages/task/WorkflowFileViewer.ets",
-      "gitBlob": "87e1e25abd642a9e426237617447deee5a9acaee",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "b8d9ccbe3d51d72d9b4a6004188081f8adb96f1e",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/utils/AppRequests.ets",
@@ -361,6 +361,111 @@
       "path": "entry/src/main/ets/utils/CodexRequestBudget.ets",
       "ref": "e876199f382f32530af850dff20cfd6178a55554",
       "gitBlob": "5c52f9ff5b004d2855c72ac81a290d9b49552720"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeSecretary.ets",
+      "gitBlob": "79fc4b734b6d5aa351a911864dde2fd08617a217",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeSecretaryDesk.ets",
+      "gitBlob": "bb6d846d912384eff3f372cee05ac8c42ae27fcc",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/SecretaryNoteCard.ets",
+      "gitBlob": "17fca42aa95c6f48b91183d712a077ecf5541c47",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/SecretaryPortrait.ets",
+      "gitBlob": "8a62ce4554c4772757f82c166b1c76a5cecc26b0",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/home/HomeCodexHandoff.ets",
+      "gitBlob": "58dbf69bf96c9da93d54661a5c3551ec69b4df6a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/collection/PersonalInfoSection.ets",
+      "gitBlob": "b261d7787557f8537592ae1b071d6602b9d5e7bb",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/collection/PeopleInfoPage.ets",
+      "gitBlob": "40680b1329aa039708009f3dfd795b5345703131",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/collection/PersonInfoPage.ets",
+      "gitBlob": "7b339a4318d27edc444f9e93e7253d579bd94b7c",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/PersonMemory.ets",
+      "gitBlob": "a609b0bf617e706eb3250a2db63f095c73cb03d3",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/PersonMemoryStore.ets",
+      "gitBlob": "a3df7b9146fc92e21c3949023d231fe2cb636b0a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/CollectionProfileNote.ets",
+      "gitBlob": "465e7a1bccf753da3bb55a4fceb8f8b64eadb615",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/datamanager/HomeCodexContext.ets",
+      "gitBlob": "0445655caa8bf030ca61138c57c8f24ae577d68a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/components/WorkflowFileManager.ets",
+      "gitBlob": "ec40a933174202cb2d874eece811f37ec7d6c410",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/utils/WorkflowFileCatalog.ets",
+      "gitBlob": "0cf89470dd683154ff2c545e8ddb6d72ad7b91a8",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/components/CollectionFormControls.ets",
+      "gitBlob": "b3d75a8b4f05206da2af0eed0b161a4b19c16cc7",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/pages/settings/ModelSettingsField.ets",
+      "gitBlob": "9731eed53c6a453ad3d4ad3ebf926af878ad6f1d",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/utils/LocalModelRecommendation.ets",
+      "gitBlob": "8b192b5c9c15c0e381b239cccc4e33ef9d838d3e",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/utils/ChatCloudConfig.ets",
+      "gitBlob": "6d9b1cce9fd894bdd8e1c34a1bd6510f3e8c1e31",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/utils/CloudSettingsConfig.ets",
+      "gitBlob": "7132922e58d0834c7aa10a3a0189be3ca2fab453",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/utils/wechat/WechatAutoSummarySettings.ets",
+      "gitBlob": "7cd25047110481f21d4c1ec1111ed5eb819cb6fc",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/utils/CloudApiCompatibility.ets",
+      "gitBlob": "397f1ca5b271f1f4f5ef070bf7a1e38b7f6c231a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     }
   ]
 }

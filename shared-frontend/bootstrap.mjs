@@ -32,6 +32,11 @@ function pathParts(relative) {
 export function checkedPath(root, relative) {
   return checkPath(root, relative);
 }
+export function checkedPaths(root, relatives) {
+  const base = fs.realpathSync(root);
+  const attributes = verifyWindowsAttributes(base, relatives.map(relative => ({ path: relative })));
+  return relatives.map(relative => checkPath(base, relative, attributes));
+}
 function checkPath(root, relative, windowsAttributes) {
   const parts = pathParts(relative);
   const base = fs.realpathSync(root);

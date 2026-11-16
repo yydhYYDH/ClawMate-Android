@@ -5,7 +5,7 @@ import { buildAndroidGallerySource } from './gallery-source.mjs';
 import { buildChatAvatarView, buildChatAvatarPage, buildChatAvatarMessages } from './chat-avatar-source.mjs';
 import { buildMimoProtocol } from './voice-source.mjs';
 import { androidPageTemplates, patchCollectionTaskPage } from './collection-workflow-source.mjs';
-import { verifySources, toolchainPaths, checkedPath } from './bootstrap.mjs';
+import { verifySources, toolchainPaths, checkedPath, checkedPaths } from './bootstrap.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,8 +39,10 @@ for (const relative of ['AppScope', 'hvigor', 'entry/src/main/resources', 'entry
 for (const item of ['AppScope', 'hvigor', 'entry/src/main/ets/entryability']) {
   fs.cpSync(path.join(template, item), path.join(project, item), { recursive: true });
 }
-for (const input of sourceInputs.files.filter(file => !file.path.includes('/ets/'))) {
-  const target = checkedPath(repo, '.arkui-x-validation/application/project/' + (input.target || input.path));
+const resources = sourceInputs.files.filter(file => !file.path.includes('/ets/'));
+const resourceTargets = checkedPaths(project, resources.map(input => input.target || input.path));
+for (const [index, input] of resources.entries()) {
+  const target = resourceTargets[index];
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, input.bytes);
 }
@@ -162,7 +164,7 @@ const navigationConstants = ['TAB_BAR_HEIGHT', 'TAB_BAR_BOTTOM_MARGIN', 'TAB_BAR
 const sourceIndex = read('pages/Index.ets');
 overlay('platform/UpstreamMimoVoice.ets', buildMimoProtocol(read('utils/voice/MimoVoiceClient.ets')));
 overlay('components/CollectionReminderPanel.ets', replaceChecked(read('components/CollectionReminderPanel.ets'),
-  '      Row({ space: 8 }) {', "      Text('Android 会在设定时间附近提醒，可能因省电策略延迟。提醒本身不采集数据，点击通知后需确认任务。').fontSize(12).fontColor(AppTheme.text('#6F7584')).width('100%')\n      Row({ space: 8 }) {"));
+  "    if (!this.reminder.enabled) { return '每天提醒，点击通知并解锁后采集。'; }", "    if (!this.reminder.enabled) { return '点击通知并解锁后确认采集。省电策略可能延迟提醒。'; }"));
 overlay('platform/UpstreamChatContext.ets', buildChatContextSource(sourceIndex));
 const navigationMethods = ['tabIconResource', 'tabBarStyle'].map(name => {
   const match = sourceIndex.match(new RegExp(`  private ${name}\\([^]*?\\n  \\}`));
@@ -187,50 +189,109 @@ messageList = replaceChecked(messageList, '  private replayAvailable(): boolean 
 messageList = replaceChecked(messageList, '          .opacity(this.synthesizing() ? 0.72 : 1)',
   "          .opacity(this.synthesizing() ? 0.72 : 1)\n          .accessibilityText(this.playing() ? '暂停朗读' : this.synthesizing() ? '取消语音生成' : this.detail.voice.status === 'paused' ? '继续朗读' : '朗读消息')");
 messageList = replaceChecked(messageList, '          .enabled(this.replayAvailable())', "          .enabled(this.replayAvailable())\n          .accessibilityText('重播缓存语音')");
-overlay('pages/chat/ChatMessageList.ets', buildChatAvatarMessages(messageList));
-overlay('pages/chat/DigitalAvatarView.ets', buildChatAvatarView(read('pages/chat/DigitalAvatarView.ets')));
-let homePage = read('pages/home/HomePage.ets');
-for (const method of ['submitAvatarGeneration', 'submitAvatarPhotoGeneration']) {
-  homePage = replaceChecked(homePage, `        AppLogger.errorCause('Home.Avatar', '${method} failed', e as Error);`.trimStart(),
-    `AppLogger.errorCause('Home.Avatar', '${method} failed', e as Error);\n      showToastSafely('生成未完成：' + (e as Error).message, 2500);`);
-}
-for (const name of ['selectedRecommendationId', 'selectedTaskSuggestionId', 'avatarGenerationOpen', 'avatarHistoryOpen', 'selectedAvatarVersionId']) {
-  homePage = replaceChecked(homePage, '@State ' + name + ':', "@State @Watch('reportAndroidOverlay') " + name + ':');
-}
-homePage = replaceChecked(homePage, '  private isWideProfileOverview(): boolean {',
-  "  @StorageProp('androidHomeBackRequested') @Watch('handleAndroidBack') private androidBackRequest: number = 0;\n" +
-  "  private reportAndroidOverlay(): void { AppStorage.setOrCreate('androidHomeOverlayOpen', this.avatarGenerationOpen || this.avatarHistoryOpen || this.selectedAvatarVersionId.length > 0 || this.selectedRecommendationId.length > 0 || this.selectedTaskSuggestionId.length > 0); }\n" +
-  "  private handleAndroidBack(): void {\n    if (this.selectedAvatarVersionId.length > 0) { this.selectedAvatarVersionId = ''; }\n" +
-  "    else if (this.avatarHistoryOpen) { this.avatarHistoryOpen = false; }\n    else if (this.avatarGenerationOpen) { this.avatarGenerationOpen = false; }\n" +
-  "    else if (this.selectedTaskSuggestionId.length > 0) { this.selectedTaskSuggestionId = ''; }\n    else { this.selectedRecommendationId = ''; }\n  }\n" +
-  '  private isWideProfileOverview(): boolean {');
-// 首页“为你提醒”上方固定显示日历卡片：系统日历日程与常用节假日，均来自本机读取。
-homePage = replaceChecked(homePage, "import { HomeEmptyHint } from '../../components/HomeEmptyHint';",
-  "import { HomeEmptyHint } from '../../components/HomeEmptyHint';\nimport { CalendarReminderCard } from '../../components/CalendarReminderCard';");
-homePage = replaceChecked(homePage,
-  "          Text('为你提醒').fontSize(20).fontWeight(FontWeight.Bold).fontColor(AppTheme.text('#11182F')).layoutWeight(1)",
-  "          Text('为你提醒').fontSize(20).fontWeight(FontWeight.Bold).fontColor(AppTheme.text('#11182F')).layoutWeight(1)");
-homePage = replaceChecked(homePage, "        }.width('92%').margin({ top: 22 })\n\n        if (this.visibleRecommendations().length === 0) {",
-  "        }.width('92%').margin({ top: 22 })\n\n        this.CalendarReminderSection()\n\n        if (this.visibleRecommendations().length === 0) {");
-homePage = replaceChecked(homePage, '  @Builder EmptyRecommendationCard() {',
-  "  @Builder CalendarReminderSection() {\n    Column() {\n      CalendarReminderCard()\n    }.width('92%').margin({ top: 10 })\n  }\n\n" +
-  '  @Builder EmptyRecommendationCard() {');
+overlay('pages/chat/ChatMessageList.ets', replaceChecked(buildChatAvatarMessages(messageList), 'app.media.chat_assistant_avatar', 'app.media.clawmate_secretary'));
+overlay('pages/chat/DigitalAvatarView.ets', applyPatches(buildChatAvatarView(read('pages/chat/DigitalAvatarView.ets')), [
+  ['app.media.chat_assistant_avatar', 'app.media.clawmate_secretary'],
+  ['app.media.home_explorer_mascot', 'app.media.clawmate_secretary']
+]));
+// Keep Android's real personal-source routes and calendar preview on the new board.
+let homePage = applyPatches(read('pages/home/HomePage.ets'), [
+  ["import { showCalendarWeekDialog } from '../../components/CalendarWeekDialog';\nimport { showMailTodayDialog } from '../../components/MailTodayDialog';",
+    "import { CalendarReminderCard } from '../../components/CalendarReminderCard';"],
+  [/  private async openSource\(calendar: boolean\): Promise<void> \{[^]*?\n  \}/,
+    '  private openSource(calendar: boolean): void { if (calendar) { this.onOpenCalendarSettings(); } else { this.onOpenMailSettings(); } }'],
+  ["            if (this.profile.mailReminder) { this.SourceButton('邮件', false) }\n            if (this.profile.calendarEnabled) { this.SourceButton('日历', true) }",
+    "            this.SourceButton('邮件', false)\n            this.SourceButton('日历', true)"],
+  ['        this.Board()', "        this.Board()\n        if (this.filter !== 'suggestion') {\n          CalendarReminderCard().width('92%').constraintSize({ maxWidth: 840 })\n        }"]
+]);
+homePage = applyPatches(homePage, [
+  ['  @State private sheetOpen: boolean = false;', `  @State @Watch('reportAndroidSheet') private sheetOpen: boolean = false;
+  @StorageProp('androidHomeBackRequested') @Watch('closeAndroidSheet') private androidBack: number = 0;
+  private reportAndroidSheet(): void { AppStorage.setOrCreate('androidHomeOverlayOpen', this.sheetOpen); }
+  private closeAndroidSheet(): void { if (this.active) { this.sheetOpen = false; } }`],
+  ["    this.bubble = '';\n  }", "    this.sheetOpen = false;\n    this.bubble = '';\n  }"],
+  ["    this.speak('收到，交给' + secretaryRouteLabel(route) + '办理。');", "    this.speak('正在处理交办请求…');"]
+]);
+// On Android, long-press opens the same assignment sheet as the note detail action.
+homePage = applyPatches(homePage, [
+  [/^  @State private (?:lifted|overSecretary): .*\n/gm, ''],
+  ['  private sourceOpen: boolean = false;\n', ''],
+  ['    this.endDrag();\n', '', { all: true }],
+  [/  private (?:endDrag|drop)\([^]*?\n  \}\n\n/g, ''],
+  ['canDrag', 'canAssign', { all: true }],
+  ['长按事项拖给我', '长按便签交办'],
+  [/    if \(this.lifted\) \{[^]*?    \} else if \(this.bubble\) \{/, '    if (this.bubble) {'],
+  ['!this.lifted && !this.bubble', '!this.bubble'],
+  ['active: this.active, receiving: this.overSecretary,', 'active: this.active,'],
+  ['!this.bubble && !this.lifted && !this.topicsExpanded', '!this.bubble && !this.topicsExpanded'],
+  [/\n      \.allowDrop\(\['general.plain-text'\]\)[^]*?\.onDrop\(\(event: DragEvent\): void => \{ this.drop\(event\); \}\)/, ''],
+  [/                onLift: [^]*?                onRelease: [^\n]*\n/,
+    "                onHold: (): void => { this.accept(note); },\n"]
+]);
 overlay('pages/home/HomePage.ets', homePage);
+overlay('pages/home/SecretaryNoteCard.ets', applyPatches(read('pages/home/SecretaryNoteCard.ets'), [
+  ["import { unifiedDataChannel } from '@kit.ArkData';\n", ''],
+  ['  onLift: () => void = (): void => {};\n  onRelease: () => void = (): void => {};',
+    '  onHold: () => void = (): void => {};'],
+  [/  private lift\(event: DragEvent\): DragItemInfo \{[^]*?\n  \}\n\n/, ''],
+  [/        \.width\('100%'\).height\('100%'\).draggable\(true\)[^]*?\.onDragEnd\(\(\): void => \{ this.onRelease\(\); \}\)/,
+    `        .width('100%').height('100%')
+        .priorityGesture(LongPressGesture().onAction((): void => { this.onHold(); }))`]
+]));
+// The existing Android Codex handoff handles target confirmation and optional local excerpts.
+const homeContext = read('datamanager/HomeCodexContext.ets');
+overlay('datamanager/HomeCodexContext.ets', homeContext.slice(homeContext.indexOf('export interface HomeCodexEvidence'),
+  homeContext.indexOf('export function homeCodexImageLabel')));
+overlay('pages/home/HomeCodexHandoff.ets', replaceChecked(read('pages/home/HomeCodexHandoff.ets'),
+  " && item.calendarStart === undefined", ''));
+overlay('pages/home/HomeSecretary.ets', replaceChecked(read('pages/home/HomeSecretary.ets'), "'千问'", "'云端聊天'"));
+overlay('components/HomeTaskExecutionSheet.ets', applyPatches(read('components/HomeTaskExecutionSheet.ets'), [
+  ["'由小 C 操作手机上的目标应用。'", "'打开任务页，选择并确认可用的 Android 采集工作流。'"],
+  ["'在手机上的千问新对话中发送需求，需已安装并登录千问。'", "'开启新会话，将需求发送到你已配置的云端模型。'"],
+  ["'在手机上执行'", "'打开手机任务'" ]
+]));
 let debug = applyPatches(read('utils/DebugSettings.ets'), [
   ["import native from 'libentry.so';\n", ''],
   [/^.*native\.(initLogFile|setDebugLogging).*\n/gm, '']
 ]);
 overlay('utils/DebugSettings.ets', debug);
-let settings = read('pages/settings/SettingsCenterPage.ets');
-overlay('pages/settings/SettingsCenterPage.ets', applyPatches(settings, [
-  ['      this.SectionTitle(SettingsSectionId.DataCollection)', "      this.SectionTitle(SettingsSectionId.DataCollection)\n      Button('日历分析').onClick(() => { router.pushUrl({ url: 'pages/settings/CalendarSourcesPage', params: { kind: 'calendar' } }); })\n      Button('邮箱分析').onClick(() => { router.pushUrl({ url: 'pages/settings/MailSourcesPage', params: { kind: 'mail' } }); })\n      Button('界面采集与规划').onClick(() => { router.pushUrl({ url: 'pages/task/GuiPlanPage' }); })\n      Button('聊天长期记忆与本机索引').onClick(() => { router.pushUrl({ url: 'pages/settings/MemorySyncPage' }); })"],
-  ['开启后显示并记录聊天和手机 HDC 日志', '开启后记录本次前端诊断；原生推理与自动控制日志尚未接入'],
-  // 模型下载：鸿蒙端“下载中禁用按钮、另设暂停”，安卓改为同一按钮在“下载/继续下载”和“暂停”之间切换，
-  // 否则暂停后按钮被禁用，无法续传。其余文案与进度面板沿用原页面。
-  ['      actionEnabled: !this.downloading && !this.modelScopeDownloading,', '      actionEnabled: !this.downloading,'],
-  ["label: this.modelScopePauseRequested ? '继续下载' : '从 ModelScope 下载',", "label: this.modelScopePauseRequested ? '继续下载' : this.modelScopeDownloading ? '暂停下载' : '从 ModelScope 下载',"],
-  ['  @Builder ContextCompressionGroup() {', "  @Builder ContextCompressionGroup() {\n    Text('达到估算阈值时自动摘要较早历史，并按保留轮数续接。摘要使用当前配置的模型；失败时明确标记本地抽取。完整历史保留在本机，可随时停止。压缩后仍超预算会提示减少附件或新建会话。').fontSize(12).fontColor('#65718B').width('100%')"]
-]));
+let settings = applyPatches(read('pages/settings/SettingsCenterPage.ets'), [
+  ['import { FrameCallback, promptAction, router }', 'import { promptAction, router }'],
+  [/class SettingsScrollFrame extends FrameCallback \{[^]*?\n\}\n\n/, ''],
+  [/this.getUIContext\(\).postFrameCallback\(new SettingsScrollFrame\(\(\): void => \{([^]*?)\n    \}\)\);/,
+    'setTimeout((): void => {$1\n    }, 32);'],
+  [/^import .*?(?:StartupSourceSync|CalendarMemoryPanel|MailSettingsPanel).*;\n/gm, ''],
+  ["import { HuaweiPrivacyAccess } from '../../utils/HuaweiPrivacyAccess';", "import { PRIVACY_DECLARATION } from '../../components/PrivacyConsentDialog';"],
+  ['HuaweiPrivacyAccess.openPolicy(this.getUIContext());', "promptAction.showDialog({ title: '隐私政策', message: PRIVACY_DECLARATION, buttons: [{ text: '关闭', color: '#276EF1' }] }).catch(() => {});"],
+  [/^  .*STARTUP_SOURCE_SYNC_ENABLED_KEY.*\n/gm, ''],
+  [/^    this.startupSyncEnabled = new StartupSourceSync.*\n/gm, ''],
+  ["import { AppTheme }", "import { PersonalSourceEntry } from '../../components/PersonalSourceEntry';\nimport { SettingsStore } from '../../platform/SettingsStore';\nimport { AppTheme }"],
+  ['      HuaweiAccountCard({ sessionActive: $huaweiAccountSessionActive })', `      HuaweiAccountCard({ sessionActive: $huaweiAccountSessionActive })
+      Column() {
+        SettingsNavigationRow({ title: '人物资料', icon: $r('app.media.settings_people'),
+          onOpen: (): void => { router.pushUrl({ url: 'pages/collection/PeopleInfoPage' }); } })
+        SettingsListDivider()
+        SettingsNavigationRow({ title: '数字分身', icon: $r('app.media.settings_account'),
+          onOpen: (): void => { router.pushUrl({ url: 'pages/settings/AvatarManagementPage' }); } })
+      }.width('100%').backgroundColor($r('app.color.ui_surface')).borderRadius(22).clip(true)`],
+  [/    CollectionSourceRow\(\{ title: '日历分析'[^]*?SettingsSectionId.MailAnalysis\); \} \}\)/,
+    "    PersonalSourceEntry({ kind: 'calendar', target: 'pages/settings/CalendarSourcesPage' })\n    CollectionFormDivider()\n    PersonalSourceEntry({ kind: 'mail', target: 'pages/settings/MailSourcesPage' })"],
+  [/  private changeStartupSyncEnabled\([^]*?(?=  @Builder DataCollectionSection)/, ''],
+  [/      CollectionFormGroup\(\{ title: '同步', footer: [^]*?this.StartupSyncSettings\(\); \} \}\)\n/, ''],
+  [/      if \(this.selectedSectionId === SettingsSectionId.CalendarAnalysis\) \{[^]*?else if \(this.selectedSectionId === SettingsSectionId.WechatCollection\)/,
+    '      if (this.selectedSectionId === SettingsSectionId.WechatCollection)'],
+  ["    CollectionSourceRow({ title: '文字识别'", `    CollectionSourceRow({ title: '界面采集与规划', icon: $r('app.media.settings_automation'),
+      onOpen: (): void => { router.pushUrl({ url: 'pages/task/GuiPlanPage' }); } })
+    CollectionFormDivider()
+    CollectionSourceRow({ title: '聊天长期记忆与本机索引', icon: $r('app.media.settings_storage'),
+      onOpen: (): void => { router.pushUrl({ url: 'pages/settings/MemorySyncPage' }); } })
+    CollectionFormDivider()
+    CollectionSourceRow({ title: '文字识别'`],
+  ['  @Builder ContextCompressionGroup() {', "  @Builder ContextCompressionGroup() {\n    Text('达到估算阈值时自动摘要较早历史。完整历史保留在本机。').fontSize(12).fontColor($r('app.color.ui_text_secondary')).width('100%')"],
+  ['    this.modelScopeMnnRepo = repo;', '    this.modelScopeMnnRepo = repo;\n    SettingsStore.scheduleSave();'],
+  ['    this.cloudApiKey = next.apiKey', '    SettingsStore.scheduleSave();\n    this.cloudApiKey = next.apiKey']
+]);
+overlay('pages/settings/SettingsCenterPage.ets', settings);
 // Public defaults contain no environment service endpoints, credentials or tokens.
 const endpointNames = new Set([...settings.matchAll(/DEFAULT_ENDPOINT_CONFIG\.(\w+)/g)].map(match => match[1]));
 overlay('config/DefaultEndpointConfig.ets',
@@ -238,9 +299,10 @@ overlay('config/DefaultEndpointConfig.ets',
     `  ${name}: ${name === 'voiceTtsStreamingEnabled' ? 'boolean' : 'string'};`).join('\n') + '\n}\n' +
   'export const DEFAULT_ENDPOINT_CONFIG: AndroidEndpointDefaults = {\n' + [...endpointNames].sort().map(name =>
     `  ${name}: ${name === 'voiceTtsStreamingEnabled' ? 'false' : "''"},`).join('\n') + '\n};\n' +
+  "export function configuredEndpointValueOrDefault(value: string, fallback: string = ''): string { return value.trim() || fallback; }\n" +
   "export function configuredEndpointSecretOrDefault(value: string, fallback: string = ''): string { return value.trim() || fallback; }\n");
 const stringKeys = new Set([...settings.matchAll(/@StorageLink\('([^']+)'\)/g)].map(match => match[1]));
-['firstLaunchOnboardingVersion', 'androidTaskControlMode', 'threadNumInput', 'desktopCompanionDownloadUrl', 'androidChatAvatarStyle'].forEach(key => stringKeys.add(key));
+['firstLaunchOnboardingVersion', 'androidTaskControlMode', 'threadNumInput', 'desktopCompanionDownloadUrl', 'androidChatAvatarStyle', 'secretaryCodexComputer', 'secretaryCodexWorkspace'].forEach(key => stringKeys.add(key));
 const booleanKeys = ['androidCloudAccessGranted', 'appDarkMode', 'autoConfirm', 'cloudAutoConfirm'];
 stringKeys.delete('voiceTtsStreamingEnabled');
 booleanKeys.push('voiceTtsStreamingEnabled');
@@ -260,6 +322,13 @@ controls = replaceChecked(controls, 'this.getUIContext().getFocusController().re
 controls = replaceChecked(controls, '  private previewText(): string {',
   "  private previewText(): string {\n    if (this.value.trim().length === 0 && this.defaultValue.trim().length === 0) { return '未配置'; }");
 overlay('pages/settings/SettingsCenterControls.ets', controls);
+overlay('pages/codex/CodexChatTargetPicker.ets', applyPatches(read('pages/codex/CodexChatTargetPicker.ets'), [
+  [/^import /, "import { SettingsStore } from '../../platform/SettingsStore';\nimport "],
+  [/^PersistentStorage.persistProp\(SECRETARY_\w+, ''\);\n/gm, ''],
+  ['  AppStorage.setOrCreate(SECRETARY_WORKSPACE, workspaceId);', '  AppStorage.setOrCreate(SECRETARY_WORKSPACE, workspaceId);\n  SettingsStore.scheduleSave();'],
+  ["  let selected: number | null = saved.findIndex((item: CodexSavedConnection): boolean => item.id === preferred);",
+    "  let selected: number | null = secretary ? saved.findIndex((item: CodexSavedConnection): boolean => item.id === preferred) : -1;"]
+]));
 overlay('pages/chat/ChatSessionDrawer.ets', replaceChecked(read('pages/chat/ChatSessionDrawer.ets'), '选择会话后由上层恢复上下文', '选择历史会话继续聊天'));
 let privacy = read('components/PrivacyConsentDialog.ets');
 let start = privacy.indexOf('export const PRIVACY_DECLARATION: string =');
@@ -276,14 +345,18 @@ overlay('components/AiLoginGuard.ets', replaceChecked(read('components/AiLoginGu
 overlay('utils/PrivacyConsent.ets', replaceChecked(read('utils/PrivacyConsent.ets'), "export const PRIVACY_VERSION: string = '2026-09-30-v2';", "export const PRIVACY_VERSION: string = '2026-10-26-android-v1';"));
 // Kotlin preserves Android content grants; the SDK picker converts them to _data file paths.
 overlay('utils/gallery/GalleryPhotoPicker.ets', fs.readFileSync(path.join(here, 'adapters/utils/gallery/GalleryPhotoPicker.ets'), 'utf8'));
-let collectionSources = read('pages/collection/CollectionPage.ets');
-collectionSources = "import { PersonalSourceEntry } from '../../components/PersonalSourceEntry';\n" + collectionSources;
-collectionSources = replaceChecked(collectionSources, '  onOpenDataCollectionSettings: () => void = () => {};',
-  '  onOpenDataCollectionSettings: () => void = () => {};\n  onOpenMeeting: () => void = () => {};');
-collectionSources = replaceChecked(collectionSources,
-  "router.pushUrl({ url: 'pages/gallery/GalleryPage' });\n            })",
-  "router.pushUrl({ url: 'pages/gallery/GalleryPage' });\n            })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'calendar', target: 'pages/settings/CalendarSourcesPage' })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'mail', target: 'pages/settings/MailSourcesPage' })\n            Divider().color(AppTheme.border('#E8EBF2')).margin({ left: 64 })\n            PersonalSourceEntry({ kind: 'meeting', onOpenMeeting: () => { this.onOpenMeeting(); } })",
-  'collection personal source entries');
+let collectionSources = applyPatches(read('pages/collection/CollectionPage.ets'), [
+  ["import { FrostedPage }", "import { PersonalSourceEntry } from '../../components/PersonalSourceEntry';\nimport { FrostedPage }"],
+  ['  onOpenDataCollectionSettings: () => void = () => {};',
+    '  onOpenDataCollectionSettings: () => void = () => {};\n  onOpenMeeting: () => void = () => {};'],
+  ["route: string) {\n    Button", "open: () => void) {\n    Button"],
+  [".onClick((): void => { router.pushUrl({ url: route }); })", '.onClick(open)'],
+  ["'#28618A', 'pages/gallery/GalleryPage')", "'#28618A', (): void => { router.pushUrl({ url: 'pages/gallery/GalleryPage' }); })"],
+  ["this.AnalysisShortcut('录音分析', $r('app.media.source_recording_white'), '#D96B56', '#AC425F', 'pages/recording/RecordingPage')",
+    "this.AnalysisShortcut('语音纪要', $r('app.media.source_recording_white'), '#D96B56', '#AC425F', this.onOpenMeeting)"],
+  [/        CollectionSourceRow\(\{ title: '日历分析'[^]*?this.onOpenMailAnalysis\(\); \} \}\)/,
+    "        PersonalSourceEntry({ kind: 'calendar', target: 'pages/settings/CalendarSourcesPage' })\n        CollectionFormDivider()\n        PersonalSourceEntry({ kind: 'mail', target: 'pages/settings/MailSourcesPage' })"]
+]);
 overlay('pages/collection/CollectionPage.ets', collectionSources);
 let gallery = read('pages/gallery/GalleryPage.ets');
 gallery = buildAndroidGallerySource(gallery);
@@ -305,7 +378,7 @@ galleryStorage = replaceChecked(galleryStorage, /  static loadScanSession\(files
 galleryStorage = replaceChecked(galleryStorage, '    GalleryStorage.writeText(GalleryStorage.scanSessionPath(filesDir), ArkJSON.stringify(session, null, 2));',
   '    GalleryScanCheckpoint.write(GalleryStorage.scanSessionPath(filesDir), session, filesDir);');
 overlay('utils/gallery/GalleryStorage.ets', galleryStorage);
-for (const route of ['pages/collection/CollectionGroupDetailPage', 'pages/task/WorkflowFileViewer']) {
+for (const route of ['pages/collection/CollectionGroupDetailPage', 'pages/collection/PeopleInfoPage', 'pages/task/WorkflowFileViewer']) {
   let page = read(route + '.ets');
   page = replaceChecked(page, /struct (\w+) \{/, 'struct $1 {\n  onBackPress(): boolean { router.back(); return true; }');
   if (route === 'pages/task/WorkflowFileViewer') {
@@ -318,42 +391,64 @@ overlay('utils/gallery/GalleryImageStore.ets', applyPatches(read('utils/gallery/
   ['fileIo as fs, fileUri', 'fileIo as fs'],
   ['fileUri.getUriFromPath(path)', "'file://' + path.split('/').map((part: string): string => encodeURIComponent(part)).join('/')"]
 ]));
-overlay('components/TaskDeviceControlPanel.ets', replaceChecked(read('components/TaskDeviceControlPanel.ets'), "      Text('任务控制方式').fontSize(15).fontWeight(FontWeight.Bold).width('100%')",
-    "      Text('任务控制方式').fontSize(15).fontWeight(FontWeight.Bold).width('100%')\n" +
-    "      Text(this.mode === 'pc' ? '电脑控制待接入 Android 设备桥接。' : '可运行本机工作流、无障碍采集和 Decider 模型读屏。').fontSize(12).fontColor(AppTheme.text('#65718B')).width('100%')"));
+overlay('components/TaskDeviceControlPanel.ets', replaceChecked(read('components/TaskDeviceControlPanel.ets'),
+  `      }.width('100%').padding(4).borderRadius(14).backgroundColor($r('app.color.ui_surface_soft'))`,
+  `      }.width('100%').padding(4).borderRadius(14).backgroundColor($r('app.color.ui_surface_soft'))
+      Text(this.mode === 'pc' ? '电脑控制待接入 Android 设备桥接。' : '支持本机工作流、无障碍采集和 Decider 模型读屏。')
+        .fontSize(12).fontColor($r('app.color.ui_text_secondary')).width('100%')`));
 // Data-pipeline requests must use the saved model and reject cancelled results
 // before validators/checkpoints or later stages can commit them.
-overlay('datamanager/DataManagerTypes.ets', replaceChecked(read('datamanager/DataManagerTypes.ets'), 'export interface DataManagerModelConfig {', 'export interface DataManagerModelConfig {\n  model?: string;\n  ensureActive?: () => void;'));
+overlay('datamanager/DataManagerTypes.ets', applyPatches(read('datamanager/DataManagerTypes.ets'), [
+  ['export interface DataManagerModelConfig {', 'export interface DataManagerModelConfig {\n  model?: string;\n  ensureActive?: () => void;'],
+  ['export interface IndexedEvent {', `export interface MemorySubjectRef { id: string; name: string; relation: string; is_self: boolean; }
+export interface MemoryFactSource { kind: string; subject_id: string; field: string; authority: string; }
+
+export interface IndexedEvent {
+  subjects?: MemorySubjectRef[];
+  fact_source?: MemoryFactSource;`],
+  ['export interface QueryOptions {', 'export interface QueryOptions {\n  subjectIds?: string[];'],
+  ['export interface HomeRecommendationViewModel {', 'export interface HomeRecommendationViewModel {\n  relatedFacts?: string[];']
+]));
 overlay('datamanager/DataManagerFacade.ets', applyPatches(read('datamanager/DataManagerFacade.ets'), [
+  [/^import /, "import { collectionProfileNote } from './CollectionProfileNote';\nimport "],
   ['constructor(filesDir: string) {', 'constructor(filesDir: string, modelClient: DataPipelineModelClient = new DataPipelineModelClient()) {'],
-  ['this.modelClient = new DataPipelineModelClient();', 'this.modelClient = modelClient;']
+  ['this.modelClient = new DataPipelineModelClient();', 'this.modelClient = modelClient;'],
+  ['  loadProfileMarkdown(): string {', `  loadCollectionSecretaryNote(): string { return collectionProfileNote(this.indexService.loadProfileState()); }
+
+  loadProfileMarkdown(): string {`]
 ]));
 overlay('datamanager/DataPipelineModelClient.ets', applyPatches(read('datamanager/DataPipelineModelClient.ets'), [
   ['        let content = await this.cloudClient.chatCompletionText({', '        config.ensureActive?.();\n        let content = await this.cloudClient.chatCompletionText({'],
   ['          baseUrl: config.baseUrl,', '          baseUrl: config.baseUrl,\n          model: config.model,\n          logResponseContent: kind !== \'chat.memory\',\n          readTimeout: 60000,'],
   ['        dataManagerInfo(`Model request response:', '        config.ensureActive?.();\n        dataManagerInfo(`Model request response:']
 ]));
-let taskPage = read('pages/task/TaskPage.ets');
-taskPage = replaceChecked(taskPage, "import { AppTheme }",
-  "import Bridge from '@arkui-x.bridge';\nimport { taskServiceLabel } from '../../platform/TaskServices';\nimport { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }");
-taskPage = applyPatches(taskPage, [
+let taskPage = applyPatches(read('pages/task/TaskPage.ets'), [
+  ["import { AppTheme }", "import Bridge from '@arkui-x.bridge';\nimport { taskServiceLabel } from '../../platform/TaskServices';\nimport { WorkflowVlm } from '../../platform/WorkflowVlm';\nimport { AppTheme }"],
   ['  @State private batchSyncing: boolean = false;', '  @State private batchSyncing: boolean = false;\n  @State private androidCollectedResultsReady: boolean = false;'],
-  ['  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {};',
-    '  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<boolean> = async (): Promise<boolean> => false;'],
-  ['  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<void> =\n    async (_task: WorkflowTask, _cancellation: WorkflowCancellation): Promise<void> => {',
-    '  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation, interactive: boolean) => Promise<boolean> =\n    async (): Promise<boolean> => {'],
-  ['    cancellation: WorkflowCancellation = new WorkflowCancellation()): Promise<void> {\n    cancellation.throwIfCancelled();\n    if (this.taskControlMode',
-    '    cancellation: WorkflowCancellation = new WorkflowCancellation(), interactive: boolean = false): Promise<boolean> {\n    cancellation.throwIfCancelled();\n    if (this.taskControlMode'],
-  [`    if (this.taskControlMode === 'phone') {
-      await this.onRunPhoneWorkflow(task, cancellation);
-    } else { await this.onRunWorkflow(task, cancellation); }`,
-   `    let savedSummary = this.taskControlMode === 'phone' ? await this.onRunPhoneWorkflow(task, cancellation, interactive) :
+  [/  onRunWorkflow: [^]*?(?=  onRunPhoneWorkflow:)/,
+    '  onRunWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation) => Promise<boolean> = async (): Promise<boolean> => false;\n'],
+  [/  onRunPhoneWorkflow: [^]*?\n  \};/,
+    '  onRunPhoneWorkflow: (task: WorkflowTask, cancellation: WorkflowCancellation, interactive: boolean) => Promise<boolean> =\n    async (): Promise<boolean> => false;'],
+  ["import { AiLoginGuard } from '../../components/AiLoginGuard';\n", ''],
+  ["import { SelfHdcSetupGuard } from '../../utils/selfhdc/SelfHdcSetupGuard';\n", ''],
+  [/^    if \(!AiLoginGuard.ensure\(this.getUIContext\(\)\)\) \{(?: return; \}|\n      return;\n    \})\n/gm, ''],
+  [/^        if \(!AiLoginGuard.ensure\(this.getUIContext\(\)\)\) \{\n          stoppedByCancel = true;\n          break;\n        \}\n/m, ''],
+  [/      let preparedSettings: SelfHdcTaskSettings[^]*?else if \(!await this.onEnsureDesktopCompanion\(\)\) \{ return; \}/,
+    "      if (this.taskControlMode !== 'phone' && !await this.onEnsureDesktopCompanion()) { return; }"],
+  [/^    let preparedSettings: SelfHdcTaskSettings[^]*?^    \}\n/m, ''],
+  ['      await this.runSelectedWorkflow(currentTask, new WorkflowCancellation(), preparedSettings);',
+    '      this.batchCancellation = new WorkflowCancellation();\n      await this.runSelectedWorkflow(currentTask, this.batchCancellation, true);'],
+  ['      this.preparingTaskId = \'\';\n      this.runningTaskId = \'\';', "      this.preparingTaskId = '';\n      this.runningTaskId = '';\n      this.batchCancellation = null;"],
+  [/  private async runSelectedWorkflow\([^]*?\n  \}/, `  private async runSelectedWorkflow(task: WorkflowTask, cancellation: WorkflowCancellation,
+    interactive: boolean = false): Promise<boolean> {
+    cancellation.throwIfCancelled();
+    const saved = this.taskControlMode === 'phone' ? await this.onRunPhoneWorkflow(task, cancellation, interactive) :
       await this.onRunWorkflow(task, cancellation);
-    if (savedSummary) { this.androidCollectedResultsReady = true; }`],
-  ["        AppLogger.errorCause('CollectionReminder', 'Collection history save failed', e);\n      });\n    }\n  }",
-    "        AppLogger.errorCause('CollectionReminder', 'Collection history save failed', e);\n      });\n    }\n    return savedSummary;\n  }"],
+    if (saved) { this.androidCollectedResultsReady = true; }
+    return saved;
+  }`],
   ['    let attemptedTasks = 0;', '    let collectedSummaries = 0;'],
-  ['          attemptedTasks++;\n          await this.runSelectedWorkflow(currentTask, cancellation);',
+  ['          attemptedTasks++;\n          await this.runSelectedWorkflow(currentTask, cancellation, i === 0 ? preparedSettings : undefined);',
     '          if (await this.runSelectedWorkflow(currentTask, cancellation)) { collectedSummaries++; }'],
   ["            this.tasks = WorkflowStorage.updateTaskRun(this.filesDir, currentTask.id, 'failed', err.message);",
     '            this.tasks = WorkflowStorage.loadTasks(this.filesDir);'],
@@ -364,14 +459,21 @@ taskPage = applyPatches(taskPage, [
         showToastSafely('已完成开启任务的依次执行', 1500);
       }
     } finally {`],
-  ["if (this.batchSyncing) { return '正在同步分析…'; }", "if (this.batchSyncing) { return '正在打开同步…'; }"],
-  ["            showToastSafely('批量任务无法执行：' + (e as Error).message, 2200);\n          }\n        })",
-    `            showToastSafely('批量任务无法执行：' + (e as Error).message, 2200);
-          }
-        })
-      if (this.androidCollectedResultsReady && !this.batchRunning) {
-        Button(this.batchSyncing ? '正在打开同步…' : '同步采集结果').fontSize(13).height(38).margin({ top: 10 })
-          .backgroundColor(AppTheme.background('#EEF1FF')).fontColor(AppTheme.text('#276EF1'))
+  ['      this.lastAutomaticReminderRequest = request;', `      const choice = await promptAction.showDialog({ title: '执行已开启的任务？',
+        message: '将依次执行已开启的 Android 任务。可随时停止。',
+        buttons: [{ text: '取消', color: '#65718B' }, { text: '执行任务', color: '#276EF1' }] });
+      if (choice.index !== 1) { CollectionReminderService.clearRequest(request); return; }
+      if (!this.active || !this.reminderWindowReady || this.reminderRequest !== request) { return; }
+      this.lastAutomaticReminderRequest = request;`],
+  ['!CollectionReminderService.claim(reminderRequest)', '!await CollectionReminderService.claim(reminderRequest)'],
+  ["      AppStorage.setOrCreate('collectionReminderActiveBatch', true);", "      if (!this.active || (automatic && !this.reminderWindowReady)) { return; }\n      AppStorage.setOrCreate('collectionReminderActiveBatch', true);"],
+  ['  aboutToDisappear(): void {', '  aboutToDisappear(): void {\n    this.batchCancellation?.cancel();'],
+  ["this.runningTaskId === task.id ? '执行中' : '运行'", "this.runningTaskId === task.id ? '停止' : '运行'"],
+  ['.borderRadius(20).enabled(!this.isTaskExecutionBusy())\n          .onClick((): void => { this.runTask(task); })',
+    '.borderRadius(20).enabled(this.runningTaskId === task.id || !this.isTaskExecutionBusy())\n' +
+    '          .onClick((): void => { if (this.runningTaskId === task.id) { this.batchCancellation?.cancel(); } else { this.runTask(task); } })'],
+  ['      if (this.batchRunStatusText.length > 0) {', `      if (this.androidCollectedResultsReady && !this.batchRunning) {
+        Button(this.batchSyncing ? '正在打开同步…' : '同步采集结果').height(40)
           .enabled(!this.batchSyncing && !this.isTaskExecutionBusy()).onClick(async (): Promise<void> => {
             if (this.batchSyncing || this.isTaskExecutionBusy()) { return; }
             this.batchSyncing = true;
@@ -379,79 +481,46 @@ taskPage = applyPatches(taskPage, [
             catch (error) { showToastSafely((error as Error).message, 2200); }
             finally { this.batchSyncing = false; }
           })
-      }`],
-  ['  @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {',
-    `  private androidTaskService(task: WorkflowTask): string {
+      }
+      if (this.batchRunStatusText.length > 0) {`],
+  ['  @Builder SimpleTaskRow(task: WorkflowTask) {', `  private androidTaskService(task: WorkflowTask): string {
     try {
-      let raw = WorkflowStorage.readTaskWorkflowJson(this.filesDir, task);
+      const raw = WorkflowStorage.readTaskWorkflowJson(this.filesDir, task);
       return raw.length <= 256000 ? taskServiceLabel(WorkflowStorage.validateWorkflowJson(raw).steps) : '检查任务配置';
     } catch (error) { return '检查任务配置'; }
   }
 
-  @Builder SimpleTaskRow(task: WorkflowTask, scene: WorkflowSceneConfig) {`],
-  ["Text(this.runningTaskId === task.id ? '执行中' : task.enabled ? '已开启' : '已关闭')",
-    "Text(this.runningTaskId === task.id ? '执行中' : (task.enabled ? '已开启' : '已关闭') + ' · ' + this.androidTaskService(task))"],
-  ["Text('来源模块：' + task.source)", "Text('来源模块：' + task.source + ' · ' + this.androidTaskService(task))"]
-]);
-taskPage = replaceChecked(taskPage, '  @Builder ToolEditor() {', `  private async pickAndroidWorkflowImage(): Promise<void> {
+  @Builder SimpleTaskRow(task: WorkflowTask) {`],
+  ['          if (this.runningTaskId === task.id || this.preparingTaskId === task.id) {', `          Text(this.androidTaskService(task)).fontSize(12).fontColor($r('app.color.ui_text_secondary')).margin({ top: 4 })
+          if (this.runningTaskId === task.id || this.preparingTaskId === task.id) {`],
+  ['  @Builder ToolEditor() {', `  private async pickAndroidWorkflowImage(): Promise<void> {
     let selected = this.selectedPath; let task = this.editingTaskId;
     try {
       let path = await WorkflowVlm.pickImage(this.filesDir, (): boolean => !this.editorOpen || this.selectedPath !== selected || this.editingTaskId !== task);
       if (path.length > 0 && this.editorOpen && this.selectedPath === selected && this.editingTaskId === task) { this.updateSelectedToolInput('image', path); }
     } catch (error) { showToastSafely((error as Error).message); }
   }
-  @Builder ToolEditor() {`);
-taskPage = replaceChecked(taskPage, "        this.FieldLabel('图片变量')", `        this.FieldLabel('图片引用（Android 使用本机图片）')
+  @Builder ToolEditor() {`],
+  ["        this.FieldLabel('图片变量')", `        this.FieldLabel('图片引用（Android 使用本机图片）')
         Button('选择本机图片').fontSize(12).onClick(() => { this.pickAndroidWorkflowImage(); })
-        Text('使用已保存的 Decider 视觉模型；每次发送前确认。GUI 截图仍受限。').fontSize(11).fontColor(AppTheme.text('#6F7584'))`);
-taskPage = applyPatches(taskPage, [
-  ['      this.lastAutomaticReminderRequest = request;', "      let choice = await promptAction.showDialog({ title: '执行已开启的任务？', message: '将依次执行已开启的 Android 有界任务；GUI 与未配置模型工具仍会阻断。可停止执行。', buttons: [{ text: '取消', color: '#65718B' }, { text: '执行任务', color: '#276EF1' }] });\n      if (choice.index !== 1) { CollectionReminderService.clearRequest(request); return; }\n      if (!this.active || !this.reminderWindowReady || this.reminderRequest !== request) { return; }\n      this.lastAutomaticReminderRequest = request;"],
-  ['!CollectionReminderService.claim(reminderRequest)', '!await CollectionReminderService.claim(reminderRequest)'],
-  ["      AppStorage.setOrCreate('collectionReminderActiveBatch', true);", "      if (!this.active || (automatic && !this.reminderWindowReady)) { return; }\n      AppStorage.setOrCreate('collectionReminderActiveBatch', true);"],
-  [/    if \(!cancellation.isCancelled\(\) && savedTask !== undefined && savedTask.lastStatus === 'success'\) \{[^]*?\n    \}/, '    // AndroidWorkflow records collection only after saving a real summary artifact.']
+        Text('使用已保存的 Decider 视觉模型；每次发送前确认。').fontSize(11).fontColor(AppTheme.text('#6F7584'))`],
+  ['  private fileViewerContainsAiGeneratedContent(): boolean {',
+    '  private fileViewerContainsAiGeneratedContent(): boolean {\n    if (/"source_kind"\\s*:\\s*"android_workflow"/.test(this.fileViewerText)) { return false; }'],
+  ['  private pageScroller: Scroller = new Scroller();', `  @StorageProp('androidWorkflowBackRequested') @Watch('handleAndroidBack') private androidBackRequest: number = 0;
+  private pageScroller: Scroller = new Scroller();
+  private handleAndroidBack(): void { if (this.active && this.configViewOpen) { this.closeConfigView(); } }
+  private requestCloseEditor(): void {
+    promptAction.showDialog({ title: '放弃当前编辑？', message: '未保存的修改将丢失。', buttons: [
+      { text: '继续编辑', color: '#65718B' }, { text: '放弃修改', color: '#B42318' }
+    ] }).then((result: promptAction.ShowDialogSuccessResponse): void => { if (result.index === 1) { this.editorOpen = false; } }).catch(() => {});
+  }`],
+  ['  private closeConfigView(): void {', '  private closeConfigView(): void {\n    if (this.editorOpen) { this.requestCloseEditor(); return; }'],
+  ['.onClick(() => { this.editorOpen = false; })', '.onClick(() => { this.requestCloseEditor(); })']
 ]);
-taskPage = replaceChecked(taskPage, '  private fileViewerContainsAiGeneratedContent(): boolean {',
-  '  private fileViewerContainsAiGeneratedContent(): boolean {\n    if (/"source_kind"\\s*:\\s*"android_workflow"/.test(this.fileViewerText)) { return false; }');
-// Deterministic Android workflows do not need cloud login or phone HDC setup.
-// The shared native runner reports GUI/model steps as blocked/not configured.
-taskPage = applyPatches(taskPage, [
-  ['AiLoginGuard.ensure(this.getUIContext())', 'true', { all: true }],
-  ["!await SelfHdcSetupGuard.ensure(this.getUIContext(), this.filesDir, 'workflow-start')", 'false', { all: true }],
-  ["!await SelfHdcSetupGuard.ensure(this.getUIContext(), this.filesDir, 'workflow-batch-start')", 'false', { all: true }]
-]);
-taskPage = applyPatches(taskPage, [
-  ['      await this.runSelectedWorkflow(currentTask);', '      this.batchCancellation = new WorkflowCancellation();\n      await this.runSelectedWorkflow(currentTask, this.batchCancellation);'],
-  ['      await this.runSelectedWorkflow(currentTask, this.batchCancellation);\n    } finally {', "      await this.runSelectedWorkflow(currentTask, this.batchCancellation, true);\n    } catch (error) {\n      showToastSafely((error as Error).message, 2500);\n    } finally {"],
-  ["      this.runningTaskId = '';\n      this.tasks = WorkflowStorage.loadTasks(this.filesDir);", "      this.runningTaskId = ''; this.batchCancellation = null;\n      this.tasks = WorkflowStorage.loadTasks(this.filesDir);"],
-  ['  private batchRunButtonText(): string {', "  private batchRunButtonText(): string {\n    if (!this.batchRunning && this.runningTaskId.length > 0) { return '停止当前任务'; }"],
-  ['  private batchRunButtonEnabled(): boolean {', '  private batchRunButtonEnabled(): boolean {\n    if (!this.batchRunning && this.runningTaskId.length > 0) { return true; }'],
-  ['  private stopEnabledTasks(): void {', '  private stopEnabledTasks(): void {\n    if (!this.batchRunning && this.runningTaskId.length > 0) { this.batchCancellation?.cancel(); return; }'],
-  ['if (this.batchRunning) { this.stopEnabledTasks(); return; }', 'if (this.batchRunning || this.runningTaskId.length > 0) { this.stopEnabledTasks(); return; }'],
-  ['  aboutToDisappear(): void {', '  aboutToDisappear(): void {\n    this.batchCancellation?.cancel();']
-]);
-taskPage = applyPatches(taskPage, [
-  ["Button(this.runningTaskId === task.id ? '执行中' : '运行')", "Button(this.runningTaskId === task.id ? '停止' : '运行')"],
-  ["this.runningTaskId === task.id ? '#A9B7E9' : '#276EF1'", "this.runningTaskId === task.id ? '#B42318' : '#276EF1'"],
-  ['            .enabled(!this.isTaskExecutionBusy())\n            .onClick(() => { this.runTask(task); })', '            .enabled(this.runningTaskId === task.id || !this.isTaskExecutionBusy())\n' +
-    '            .onClick(() => { if (this.runningTaskId === task.id) { this.batchCancellation?.cancel(); } else { this.runTask(task); } })']
-]);
-taskPage = replaceChecked(taskPage, '  private pageScroller: Scroller = new Scroller();',
-  "  @StorageProp('androidWorkflowBackRequested') @Watch('handleAndroidBack') private androidBackRequest: number = 0;\n" +
-  '  private pageScroller: Scroller = new Scroller();\n' +
-  "  private androidManagedFiles(category: string): WorkflowManagedFile[] { return category === 'config' ? this.configManagedFiles : category === 'daily' ? this.dailyLogManagedFiles : this.runManagedFiles; }\n" +
-  '  private handleAndroidBack(): void { if (this.active && this.configViewOpen) { this.closeConfigView(); } }\n' +
-  '  private requestCloseEditor(): void {\n' +
-  "    promptAction.showDialog({ title: '放弃当前编辑？', message: '未保存的修改将丢失。', buttons: [\n" +
-  "      { text: '继续编辑', color: '#65718B' }, { text: '放弃修改', color: '#B42318' }\n" +
-  '    ] }).then((result: promptAction.ShowDialogSuccessResponse): void => { if (result.index === 1) { this.editorOpen = false; } }).catch(() => {});\n  }');
-taskPage = replaceChecked(taskPage, '  private closeConfigView(): void {\n    this.configViewOpen = false;',
-  '  private closeConfigView(): void {\n    if (this.editorOpen) { this.requestCloseEditor(); return; }\n    this.configViewOpen = false;');
-taskPage = replaceChecked(taskPage, '.onClick(() => { this.editorOpen = false; })', '.onClick(() => { this.requestCloseEditor(); })');
-taskPage = replaceChecked(taskPage, "Text(subtitle + ' · ' + files.length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(files)))",
-  "Text(subtitle + ' · ' + this.androidManagedFiles(category).length + ' 个 · ' + WorkflowStorage.formatSize(this.totalFileSize(this.androidManagedFiles(category))))");
 overlay('pages/task/TaskPage.ets', patchCollectionTaskPage(taskPage));
 writeJson('entry/src/main/resources/base/profile/main_pages.json', { src: [
   'pages/Index', 'pages/gallery/GalleryPage', 'pages/collection/CollectionGroupDetailPage',
+  'pages/collection/PeopleInfoPage', 'pages/collection/PersonInfoPage', 'pages/settings/AvatarManagementPage',
   'pages/task/WorkflowFileViewer', 'pages/settings/DesktopCompanionPage', 'pages/settings/SelfHdcTestPage',
   'pages/LogView', 'pages/OpTest', 'pages/ProfileTest', 'pages/settings/MemorySyncPage', 'pages/settings/CalendarSourcesPage', 'pages/settings/MailSourcesPage', 'pages/meeting/MeetingPage', 'pages/task/GuiPlanPage' ] });
 for (const name of ['source_calendar', 'source_mail', 'source_meeting']) {

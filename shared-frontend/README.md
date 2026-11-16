@@ -5,7 +5,7 @@
 
 ## 源码与职责
 
-以鸿蒙提交 `cd69b68bf16b9ed352be5073939eb24d042de583` 为唯一参考版本。
+首页、汇总、任务和设置 UI 采用 `coevomind-app@ba8e250f`。其余模块使用各自的锁定输入。
 `app/Index.ets` 负责安卓应用组装、导航和服务连接，页面与绝大部分业务代码直接从原源码生成。
 `adapters/` 只提供平台接口或明确的能力限制；`prepare.mjs` 保存少量可审查的源码适配。
 没有修改鸿蒙源项目，也没有用截图或 Compose 重新描绘这些页面。
@@ -13,7 +13,7 @@
 SH-15 页面/业务准备清单包含144个ArkTS文件：76个与锁定上游逐字一致、37个经适配、31个为新平台代码；另有作者模板中的启动Ability。
 这是准备清单的统计，不是整个鸿蒙产品的复用率。
 
-- `upstream-lock.json` 与 `../experiments/arkui-x/ui-upstream-lock.json` 锁定全部输入，准备时逐文件检查 Git blob。
+- `upstream-lock.json`、`resource-lock.json` 与 `../experiments/arkui-x/ui-upstream-lock.json` 按条目锁定输入，准备时逐文件核对 Git blob。若缓存包含旧 blob，先将 `.arkui-x-validation/reference/` 移至忽略目录备查，再用各条目所属提交组装单一源码目录，交给 `bootstrap.mjs --source-root`。
 - 编译输入在 `.arkui-x-validation/reference/`；生成工程在 `.arkui-x-validation/application/project/`。
 - SDK、运行库、APK、截图和测试产生的数据均忽略。原端带疑似凭据的两个默认配置文件没有导入，
   由生成的空配置替代；服务地址、模型名、密钥均由用户填写。
@@ -27,7 +27,7 @@ SH-15 页面/业务准备清单包含144个ArkTS文件：76个与锁定上游逐
 | --- | --- | --- |
 | 启动、四页引导 | FirstLaunchOnboarding / OnboardingTypes | 原始页面；完成版本实际持久化，更新与重启不重复引导 |
 | 主导航、主题 | MainTabConfig / FloatingMainTabs / AppTheme / FrostedPage | 原五入口及导航样式，悬浮胶囊尺寸取锁定源码；原颜色资源跟随系统主题。Android 基础模糊近似 HDS，系统栏由宿主管理 |
-| 首页、提醒、推荐、关怀 | HomePage / HomeTaskSuggestion / HomeEmotionalSupport / CalendarReminderCard | 原页面；真实数据管理器；建议/关怀接原提示词与响应解析，结果缓存到本机；“为你提醒”下方显示未来7天系统日程与常用节假日（只展示，不发模型）；真实模型未验收 |
+| 首页、提醒、推荐、关怀 | HomePage / HomeSecretary / HomeSecretaryDesk / CalendarReminderCard | 小 C、便签、提醒完成状态、建议和陪伴。云端聊天与 Codex 交办复用既有传输及确认，手机交办引导选择已配置工作流。日历、邮箱进入各自的 Android 来源页 |
 | 聊天、会话、消息 | ChatPage / ChatMessageList / ChatSessionDrawer / ChatSessionStorage | 流式回复、思考参数、文件保存、会话管理；只读 query_events 工具往返已接通，最多3次查询；不执行任意模型工具 |
 | 图片聊天 | ChatPage / ChatImages / 共用 AndroidChatImagePreparer | 相册/拍照、逐次确认、最多4张去元数据 JPEG、当前回合多模态 SSE、私有历史图片；真实视觉模型与相机实拍未验收 |
 | 上下文预算与自动摘要 | ChatContextBudget / 原 Index 压缩编排 / ChatContext | 阈值与保留轮数生效；摘要、增量覆盖、会话重载复用及本地抽取回退已接入。完整原文保留；取消/撤回阻断迟到结果，仍超预算时明确报错；真实模型摘要质量待验收 |
@@ -38,7 +38,7 @@ SH-15 页面/业务准备清单包含144个ArkTS文件：76个与锁定上游逐
 | 任务与工作流 | TaskPage / WorkflowStorage / AndroidWorkflow / 共用 WorkflowRunnerImpl | 原图/JSON与文件管理；已接有界等待/条件/循环/echo/summary、单任务/批量停止、真实结果/日志；GUI和其他模型工具仍受限。任务开关控制批量候选，不自行后台执行 |
 | 工作流视觉问答 | 原ToolEditor / WorkflowVlm / 共用可选模型接口 | 本机图片导入、保存的Decider视觉模型、逐次发送确认、取消/超时、步骤输出与成功摘要；GUI截图仍阻断，真实模型质量与完整schema验证待验收 |
 | 每日采集提醒 | CollectionReminderPanel / 原策略 / Kotlin CollectionReminderEngine | 实际通知权限、每日近似闹钟、改时/撤销及通知跳转；前台解锁后再次确认才执行任务。原时间迁移一次；真实非空摘要保存后更新采集时间；省电送达和多厂商待验收 |
-| 设置与服务 | SettingsCenterPage / SettingsCenterControls | 原分组和表单；私有偏好持久化，写失败保留可重试状态；空服务显示“未配置”；用户主动测试模型时才请求配置的服务 |
+| 设置与服务 | SettingsCenterPage / SettingsCenterControls / PeopleInfoPage / AvatarManagementPage | 线框图标、统一云端字段与独立高级设置。人物资料写入本机，数字分身参考照片、生成和历史由「我的」进入 |
 | 账号与隐私 | PrivacyConsent / PrivacyConsentDialog | 安卓授权指使用自配云服务，不代表华为账号登录；声明按实际行为改写并单独版本化；拒绝/撤回会阻断请求，小艺 A2A 明确不可用 |
 | 数字分身 | HomePage / AvatarService / SeedreamAvatarProvider | 原生成/历史/参数快照界面及文生图服务连接；真实生成待验收。照片参考上传、人物前景分割未验收/未接入，不伪造成功 |
 | 语音、本地模型 | 原语音控件 / 共用 Android ASR、TTS / LocalModelAccess | TTS真实回调、暂停/文本重播；ASR连接系统服务并按需申请麦克风权限，没有伪造转录。本地模型支持 ModelScope 联网下载、续传、校验、暂停、切换与删除，但已下载模型不会自动推理；MNN/HiAI/OM未接入 |

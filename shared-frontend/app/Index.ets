@@ -3,11 +3,14 @@ import { promptAction, router, KeyboardAvoidMode } from '@kit.ArkUI';
 import { FirstLaunchOnboarding } from '../pages/onboarding/FirstLaunchOnboarding';
 import { FIRST_LAUNCH_ONBOARDING_VERSION, FIRST_LAUNCH_ONBOARDING_STORAGE_KEY } from '../pages/onboarding/OnboardingTypes';
 import { HomePage } from '../pages/home/HomePage';
+import { HomeSecretaryDesk } from '../pages/home/HomeSecretaryDesk';
+import { HomeNote, SecretaryAssignment, SecretaryJob, SecretaryJobState } from '../pages/home/HomeSecretary';
 import { HomeComfortChatStore } from '../pages/home/HomeComfortChatStore';
 import { CollectionPage } from '../pages/collection/CollectionPage';
 import { TaskPage } from '../pages/task/TaskPage';
 import { ChatPage } from '../pages/chat/ChatPage';
 import { CodexPage } from '../pages/codex/CodexPage';
+import { SettingsScrollTarget } from '../pages/settings/SettingsCenterTypes';
 import { SettingsCenterPage } from '../pages/settings/SettingsCenterPage';
 import { MainTabIndex, mainTabBackgroundColor } from '../pages/main/MainTabConfig';
 import { CHAT_MODE_CLOUD_AGENT, CHAT_MODE_LOCAL_INFERENCE } from '../pages/chat/ChatPageTypes';
@@ -24,7 +27,6 @@ import { showToastSafely } from '../utils/PromptSafe';
 import { SettingsStore } from '../platform/SettingsStore';
 import { DataManagerFacade, createEmptyHomeProfileViewModel, createEmptyCollectionViewModels } from '../datamanager/DataManagerFacade';
 import { HomeProfileViewModel, CollectionViewModel, IndexedEvent } from '../datamanager/DataManagerTypes';
-import { AvatarGenerationMode, AvatarVersionViewModel } from '../datamanager/avatar/AvatarTypes';
 import { HomeTaskSuggestion, buildHomeTaskSuggestionPrompt, parseHomeTaskSuggestions } from '../pages/home/HomeTaskSuggestion';
 import { HomeComfortConcern, HomeComfortChatMessage, buildHomeComfortConcernPrompt,
   parseHomeComfortConcerns, buildHomeComfortChatMessages, parseHomeComfortReply } from '../pages/home/HomeEmotionalSupport';
@@ -44,7 +46,6 @@ import { CodexCredentialStore } from '../pages/codex/CodexCredentialStore';
 import { pickCodexChatTarget } from '../pages/codex/CodexChatTargetPicker';
 import { AndroidWorkflow } from '../platform/AndroidWorkflow';
 import { ANDROID_PC_TASK_PENDING } from '../platform/TaskServices';
-import { AndroidAvatar } from '../platform/AndroidAvatar';
 import { ChatAvatar } from '../platform/ChatAvatar';
 import { CloudSpeech } from '../platform/CloudSpeech';
 import { WorkflowTask } from '../utils/WorkflowTypes';
@@ -52,6 +53,8 @@ import { WorkflowCancellation } from '../utils/WorkflowCancellation';
 import { GalleryPhotoPicker } from '../utils/gallery/GalleryPhotoPicker';
 import { MainNavigation } from '../platform/MainNavigation';
 import { NavigationStyle, MAIN_NAVIGATION_INSET } from '../platform/NavigationStyle';
+import { createLocalModelRecommendation } from '../utils/LocalModelRecommendation';
+import { DEFAULT_MODELSCOPE_MNN_REPO } from '../config/ModelDownloadConfig';
 import { LocalModelAccess, DownloadedModel, DownloadProgress } from '../platform/LocalModelAccess';
 import { ChatVoiceMetadata, VoiceInteractionStatus, TtsVoiceRuntimeStatus, createTtsVoiceRuntimeMetadata, createVoiceErrorMetadata } from '../pages/chat/VoiceInteractionTypes';
 
@@ -72,8 +75,12 @@ struct Index {
   @State onboarding: boolean = true;
   @State @Watch('onNavigationChanged') tab: number = MainTabIndex.Home;
   @State @Watch('saveSettings') settingsSection: number = -1;
+  @State settingsScrollTarget: number = SettingsScrollTarget.None;
   @State collectionScene: number = 1;
   @State taskScene: number = 0;
+  @State homeReviewRequested: boolean = false;
+  @State secretaryDesk: HomeSecretaryDesk = new HomeSecretaryDesk();
+  @State collectionSecretaryNote: string = '';
   @State configViewOpen: boolean = false;
   // Codex tab state lives here so switching tabs keeps its screen, settings sheet and
   // history drawer; CodexPage owns everything else internally.
@@ -82,7 +89,6 @@ struct Index {
   @State codexHistoryOpen: boolean = false;
   @State profile: HomeProfileViewModel = createEmptyHomeProfileViewModel();
   @State collectionViews: CollectionViewModel[] = createEmptyCollectionViewModels();
-  @State avatarVersions: AvatarVersionViewModel[] = [];
   @State comfort: HomeComfortChatStore = new HomeComfortChatStore();
   @State suggestions: HomeTaskSuggestion[] = [];
   @State concerns: HomeComfortConcern[] = [];
@@ -186,6 +192,7 @@ struct Index {
     this.onboarding = AppStorage.get<string>(FIRST_LAUNCH_ONBOARDING_STORAGE_KEY) !== FIRST_LAUNCH_ONBOARDING_VERSION;
     this.facade = new DataManagerFacade(context.filesDir);
     this.facade.ensureReady();
+    this.secretaryDesk.restore(context.filesDir);
     this.cloudSpeech = new CloudSpeech({ filesDir: (): string => this.context().filesDir, sessionId: (): string => this.sessionId,
       message: (id: string): ChatMessage | undefined => this.messages.find((item: ChatMessage): boolean => item.id === id),
       update: (id: string, voice?: ChatVoiceMetadata): void => { let message = this.messages.find((item: ChatMessage): boolean => item.id === id);
@@ -319,7 +326,7 @@ struct Index {
     if (this.facade === null) { return; }
     this.profile = this.facade.loadHomeViewModel();
     this.collectionViews = this.facade.loadCollectionViewModels();
-    this.avatarVersions = this.facade.listAvatarVersions();
+    this.collectionSecretaryNote = this.facade.loadCollectionSecretaryNote();
     ChatAvatar.publish(this.profile, this.facade.paths.avatarAssetsRoot);
   }
   private async toggleChatAvatar(): Promise<void> {
@@ -428,11 +435,6 @@ struct Index {
       let response = await this.client.chatCompletion(options);
       this.cloudOutput = '请求成功，服务返回：' + response.content.slice(0, 500);
     } catch (error) { this.cloudOutput = '测试未完成：' + (error as Error).message; }
-  }
-  private async generateAvatar(mode: AvatarGenerationMode, source: string): Promise<void> {
-    if (this.facade === null) { throw new Error('数据管理器未就绪'); }
-    try { await AndroidAvatar.generate(this.facade, mode, source, async (): Promise<void> => { await this.authorizeCloud(); }, (): string => nowIsoLocal()); }
-    finally { this.reloadData(); }
   }
   private reloadSessions(): void { this.sessions = ChatSessionStorage.loadIndex(this.context().filesDir); }
   private persistChat(): void {
@@ -547,7 +549,7 @@ struct Index {
       }
     } catch (error) { showToastSafely((error as Error).message); }
   }
-  private async sendMessage(): Promise<void> {
+  private async sendMessage(allowCodex: boolean = true): Promise<void> {
     if (this.sending || this.thinking || (this.cloudInput.trim().length === 0 && this.pendingImages.length === 0)) { return; }
     this.sending = true; this.preparing = true; this.stopAsr();
     let generation = ++this.generation;
@@ -635,7 +637,7 @@ struct Index {
             return MemoryQuery.execute(this.facade, raw);
           }, (): boolean => generation === this.generation, onDelta, (message: string): void => {
             assistant.trace.push(message); this.messages = this.messages.slice(); this.scheduleChatSave();
-          }, this.codexDelegation(text, generation), DEFAULT_SHARED_AGENT_BUDGETS,
+          }, allowCodex ? this.codexDelegation(text, generation) : undefined, DEFAULT_SHARED_AGENT_BUDGETS,
           (raw: string): Promise<string> => CollectedMemory.share(raw, options, (): boolean => generation === this.generation));
         }
       } catch (error) {
@@ -658,7 +660,7 @@ struct Index {
    * usable tool result: throwing here would abort the whole agent turn, and a run whose
    * outcome is unknown is reported as such so the model does not resend it.
    */
-  private codexDelegation(question: string, generation: number): CodexDelegation {
+  private codexDelegation(question: string, generation: number, delegationSession: string = this.sessionId): CodexDelegation {
     return {
       run: async (request: CodexToolRequest): Promise<CodexRunOutcome> => {
         let fallback: CodexRunOutcome = {
@@ -667,14 +669,14 @@ struct Index {
         };
         try {
           const bridge = Bridge.createBridge('ClawMatePlatform');
-          const session = this.sessionId.length > 0 ? this.sessionId : 'chat';
+          const session = delegationSession.length > 0 ? delegationSession : 'chat';
           let task = request.task;
           let expectedOrigin = '';
           let connectionId = '';
           let workspaceId = '';
           if (request.continueRunId.length === 0) {
             fallback.status = 'unavailable';
-            const target = await pickCodexChatTarget(this.getUIContext(), task, 0);
+            const target = await pickCodexChatTarget(this.getUIContext(), task, 0, delegationSession.startsWith('home-'));
             this.ensureGeneration(generation);
             if (target === null) {
               fallback.status = 'rejected';
@@ -739,22 +741,67 @@ struct Index {
     };
   }
 
-  @Builder private Home() {    HomePage({ navigationBottomInset: this.navigationInset(), comfortChatStore: this.comfort, profile: this.profile, avatarVersions: this.avatarVersions,
+  private async delegateHomeNote(note: HomeNote, assignment: SecretaryAssignment, retry: boolean): Promise<void> {
+    if (!this.secretaryDesk.start(note.key, note.title, assignment.route, retry)) { return; }
+    try {
+      if (assignment.route === 'phone') {
+        this.secretaryDesk.update(note.key, 'review', '请在任务页选择已配置的工作流，确认后开始采集。');
+        this.tab = MainTabIndex.Task;
+        return;
+      }
+      if (assignment.route === 'qwen') {
+        if (this.sending || this.thinking || this.cloudInput.trim() || this.pendingImages.length > 0) {
+          throw new Error('请先处理聊天中正在发送的请求、草稿或附件');
+        }
+        this.createSession(CHAT_MODE_CLOUD_AGENT);
+        const session = this.sessionId;
+        this.tab = MainTabIndex.Chat;
+        this.cloudInput = assignment.task;
+        await this.sendMessage(false);
+        const answered = this.sessionId === session && this.messages.some((item: ChatMessage): boolean =>
+          item.role === 'assistant' && item.content.trim().length > 0 &&
+          !item.trace.some((trace: string): boolean => trace.startsWith('请求未完成：')));
+        this.secretaryDesk.update(note.key, answered ? 'finished' : 'review',
+          answered ? '已收到回复，可在独立聊天会话中查看。' : '未确认收到完整回复，请查看原会话。', session);
+        return;
+      }
+      const context = assignment.context;
+      if (!context) { throw new Error('事项已更新，请重新打开'); }
+      const task = [context.title, context.description, assignment.goal || context.goal].filter((line: string): boolean => !!line).join('\n');
+      const result = await this.codexDelegation(task, this.generation, 'home-' + Date.now()).run({ task: task, continueRunId: '' });
+      const state: SecretaryJobState = result.ok ? 'finished' : result.status === 'rejected' || result.status === 'cancelled' ? 'cancelled' :
+        result.status === 'disconnected' || result.runId.length > 0 ? 'review' : 'failed';
+      this.secretaryDesk.update(note.key, state, (result.answer || result.error || '请在 Codex 工作台查看任务进度。').slice(0, 1200), result.runId);
+    } catch (error) {
+      this.secretaryDesk.update(note.key, 'failed', (error as Error).message || '交办失败');
+    }
+  }
+
+  private openSecretaryJob(job: SecretaryJob): void {
+    if (job.route === 'codex') { this.tab = MainTabIndex.Codex; return; }
+    if (job.route === 'qwen' && job.sessionId.length > 0) {
+      if (this.sending || this.thinking) { showToastSafely('请先完成当前聊天'); return; }
+      this.tab = MainTabIndex.Chat;
+      this.selectSession(job.sessionId);
+    }
+  }
+
+  @Builder private Home() {
+    HomePage({ active: this.tab === MainTabIndex.Home, navigationBottomInset: this.navigationInset(),
+      comfortChatStore: this.comfort, desk: this.secretaryDesk, profile: this.profile,
       taskSuggestions: this.suggestions, taskSuggestionsLoading: this.suggestionsLoading,
       comfortConcerns: this.concerns, comfortConcernsLoading: this.concernsLoading,
-      onOpenTasks: (): void => { this.tab = MainTabIndex.Task; },
+      onDailyReview: (): void => { this.tab = MainTabIndex.Task; this.homeReviewRequested = true; },
+      onOpenMailSettings: (): void => { router.pushUrl({ url: 'pages/settings/MailSourcesPage', params: { kind: 'mail' } }); },
+      onOpenCalendarSettings: (): void => { router.pushUrl({ url: 'pages/settings/CalendarSourcesPage', params: { kind: 'calendar' } }); },
       onSetRecommendationCompleted: (id: string, completed: boolean): void => {
         if (this.facade !== null) { this.facade.setHomeRecommendationCompleted(id, completed); this.reloadData(); }
       },
-      onExecuteAgentTask: async (): Promise<void> => { throw new Error('安卓自动控制执行器尚未接入；任务未执行'); },
-      onGenerateAvatar: async (mode: AvatarGenerationMode, source: string): Promise<void> => { await this.generateAvatar(mode, source); },
-      onSaveAvatarReferencePhoto: async (source: string): Promise<string> => {
-        if (this.facade === null) { throw new Error('数据管理器未就绪'); }
-        let view = await this.facade.saveAvatarReferencePhoto(source); this.reloadData(); return view.avatarReferencePhotoUri;
-      },
+      onDelegate: (note: HomeNote, assignment: SecretaryAssignment, retry: boolean): Promise<void> => this.delegateHomeNote(note, assignment, retry),
+      onOpenJob: (job: SecretaryJob): void => { this.openSecretaryJob(job); },
       onRefreshTaskSuggestions: async (): Promise<void> => { await this.refreshSuggestions(); },
       onRefreshComfortConcerns: async (): Promise<void> => { await this.refreshConcerns(); },
-      onSendComfortMessage: async (concern: HomeComfortConcern, history: HomeComfortChatMessage[]): Promise<string> => { return await this.sendComfort(concern, history); }
+      onSendComfortMessage: (concern: HomeComfortConcern, history: HomeComfortChatMessage[]): Promise<string> => this.sendComfort(concern, history)
     })
   }
   @Builder private Chat() {
@@ -852,11 +899,18 @@ struct Index {
   }
 
   @Builder private Settings() {    SettingsCenterPage({ autoConfirm: $autoConfirm, cloudAutoConfirm: $cloudAutoConfirm, threadNumInput: $threads,
-      selectedSectionId: $settingsSection, output: $output, chunkOmCacheOutput: $cacheOutput, cloudOutput: $cloudOutput,
+      selectedSectionId: $settingsSection, scrollTarget: $settingsScrollTarget, output: $output, chunkOmCacheOutput: $cacheOutput, cloudOutput: $cloudOutput,
       modelDownloadProgressVisible: $progressVisible, modelDownloadProgressPercent: $progressPercent,
       modelDownloadProgressText: $progressText, modelDownloadProgressTitle: $progressTitle,
       downloading: $downloading, modelScopeDownloading: $modelDownloading, modelScopePauseRequested: $pauseDownload,
       downloadedModels: this.downloadedModels, selectedModelId: this.selectedModelId,
+      localModelRecommendation: createLocalModelRecommendation(this.selectedModelId, this.downloadedModels),
+      onUseRecommendedLocalModel: async (): Promise<void> => {
+        const recommended = createLocalModelRecommendation(this.selectedModelId, this.downloadedModels);
+        if (recommended.recommendedModelId) { await this.switchModel(recommended.recommendedModelId); return; }
+        AppStorage.setOrCreate('modelScopeMnnRepo', DEFAULT_MODELSCOPE_MNN_REPO);
+        this.saveSettings(); await this.startModelDownload();
+      },
       onDownloadModelScopeModel: async (): Promise<void> => { await this.startModelDownload(); },
       onPauseModelScopeDownload: (): void => { this.pauseModelDownload(); },
       onUpdateConfigThreadNum: (): void => { this.saveSettings(); },
@@ -885,6 +939,7 @@ struct Index {
         TabContent() { this.Home() }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(0))
         TabContent() {
           CollectionPage({ collectionModule: $collectionScene, viewModels: this.collectionViews, refreshing: this.refreshing,
+            secretaryNote: this.collectionSecretaryNote, navigationBottomInset: this.navigationInset(),
             onRefresh: (): void => { this.refreshCollection(); },
             onOpenDataCollectionSettings: (): void => { this.settingsSection = 1; this.tab = MainTabIndex.Mine; },
             onOpenMeeting: (): void => { this.stopAsr(); this.stopVoice(); router.pushUrl({ url: 'pages/meeting/MeetingPage' }); },
@@ -897,7 +952,7 @@ struct Index {
             screen: $codexScreen, taskSettingsOpen: $codexTaskSettingsOpen, historyOpen: $codexHistoryOpen })
         }.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP]).tabBar(NavigationStyle.tabBarStyle(3))
         TabContent() {
-          TaskPage({ taskScene: $taskScene, configViewOpen: $configViewOpen, active: this.tab === MainTabIndex.Task,
+          TaskPage({ taskScene: $taskScene, configViewOpen: $configViewOpen, homeReviewRequested: $homeReviewRequested, active: this.tab === MainTabIndex.Task,
             onEnsureDesktopCompanion: async (): Promise<boolean> => {
               showToastSafely(ANDROID_PC_TASK_PENDING, 3000); return false;
             },

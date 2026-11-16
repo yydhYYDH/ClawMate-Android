@@ -15,7 +15,7 @@
     "reviewedDate": "2026-10-28",
     "capturePhase": "SH-18",
     "sha256": "caae64434662d74353b9f3c84ad2fb7e6f57d2d2c6cd4bbdc2a1ab11b5ce9178",
-    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+    "limitations": "已审阅的旧版真机截图。当前首页使用小 C 的便签工作台，底部有六个入口。"
   },
   {
     "file": "assets/chat.png",
@@ -37,12 +37,12 @@
   },
   {
     "file": "assets/collection.png",
-    "source": ".arkui-x-validation/application/sh18-phone-ui/汇总.png",
+    "source": ".arkui-x-validation/ui-refresh-summary.png",
     "reviewed": true,
-    "reviewedDate": "2026-10-28",
-    "capturePhase": "SH-18",
-    "sha256": "09d20cc64d9325be8b612faee20ed5b644c300c33696466dbcc4bf585b26c395",
-    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 语音纪要在当前版位于日历和邮箱下方。"
+    "reviewedDate": "2026-11-16",
+    "capturePhase": "coevomind-ui-oppo",
+    "sha256": "978095d96ebaa62bd03a617e443e1c80fea7644f207466f471bec33a3e60b09d",
+    "limitations": "OPPO Android 16 共享版，外卖分类无记录。已核看，没有账号、凭据、私人记录或照片。状态栏仅显示通用图标。"
   },
   {
     "file": "assets/tasks.png",
@@ -51,7 +51,7 @@
     "reviewedDate": "2026-10-28",
     "capturePhase": "SH-18",
     "sha256": "0df2c0b540611c04219ca0e5f0ce0ef82e19e4e27f11143da92335db453c829c",
-    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。 当前版的界面采集与规划已移至“我的 → 数据采集”。"
+    "limitations": "已审阅的旧版真机截图。当前任务页顶部提供「回顾你的一天」，下方按场景显示任务。界面采集与规划从「我的 → 数据采集」打开。"
   },
   {
     "file": "assets/privacy.png",
@@ -87,7 +87,7 @@
     "reviewedDate": "2026-11-04",
     "capturePhase": "harmony-source-ui-oppo",
     "sha256": "83d7c674383d3a321c00ec1e74ca989413af96bb7630824d6735bd193b61b0a3",
-    "limitations": "已核看OPPO Android 16当前界面：无私人日程、邮件正文、账号或凭据；日历仅显示厂商通用来源名称，汇总无记录，含通用系统状态栏。来源APK SHA256 e57cb57c00ae9734d4681404b082fab3fe09cedd6dfeafaaf9a1c5195c684a4f。此图早于语音纪要移入同一组列表，用于说明日历和邮箱布局。"
+    "limitations": "已核看 OPPO Android 16 旧版界面，无私人日程、邮件正文、账号或凭据。来源 APK SHA256 e57cb57c00ae9734d4681404b082fab3fe09cedd6dfeafaaf9a1c5195c684a4f。当前日历与邮箱位于「数据来源」，语音纪要位于顶部快捷入口。"
   },
   {
     "file": "assets/weibo-consent.png",

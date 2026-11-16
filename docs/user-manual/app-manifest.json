@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "title": "ClawMate 用户手册",
   "edition": "Android 共享版 · 0.3-integrated",
-  "updated": "2026-11-12",
+  "updated": "2026-11-16",
   "entryFile": "index.html",
   "contentFile": "content.json",
   "homeRoute": "#/",
@@ -17,7 +17,7 @@
     {
       "id": "navigation",
       "title": "认识底部入口",
-      "summary": "找功能时，先看底部导航。当前版本在聊天与任务之间增加了 Codex。",
+      "summary": "底部有首页、汇总、聊天、Codex、任务和我的六个入口。",
       "route": "#/chapter/navigation"
     },
     {
@@ -52,8 +52,8 @@
     },
     {
       "id": "home",
-      "title": "首页：概览、推荐与陪伴",
-      "summary": "首页需要已有数据和相应模型配置，空白时先建立一条真实记录。",
+      "title": "首页：小 C 的便签工作台",
+      "summary": "按提醒或推荐找便签，查看来源和处理回执，也可以展开聊天话题。",
       "route": "#/chapter/home"
     },
     {

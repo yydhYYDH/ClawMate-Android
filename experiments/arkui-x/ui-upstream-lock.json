@@ -4,8 +4,8 @@
   "files": [
     {
       "path": "entry/src/main/ets/pages/home/HomePage.ets",
-      "gitBlob": "0b912894170cdfd9499c630ae6e178c8388bc03d",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "7859e4f1cdfbe04590bd106e812f04f157a1784e",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/utils/AppTheme.ets",
@@ -269,13 +269,13 @@
     },
     {
       "path": "entry/src/main/ets/pages/home/HomeTaskSuggestion.ets",
-      "gitBlob": "1fe66d88f5953e9cb5ab07205ca5cac988b44f5a",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "db7e6ae615ae7631904ffd2ea215bd6bc1b215e9",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/components/HomeTaskExecutionSheet.ets",
-      "gitBlob": "1a1bcf9731b2443420079a05af0eb11883aa426d",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "5bc3fbb4f814514da35691fb7ddcc46f868222d7",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/pages/home/HomeEmotionalSupport.ets",
@@ -284,8 +284,8 @@
     },
     {
       "path": "entry/src/main/ets/pages/home/HomeComfortSection.ets",
-      "gitBlob": "03512ed6d1078d4836997ed37d3431e42e52b723",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "39431b29f8fe4714ab4c5752cf4004cc678bc727",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/components/AiLoginGuard.ets",
