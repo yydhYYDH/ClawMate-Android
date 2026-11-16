@@ -163,6 +163,67 @@ await check('task service labels reflect local, visual and nested automatic GUI 
     { type: 'gui_task', action: 'collection_model_read' }]), 'AI 界面采集 · 单次确认');
 });
 
+await check('review shows only the shared tasks and configuration retains Android additions', () => {
+  const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
+  const methods = ['reviewTasks', 'reviewTasksForScene', 'enabledTasks', 'enabledTaskCount'].map(name => {
+    const match = page.match(new RegExp(`^  private (${name}\\([^\\n]*?\\{(?:[^\\n]+\\}|\\n[\\s\\S]*?^  \\}))`, 'm'));
+    assert.ok(match, name);
+    return match[1];
+  });
+  const view = runInNewContext(stripTypeScriptTypes('({' + methods.join(',\n') + '})'), {
+    workflowSceneConfigs: () => [{ sceneId: 5 }]
+  });
+  view.tasks = [
+    { id: 'default_xiaohongshu_history', sceneId: 5, enabled: true },
+    { id: 'default_xhs_public_notes', sceneId: 5, enabled: true },
+    { id: 'custom', sceneId: 5, enabled: false }
+  ];
+  assert.deepEqual(Array.from(view.reviewTasksForScene(5), task => task.id), ['default_xiaohongshu_history', 'custom']);
+  assert.deepEqual(Array.from(view.enabledTasks(), task => task.id), ['default_xiaohongshu_history']);
+  assert.equal(view.enabledTaskCount(), 1);
+  assert.equal(view.tasks.length, 3);
+  assert.match(page, /return this\.tasksForScene\(this\.taskScene\);/);
+});
+
+await check('the home calendar reads only configured sources and persists completion locally', async () => {
+  let options = { calendarEnabled: false, holidayEnabled: false };
+  let calls = 0;
+  let saved = '';
+  const { HomePersonalSources } = module('shared-frontend/adapters/platform/HomePersonalSources.ets', 'HomePersonalSources', {
+    PersonalSources: {
+      options: async () => options,
+      call: async () => '{"username":""}',
+      operation: async (kind, raw) => {
+        assert.equal(kind, 'calendar');
+        assert.deepEqual(JSON.parse(raw), { quick: true });
+        calls++;
+        return JSON.stringify({ systemEnabled: false, systemGranted: false,
+          items: [{ id: 'fixture-day', title: '本地示例', start: 100, end: 200, allDay: true, source: 'holiday' }] });
+      }
+    },
+    AppStorage: { get: () => saved, setOrCreate: (key, raw) => {
+      assert.equal(key, 'androidCalendarCompletedIds');
+      saved = raw;
+    }},
+    SettingsStore: { save() {} }
+  });
+  const home = new HomePersonalSources();
+  await home.refresh((calendar, mail, items) => {
+    assert.equal(calendar || mail, false);
+    assert.equal(items.length, 0);
+  });
+  assert.equal(calls, 0);
+  options = { ...options, holidayEnabled: true };
+  await home.refresh((calendar, mail, items) => {
+    assert.equal(calendar, true);
+    assert.equal(mail, false);
+    assert.equal(items[0].calendarAllDay, true);
+    assert.equal(home.complete(items, items[0].id, true)[0].completed, true);
+  });
+  assert.deepEqual(JSON.parse(saved), ['calendar:android:fixture-day']);
+  await home.refresh((_calendar, _mail, items) => assert.equal(items[0].completed, true));
+});
+
 await check('all task cards use the same interactive workflow entry in phone mode', async () => {
   const page = fs.readFileSync(generated + 'pages/task/TaskPage.ets', 'utf8');
   const entry = page.match(/^  private (async runTask\(task: WorkflowTask\): Promise<void> \{[\s\S]*?^  \})/m);

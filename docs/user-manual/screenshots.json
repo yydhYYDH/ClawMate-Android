@@ -1,12 +1,12 @@
 [
   {
     "file": "assets/settings.png",
-    "source": ".arkui-x-validation/application/sh18-phone-ui/我的.png",
+    "source": ".arkui-x-validation/strict-ui/final/android-mine.png",
     "reviewed": true,
-    "reviewedDate": "2026-10-28",
-    "capturePhase": "SH-18",
-    "sha256": "c618e032a0cd0b36c5f9191101f95117a8c8f2b1815474b51a0dd6ce69d8a9b4",
-    "limitations": "已逐张核看：无密钥、私人消息或照片；包含通用设备状态栏。旧图库工具栏与当前批次流程有差异，聊天图早于SH-22分身切换；差异已标注。"
+    "reviewedDate": "2026-11-16",
+    "capturePhase": "coevomind-ui-parity-oppo",
+    "sha256": "585c6f04436d2495b840de4598449727aeda1d103bf960ce8d5c810975419bca",
+    "limitations": "已核看 OPPO Android 16 真机截图，无账号凭据、私人消息或照片。展示未登录的共享账号卡片与设置分组。状态栏和 Mika 浮钮来自设备环境。"
   },
   {
     "file": "assets/home.png",
@@ -37,21 +37,21 @@
   },
   {
     "file": "assets/collection.png",
-    "source": ".arkui-x-validation/ui-refresh-summary.png",
+    "source": ".arkui-x-validation/strict-ui/final/android-summary.png",
     "reviewed": true,
     "reviewedDate": "2026-11-16",
-    "capturePhase": "coevomind-ui-oppo",
-    "sha256": "978095d96ebaa62bd03a617e443e1c80fea7644f207466f471bec33a3e60b09d",
-    "limitations": "OPPO Android 16 共享版，外卖分类无记录。已核看，没有账号、凭据、私人记录或照片。状态栏仅显示通用图标。"
+    "capturePhase": "coevomind-ui-parity-oppo",
+    "sha256": "2d9c08a27068ddc2e4b32a09c01881e080fd14df2985affc9424da4124a6320c",
+    "limitations": "已核看 OPPO Android 16 真机截图，无账号凭据、私人消息或照片。显示当前的个人信息分组、录音分析和日历入口。状态栏和 Mika 浮钮来自设备环境。"
   },
   {
     "file": "assets/tasks.png",
-    "source": ".arkui-x-validation/application/sh18-phone-ui/任务.png",
+    "source": ".arkui-x-validation/strict-ui/final/android-tasks.png",
     "reviewed": true,
-    "reviewedDate": "2026-10-28",
-    "capturePhase": "SH-18",
-    "sha256": "0df2c0b540611c04219ca0e5f0ce0ef82e19e4e27f11143da92335db453c829c",
-    "limitations": "已审阅的旧版真机截图。当前任务页顶部提供「回顾你的一天」，下方按场景显示任务。界面采集与规划从「我的 → 数据采集」打开。"
+    "reviewedDate": "2026-11-16",
+    "capturePhase": "coevomind-ui-parity-oppo",
+    "sha256": "1ed9075e516f43d87e9d0e9194edc9afe53a37ef31a156c86870c68dec07012e",
+    "limitations": "已核看 OPPO Android 16 真机截图，无账号凭据、私人消息或照片。显示 11 个共同任务、控制方式和采集提醒。状态栏和 Mika 浮钮来自设备环境。"
   },
   {
     "file": "assets/privacy.png",
@@ -87,7 +87,7 @@
     "reviewedDate": "2026-11-04",
     "capturePhase": "harmony-source-ui-oppo",
     "sha256": "83d7c674383d3a321c00ec1e74ca989413af96bb7630824d6735bd193b61b0a3",
-    "limitations": "已核看 OPPO Android 16 旧版界面，无私人日程、邮件正文、账号或凭据。来源 APK SHA256 e57cb57c00ae9734d4681404b082fab3fe09cedd6dfeafaaf9a1c5195c684a4f。当前日历与邮箱位于「数据来源」，语音纪要位于顶部快捷入口。"
+    "limitations": "已核看 OPPO Android 16 旧版界面，无私人日程、邮件正文、账号或凭据。来源 APK SHA256 e57cb57c00ae9734d4681404b082fab3fe09cedd6dfeafaaf9a1c5195c684a4f。当前日历与邮箱位于「数据来源」，顶部快捷入口叫「录音分析」。"
   },
   {
     "file": "assets/weibo-consent.png",

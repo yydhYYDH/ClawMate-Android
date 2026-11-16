@@ -26,8 +26,8 @@ SH-15 页面/业务准备清单包含144个ArkTS文件：76个与锁定上游逐
 | 功能 | 共享来源 | 当前连接与边界 |
 | --- | --- | --- |
 | 启动、四页引导 | FirstLaunchOnboarding / OnboardingTypes | 原始页面；完成版本实际持久化，更新与重启不重复引导 |
-| 主导航、主题 | MainTabConfig / FloatingMainTabs / AppTheme / FrostedPage | 原五入口及导航样式，悬浮胶囊尺寸取锁定源码；原颜色资源跟随系统主题。Android 基础模糊近似 HDS，系统栏由宿主管理 |
-| 首页、提醒、推荐、关怀 | HomePage / HomeSecretary / HomeSecretaryDesk / CalendarReminderCard | 小 C、便签、提醒完成状态、建议和陪伴。云端聊天与 Codex 交办复用既有传输及确认，手机交办引导选择已配置工作流。日历、邮箱进入各自的 Android 来源页 |
+| 主导航、主题 | MainTabConfig / FloatingMainTabs / AppTheme / FrostedPage | 六个底栏入口及悬浮胶囊尺寸取锁定源码；颜色资源跟随系统主题。Android 使用 ArkUI 基础模糊，系统栏由宿主管理 |
+| 首页、提醒、推荐、关怀 | HomePage / HomeSecretary / HomeSecretaryDesk / CalendarWeekDialog | 复用小 C、便签、提醒和陪伴。日历弹窗使用 Android 已启用的本机数据来源，提醒完成状态保存在 ClawMate。邮箱入口按配置显示 |
 | 聊天、会话、消息 | ChatPage / ChatMessageList / ChatSessionDrawer / ChatSessionStorage | 流式回复、思考参数、文件保存、会话管理；只读 query_events 工具往返已接通，最多3次查询；不执行任意模型工具 |
 | 图片聊天 | ChatPage / ChatImages / 共用 AndroidChatImagePreparer | 相册/拍照、逐次确认、最多4张去元数据 JPEG、当前回合多模态 SSE、私有历史图片；真实视觉模型与相机实拍未验收 |
 | 上下文预算与自动摘要 | ChatContextBudget / 原 Index 压缩编排 / ChatContext | 阈值与保留轮数生效；摘要、增量覆盖、会话重载复用及本地抽取回退已接入。完整原文保留；取消/撤回阻断迟到结果，仍超预算时明确报错；真实模型摘要质量待验收 |
@@ -38,8 +38,8 @@ SH-15 页面/业务准备清单包含144个ArkTS文件：76个与锁定上游逐
 | 任务与工作流 | TaskPage / WorkflowStorage / AndroidWorkflow / 共用 WorkflowRunnerImpl | 原图/JSON与文件管理；已接有界等待/条件/循环/echo/summary、单任务/批量停止、真实结果/日志；GUI和其他模型工具仍受限。任务开关控制批量候选，不自行后台执行 |
 | 工作流视觉问答 | 原ToolEditor / WorkflowVlm / 共用可选模型接口 | 本机图片导入、保存的Decider视觉模型、逐次发送确认、取消/超时、步骤输出与成功摘要；GUI截图仍阻断，真实模型质量与完整schema验证待验收 |
 | 每日采集提醒 | CollectionReminderPanel / 原策略 / Kotlin CollectionReminderEngine | 实际通知权限、每日近似闹钟、改时/撤销及通知跳转；前台解锁后再次确认才执行任务。原时间迁移一次；真实非空摘要保存后更新采集时间；省电送达和多厂商待验收 |
-| 设置与服务 | SettingsCenterPage / SettingsCenterControls / PeopleInfoPage / AvatarManagementPage | 线框图标、统一云端字段与独立高级设置。人物资料写入本机，数字分身参考照片、生成和历史由「我的」进入 |
-| 账号与隐私 | PrivacyConsent / PrivacyConsentDialog | 安卓授权指使用自配云服务，不代表华为账号登录；声明按实际行为改写并单独版本化；拒绝/撤回会阻断请求，小艺 A2A 明确不可用 |
+| 设置与服务 | SettingsCenterPage / SettingsCenterControls / PeopleInfoPage / AvatarManagementPage | 人物资料在「汇总 → 个人信息」，数字分身参考照片、生成和历史在「我的 → 模型与智能体」 |
+| 账号与隐私 | HuaweiAccountCard / PrivacyConsent / PrivacyConsentDialog | 「我的」显示共享账号卡片，点登录可见 Android 能力说明。「个人与隐私」管理自配云服务授权；小艺 A2A 待接入 |
 | 数字分身 | HomePage / AvatarService / SeedreamAvatarProvider | 原生成/历史/参数快照界面及文生图服务连接；真实生成待验收。照片参考上传、人物前景分割未验收/未接入，不伪造成功 |
 | 语音、本地模型 | 原语音控件 / 共用 Android ASR、TTS / LocalModelAccess | TTS真实回调、暂停/文本重播；ASR连接系统服务并按需申请麦克风权限，没有伪造转录。本地模型支持 ModelScope 联网下载、续传、校验、暂停、切换与删除，但已下载模型不会自动推理；MNN/HiAI/OM未接入 |
 | HDC/GUI、Python | 平台接口与能力说明页 | 跨应用操作、外部Python服务和微信自动采集仍受限；提醒不自动启动这些能力 |

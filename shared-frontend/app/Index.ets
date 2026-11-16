@@ -8,6 +8,7 @@ import { HomeNote, SecretaryAssignment, SecretaryJob, SecretaryJobState } from '
 import { HomeComfortChatStore } from '../pages/home/HomeComfortChatStore';
 import { CollectionPage } from '../pages/collection/CollectionPage';
 import { TaskPage } from '../pages/task/TaskPage';
+import { PERSONAL_INFO_MEMORY_SCENE_ID } from '../utils/WorkflowSceneConfig';
 import { ChatPage } from '../pages/chat/ChatPage';
 import { CodexPage } from '../pages/codex/CodexPage';
 import { SettingsScrollTarget } from '../pages/settings/SettingsCenterTypes';
@@ -77,7 +78,7 @@ struct Index {
   @State @Watch('onNavigationChanged') tab: number = MainTabIndex.Home;
   @State @Watch('saveSettings') settingsSection: number = -1;
   @State settingsScrollTarget: number = SettingsScrollTarget.None;
-  @State collectionScene: number = 1;
+  @State collectionScene: number = PERSONAL_INFO_MEMORY_SCENE_ID;
   @State taskScene: number = 0;
   @State homeReviewRequested: boolean = false;
   @State secretaryDesk: HomeSecretaryDesk = new HomeSecretaryDesk();

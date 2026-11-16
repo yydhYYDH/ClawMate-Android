@@ -25,6 +25,7 @@ export struct MainNavigation {
         .fontColor(AppTheme.text(this.selectedIndex === item.index ? '#5B5CE2' : '#747B87'))
     }.layoutWeight(1).height(TAB_BAR_HEIGHT).justifyContent(FlexAlign.Center)
       .padding({ left: 2, right: 2, top: 6, bottom: 6 })
+      .hitTestBehavior(HitTestMode.Block)
       .accessibilityGroup(true).accessibilityText(item.label)
       .onClick((): void => { this.selectedIndex = item.index; })
   }
@@ -42,6 +43,7 @@ export struct MainNavigation {
           .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR)
           .border({ width: 1, color: AppTheme.border('#66FFFFFF') })
           .borderRadius(TAB_BAR_HEIGHT / 2)
+          .zIndex(1)
           .shadow({ radius: 20, color: AppTheme.shadow('#22000000'), offsetY: 4 })
           .margin({ bottom: TAB_BAR_BOTTOM_MARGIN })
       }

@@ -189,8 +189,8 @@
     },
     {
       "path": "entry/src/main/ets/pages/settings/HuaweiAccountCard.ets",
-      "gitBlob": "98725fad6591aa726e8519131ec0fe93f0a31743",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "23fda61b7797ab02b349bb8a0c7468598c12589a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/pages/settings/SettingsCenterControls.ets",
@@ -339,8 +339,8 @@
     },
     {
       "path": "entry/src/main/ets/utils/WorkflowSceneConfig.ets",
-      "gitBlob": "39751908a9e06b711ceb2babb4082f61b34a0366",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "1b952f31de1885c3c71180847602de174543c6ad",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/utils/WorkflowStorage.ets",
@@ -465,6 +465,16 @@
     {
       "path": "entry/src/main/ets/utils/CloudApiCompatibility.ets",
       "gitBlob": "397f1ca5b271f1f4f5ef070bf7a1e38b7f6c231a",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/components/CalendarWeekDialog.ets",
+      "gitBlob": "64abd254a3a8dd6b7a7c491ea7540e6e8e0fc530",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/ets/utils/calendar/CalendarMemoryPolicy.ets",
+      "gitBlob": "a8c0dd504c14c42f6022eeb319f25eb83b660e56",
       "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     }
   ]

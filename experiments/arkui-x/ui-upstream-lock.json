@@ -139,8 +139,8 @@
     },
     {
       "path": "entry/src/main/ets/utils/WorkflowSceneConfig.ets",
-      "gitBlob": "39751908a9e06b711ceb2babb4082f61b34a0366",
-      "ref": "cd69b68bf16b9ed352be5073939eb24d042de583"
+      "gitBlob": "1b952f31de1885c3c71180847602de174543c6ad",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     },
     {
       "path": "entry/src/main/ets/datamanager/ChatMemoryExtraction.ets",

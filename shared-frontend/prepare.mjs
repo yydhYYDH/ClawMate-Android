@@ -163,8 +163,6 @@ const navigationConstants = ['TAB_BAR_HEIGHT', 'TAB_BAR_BOTTOM_MARGIN', 'TAB_BAR
 });
 const sourceIndex = read('pages/Index.ets');
 overlay('platform/UpstreamMimoVoice.ets', buildMimoProtocol(read('utils/voice/MimoVoiceClient.ets')));
-overlay('components/CollectionReminderPanel.ets', replaceChecked(read('components/CollectionReminderPanel.ets'),
-  "    if (!this.reminder.enabled) { return '每天提醒，点击通知并解锁后采集。'; }", "    if (!this.reminder.enabled) { return '点击通知并解锁后确认采集。省电策略可能延迟提醒。'; }"));
 overlay('platform/UpstreamChatContext.ets', buildChatContextSource(sourceIndex));
 const navigationMethods = ['tabIconResource', 'tabBarStyle'].map(name => {
   const match = sourceIndex.match(new RegExp(`  private ${name}\\([^]*?\\n  \\}`));
@@ -194,15 +192,44 @@ overlay('pages/chat/DigitalAvatarView.ets', applyPatches(buildChatAvatarView(rea
   ['app.media.chat_assistant_avatar', 'app.media.clawmate_secretary'],
   ['app.media.home_explorer_mascot', 'app.media.clawmate_secretary']
 ]));
-// Keep Android's real personal-source routes and calendar preview on the new board.
+// Use the shared board and calendar sheet with Android's own data sources.
 let homePage = applyPatches(read('pages/home/HomePage.ets'), [
-  ["import { showCalendarWeekDialog } from '../../components/CalendarWeekDialog';\nimport { showMailTodayDialog } from '../../components/MailTodayDialog';",
-    "import { CalendarReminderCard } from '../../components/CalendarReminderCard';"],
-  [/  private async openSource\(calendar: boolean\): Promise<void> \{[^]*?\n  \}/,
-    '  private openSource(calendar: boolean): void { if (calendar) { this.onOpenCalendarSettings(); } else { this.onOpenMailSettings(); } }'],
-  ["            if (this.profile.mailReminder) { this.SourceButton('邮件', false) }\n            if (this.profile.calendarEnabled) { this.SourceButton('日历', true) }",
-    "            this.SourceButton('邮件', false)\n            this.SourceButton('日历', true)"],
-  ['        this.Board()', "        this.Board()\n        if (this.filter !== 'suggestion') {\n          CalendarReminderCard().width('92%').constraintSize({ maxWidth: 840 })\n        }"]
+  ["import { showMailTodayDialog } from '../../components/MailTodayDialog';",
+    "import { HomePersonalSources } from '../../platform/HomePersonalSources';"],
+  ['  @Prop active: boolean = false;', "  @Prop @Watch('refreshHomeSources') active: boolean = false;"],
+  ['  private sourceOpen: boolean = false;', `  private sourceOpen: boolean = false;
+  private secretaryArea: Area | null = null;
+  private sources: HomePersonalSources = new HomePersonalSources();
+  @State private calendarAvailable: boolean = false;
+  @State private mailAvailable: boolean = false;
+  @State private calendarItems: HomeRecommendationViewModel[] = [];
+
+  aboutToAppear(): void { this.refreshHomeSources(); }
+
+  private async refreshHomeSources(): Promise<void> {
+    if (!this.active) { return; }
+    await this.sources.refresh((calendar: boolean, mail: boolean, items: HomeRecommendationViewModel[]): void => {
+      if (!this.active) { return; }
+      this.calendarAvailable = calendar;
+      this.mailAvailable = mail;
+      this.calendarItems = items;
+    });
+  }`],
+  ['this.profile.recommendations.filter((item: HomeRecommendationViewModel): boolean => !item.completed).length',
+    `this.profile.recommendations.concat(this.calendarItems).filter((item: HomeRecommendationViewModel): boolean =>
+      !item.completed && (item.calendarEnd === undefined || item.calendarEnd > Date.now())).length`],
+  ['this.profile.mailReminder', 'this.mailAvailable'],
+  ['this.profile.calendarEnabled', 'this.calendarAvailable'],
+  ["if (await showCalendarWeekDialog(this.getUIContext(), this.profile.recommendations, true,\n          this.profile.calendarError || '', this.onSetRecommendationCompleted)) { this.onOpenCalendarSettings(); }",
+    `await this.refreshHomeSources();
+        if (await showCalendarWeekDialog(this.getUIContext(), this.calendarItems, true,
+          this.sources.calendarError, (id: string, completed: boolean): void => {
+            this.calendarItems = this.sources.complete(this.calendarItems, id, completed);
+          })) { this.onOpenCalendarSettings(); }`],
+  ['} else if (await showMailTodayDialog(this.getUIContext(), this.onMailChanged)) { this.onOpenMailSettings(); }',
+    '} else { this.onOpenMailSettings(); }'],
+  ["      .onAreaChange((_old: Area, area: Area): void => {", `      .onVisibleAreaChange([0.0], (visible: boolean): void => { if (visible) { this.refreshHomeSources(); } })
+      .onAreaChange((_old: Area, area: Area): void => {`]
 ]);
 homePage = applyPatches(homePage, [
   ['  @State private sheetOpen: boolean = false;', `  @State @Watch('reportAndroidSheet') private sheetOpen: boolean = false;
@@ -212,38 +239,88 @@ homePage = applyPatches(homePage, [
   ["    this.bubble = '';\n  }", "    this.sheetOpen = false;\n    this.bubble = '';\n  }"],
   ["    this.speak('收到，交给' + secretaryRouteLabel(route) + '办理。');", "    this.speak('正在处理交办请求…');"]
 ]);
-// On Android, long-press opens the same assignment sheet as the note detail action.
+// Use an in-app gesture so no note payload leaves the app.
 homePage = applyPatches(homePage, [
-  [/^  @State private (?:lifted|overSecretary): .*\n/gm, ''],
-  ['  private sourceOpen: boolean = false;\n', ''],
-  ['    this.endDrag();\n', '', { all: true }],
-  [/  private (?:endDrag|drop)\([^]*?\n  \}\n\n/g, ''],
-  ['canDrag', 'canAssign', { all: true }],
-  ['长按事项拖给我', '长按便签交办'],
-  [/    if \(this.lifted\) \{[^]*?    \} else if \(this.bubble\) \{/, '    if (this.bubble) {'],
-  ['!this.lifted && !this.bubble', '!this.bubble'],
-  ['active: this.active, receiving: this.overSecretary,', 'active: this.active,'],
-  ['!this.bubble && !this.lifted && !this.topicsExpanded', '!this.bubble && !this.topicsExpanded'],
-  [/\n      \.allowDrop\(\['general.plain-text'\]\)[^]*?\.onDrop\(\(event: DragEvent\): void => \{ this.drop\(event\); \}\)/, ''],
-  [/                onLift: [^]*?                onRelease: [^\n]*\n/,
-    "                onHold: (): void => { this.accept(note); },\n"]
+  [/  private drop\(event: DragEvent\): void \{[^]*?\n  \}/, `  private dragTarget(event: GestureEvent): boolean {
+    const finger = event.fingerList[0];
+    const target = this.secretaryArea;
+    if (!finger || target === null) { return false; }
+    const x = target.globalPosition.x;
+    const y = target.globalPosition.y;
+    if (x === undefined || y === undefined) { return false; }
+    const left = parseFloat(x.toString());
+    const top = parseFloat(y.toString());
+    return finger.globalX >= left && finger.globalX <= left + parseFloat(target.width.toString()) &&
+      finger.globalY >= top && finger.globalY <= top + parseFloat(target.height.toString());
+  }
+
+  private drop(): void {
+    const note = this.lifted;
+    const accepted = this.overSecretary;
+    this.endDrag();
+    if (!accepted || !note) { return; }
+    const current = this.board().find((item: HomeNote): boolean => item.key === note.key);
+    if (current && current.canDelegate && !current.completed) { this.accept(current); }
+  }`],
+  [/\n      \.allowDrop\(\['general.plain-text'\]\)[^]*?\.onDrop\(\(event: DragEvent\): void => \{ this.drop\(event\); \}\)/,
+    "\n      .onAreaChange((_old: Area, area: Area): void => { this.secretaryArea = area; })"],
+  ['                onRelease: (): void => { this.endDrag(); },', `                onMove: (event: GestureEvent): void => { this.overSecretary = this.dragTarget(event); },
+                onFinishDrag: (): void => { this.drop(); },
+                onRelease: (): void => { this.endDrag(); },`]
 ]);
 overlay('pages/home/HomePage.ets', homePage);
 overlay('pages/home/SecretaryNoteCard.ets', applyPatches(read('pages/home/SecretaryNoteCard.ets'), [
   ["import { unifiedDataChannel } from '@kit.ArkData';\n", ''],
-  ['  onLift: () => void = (): void => {};\n  onRelease: () => void = (): void => {};',
-    '  onHold: () => void = (): void => {};'],
+  ['  onRelease: () => void = (): void => {};',
+    '  onMove: (event: GestureEvent) => void = (_event: GestureEvent): void => {};\n  onFinishDrag: () => void = (): void => {};\n  onRelease: () => void = (): void => {};'],
   [/  private lift\(event: DragEvent\): DragItemInfo \{[^]*?\n  \}\n\n/, ''],
   [/        \.width\('100%'\).height\('100%'\).draggable\(true\)[^]*?\.onDragEnd\(\(\): void => \{ this.onRelease\(\); \}\)/,
     `        .width('100%').height('100%')
-        .priorityGesture(LongPressGesture().onAction((): void => { this.onHold(); }))`]
+        .priorityGesture(GestureGroup(GestureMode.Sequence,
+          LongPressGesture().onAction((): void => { this.onLift(); }),
+          PanGesture().onActionUpdate((event: GestureEvent): void => { this.onMove(event); })
+            .onActionEnd((): void => { this.onFinishDrag(); })
+        ).onCancel((): void => { this.onRelease(); }))`]
+]));
+overlay('utils/calendar/CalendarMemoryPolicy.ets', applyPatches(read('utils/calendar/CalendarMemoryPolicy.ets'), [
+  ['HomeRecommendationViewModel, IndexedEvent', 'HomeRecommendationViewModel'],
+  [/export interface CalendarSource \{[^]*?(?=export interface CalendarAgendaGroup)/, ''],
+  [/export const CALENDAR_REMINDER_OVERVIEW_ID[^]*?(?=export function calendarAgenda\()/, ''],
+  [/export interface CalendarSeries \{[^]*?(?=export function calendarDate\()/, ''],
+  [/export function calendarWindow\([^]*$/, '']
+]));
+const accountSource = read('pages/settings/HuaweiAccountCard.ets');
+const accountBuilder = accountSource.indexOf('  @Builder AccountContent()');
+if (accountBuilder < 0) throw new Error('Missing upstream Huawei account layout');
+overlay('pages/settings/HuaweiAccountCard.ets', `import { AppTheme } from '../../utils/AppTheme';
+import { promptAction } from '@kit.ArkUI';
+
+@Component
+export struct HuaweiAccountCard {
+  onOpenCloudAccess: () => void = (): void => {};
+
+` + applyPatches(accountSource.slice(accountBuilder), [
+  ["this.sessionActive ? '已登录' : '未登录'", "'未登录'"],
+  [/      if \(this.sessionActive\) \{[^]*?\n      \}\n/, ''],
+  [/    if \(!this.sessionActive\) \{[^]*?\n    \}/, `    Button({ type: ButtonType.Normal }) {
+      Row({ space: 6 }) {
+        Image($r('app.media.huawei_account_white')).width(24).height(24).objectFit(ImageFit.Contain)
+        Text('华为账号登录').fontSize(16).fontWeight(FontWeight.Medium).fontColor(Color.White)
+      }.justifyContent(FlexAlign.Center)
+    }.width('100%').height(44).borderRadius(24).margin({ top: 18 }).backgroundColor('#CF0A2C')
+      .accessibilityText('华为账号登录').onClick(async (): Promise<void> => {
+        const choice = await promptAction.showDialog({
+          title: '华为账号登录',
+          message: 'Android 版暂未接入华为账号。使用自行配置的云模型可在「个人与隐私」授权。',
+          buttons: [{ text: '知道了', color: '#65718B' }, { text: '前往设置', color: '#276EF1' }]
+        });
+        if (choice.index === 1) { this.onOpenCloudAccess(); }
+      })`]
 ]));
 // The existing Android Codex handoff handles target confirmation and optional local excerpts.
 const homeContext = read('datamanager/HomeCodexContext.ets');
 overlay('datamanager/HomeCodexContext.ets', homeContext.slice(homeContext.indexOf('export interface HomeCodexEvidence'),
   homeContext.indexOf('export function homeCodexImageLabel')));
-overlay('pages/home/HomeCodexHandoff.ets', replaceChecked(read('pages/home/HomeCodexHandoff.ets'),
-  " && item.calendarStart === undefined", ''));
 overlay('pages/home/HomeSecretary.ets', replaceChecked(read('pages/home/HomeSecretary.ets'), "'千问'", "'云端聊天'"));
 overlay('components/HomeTaskExecutionSheet.ets', applyPatches(read('components/HomeTaskExecutionSheet.ets'), [
   ["'由小 C 操作手机上的目标应用。'", "'打开任务页，选择并确认可用的 Android 采集工作流。'"],
@@ -265,15 +342,21 @@ let settings = applyPatches(read('pages/settings/SettingsCenterPage.ets'), [
   ['HuaweiPrivacyAccess.openPolicy(this.getUIContext());', "promptAction.showDialog({ title: '隐私政策', message: PRIVACY_DECLARATION, buttons: [{ text: '关闭', color: '#276EF1' }] }).catch(() => {});"],
   [/^  .*STARTUP_SOURCE_SYNC_ENABLED_KEY.*\n/gm, ''],
   [/^    this.startupSyncEnabled = new StartupSourceSync.*\n/gm, ''],
-  ["import { AppTheme }", "import { PersonalSourceEntry } from '../../components/PersonalSourceEntry';\nimport { SettingsStore } from '../../platform/SettingsStore';\nimport { AppTheme }"],
-  ['      HuaweiAccountCard({ sessionActive: $huaweiAccountSessionActive })', `      HuaweiAccountCard({ sessionActive: $huaweiAccountSessionActive })
+  ["import { AppTheme }", "import { PersonalSourceEntry } from '../../components/PersonalSourceEntry';\nimport { AndroidCloudAccessCard } from './AndroidCloudAccessCard';\nimport { SettingsStore } from '../../platform/SettingsStore';\nimport { AppTheme }"],
+  ['      HuaweiAccountCard({ sessionActive: $huaweiAccountSessionActive })',
+    '      HuaweiAccountCard({ onOpenCloudAccess: (): void => { this.openSection(SettingsSectionId.PersonalPrivacy); } })'],
+  ['      this.PrivacyDeclarationEntry()', `      this.PrivacyDeclarationEntry()
+      AndroidCloudAccessCard({ sessionActive: $huaweiAccountSessionActive }).width('92%')
       Column() {
         SettingsNavigationRow({ title: '人物资料', icon: $r('app.media.settings_people'),
           onOpen: (): void => { router.pushUrl({ url: 'pages/collection/PeopleInfoPage' }); } })
-        SettingsListDivider()
+      }.width('92%').backgroundColor($r('app.color.ui_surface')).borderRadius(22).clip(true)`],
+  ['  @Builder ModelAgentsSection() {\n    Column() {', `  @Builder ModelAgentsSection() {
+    Column() {
+      Column() {
         SettingsNavigationRow({ title: '数字分身', icon: $r('app.media.settings_account'),
           onOpen: (): void => { router.pushUrl({ url: 'pages/settings/AvatarManagementPage' }); } })
-      }.width('100%').backgroundColor($r('app.color.ui_surface')).borderRadius(22).clip(true)`],
+      }.width('92%').backgroundColor($r('app.color.ui_surface')).borderRadius(22).clip(true)`],
   [/    CollectionSourceRow\(\{ title: '日历分析'[^]*?SettingsSectionId.MailAnalysis\); \} \}\)/,
     "    PersonalSourceEntry({ kind: 'calendar', target: 'pages/settings/CalendarSourcesPage' })\n    CollectionFormDivider()\n    PersonalSourceEntry({ kind: 'mail', target: 'pages/settings/MailSourcesPage' })"],
   [/  private changeStartupSyncEnabled\([^]*?(?=  @Builder DataCollectionSection)/, ''],
@@ -302,7 +385,8 @@ overlay('config/DefaultEndpointConfig.ets',
   "export function configuredEndpointValueOrDefault(value: string, fallback: string = ''): string { return value.trim() || fallback; }\n" +
   "export function configuredEndpointSecretOrDefault(value: string, fallback: string = ''): string { return value.trim() || fallback; }\n");
 const stringKeys = new Set([...settings.matchAll(/@StorageLink\('([^']+)'\)/g)].map(match => match[1]));
-['firstLaunchOnboardingVersion', 'androidTaskControlMode', 'threadNumInput', 'desktopCompanionDownloadUrl', 'androidChatAvatarStyle', 'secretaryCodexComputer', 'secretaryCodexWorkspace'].forEach(key => stringKeys.add(key));
+['firstLaunchOnboardingVersion', 'androidTaskControlMode', 'threadNumInput', 'desktopCompanionDownloadUrl', 'androidChatAvatarStyle', 'secretaryCodexComputer', 'secretaryCodexWorkspace',
+  'androidCalendarCompletedIds'].forEach(key => stringKeys.add(key));
 const booleanKeys = ['androidCloudAccessGranted', 'appDarkMode', 'autoConfirm', 'cloudAutoConfirm'];
 stringKeys.delete('voiceTtsStreamingEnabled');
 booleanKeys.push('voiceTtsStreamingEnabled');
@@ -338,7 +422,7 @@ privacy = privacy.slice(0, start) + 'export const PRIVACY_DECLARATION: string = 
   '聊天、配置和索引保存在此应用的本地存储。仅在你主动使用云端功能并同意后，相关输入和上下文才会发送至你配置的模型服务。\n\n' +
   '服务提供方的数据保留规则由该服务决定，本应用无法保证其删除或不留存。不要向不信任的服务发送隐私信息。\n\n' +
   '安卓尚未接入华为账号和小艺 A2A。云服务授权不代表账号登录；应用不会通过该入口对外提供个人记忆。\n\n' +
-  '拒绝后仍可浏览和编辑本地内容。可在“我的”撤回授权，停止新的请求并尝试取消正在进行的请求；已发送的数据无法收回。相册和麦克风权限会在使用对应功能时另行申请。\n\n') +
+  '拒绝后仍可浏览和编辑本地内容。可在“我的 → 个人与隐私”撤回授权，停止新的请求并尝试取消正在进行的请求；已发送的数据无法收回。相册和麦克风权限会在使用对应功能时另行申请。\n\n') +
   " + '声明版本：' + PRIVACY_VERSION;\n\n" + privacy.slice(end);
 overlay('components/PrivacyConsentDialog.ets', privacy);
 overlay('components/AiLoginGuard.ets', replaceChecked(read('components/AiLoginGuard.ets'), "title: '请先登录'", "title: '请先授权云服务'"));
@@ -353,11 +437,17 @@ let collectionSources = applyPatches(read('pages/collection/CollectionPage.ets')
   [".onClick((): void => { router.pushUrl({ url: route }); })", '.onClick(open)'],
   ["'#28618A', 'pages/gallery/GalleryPage')", "'#28618A', (): void => { router.pushUrl({ url: 'pages/gallery/GalleryPage' }); })"],
   ["this.AnalysisShortcut('录音分析', $r('app.media.source_recording_white'), '#D96B56', '#AC425F', 'pages/recording/RecordingPage')",
-    "this.AnalysisShortcut('语音纪要', $r('app.media.source_recording_white'), '#D96B56', '#AC425F', this.onOpenMeeting)"],
+    "this.AnalysisShortcut('录音分析', $r('app.media.source_recording_white'), '#D96B56', '#AC425F', this.onOpenMeeting)"],
   [/        CollectionSourceRow\(\{ title: '日历分析'[^]*?this.onOpenMailAnalysis\(\); \} \}\)/,
     "        PersonalSourceEntry({ kind: 'calendar', target: 'pages/settings/CalendarSourcesPage' })\n        CollectionFormDivider()\n        PersonalSourceEntry({ kind: 'mail', target: 'pages/settings/MailSourcesPage' })"]
 ]);
 overlay('pages/collection/CollectionPage.ets', collectionSources);
+overlay('components/CollectionFormControls.ets', applyPatches(read('components/CollectionFormControls.ets'), [
+  ['  @Prop syncing: boolean = false;', "  @Prop syncing: boolean = false;\n  @Prop syncLabel: string = '';"],
+  ["Button(this.syncing ? '同步中' : '同步')", "Button(this.syncLabel || (this.syncing ? '同步中' : '同步'))"],
+  ["this.title + (this.syncing ? '同步中' : '同步')",
+    "this.title + (this.syncLabel || (this.syncing ? '同步中' : '同步'))"]
+]));
 let gallery = read('pages/gallery/GalleryPage.ets');
 gallery = buildAndroidGallerySource(gallery);
 gallery = replaceChecked(gallery, 'import { abilityAccessCtrl, common, Permissions }', 'import { common }');
@@ -391,11 +481,6 @@ overlay('utils/gallery/GalleryImageStore.ets', applyPatches(read('utils/gallery/
   ['fileIo as fs, fileUri', 'fileIo as fs'],
   ['fileUri.getUriFromPath(path)', "'file://' + path.split('/').map((part: string): string => encodeURIComponent(part)).join('/')"]
 ]));
-overlay('components/TaskDeviceControlPanel.ets', replaceChecked(read('components/TaskDeviceControlPanel.ets'),
-  `      }.width('100%').padding(4).borderRadius(14).backgroundColor($r('app.color.ui_surface_soft'))`,
-  `      }.width('100%').padding(4).borderRadius(14).backgroundColor($r('app.color.ui_surface_soft'))
-      Text(this.mode === 'pc' ? '电脑控制待接入 Android 设备桥接。' : '支持本机工作流、无障碍采集和 Decider 模型读屏。')
-        .fontSize(12).fontColor($r('app.color.ui_text_secondary')).width('100%')`));
 // Data-pipeline requests must use the saved model and reject cancelled results
 // before validators/checkpoints or later stages can commit them.
 overlay('datamanager/DataManagerTypes.ets', applyPatches(read('datamanager/DataManagerTypes.ets'), [
@@ -407,7 +492,12 @@ export interface IndexedEvent {
   subjects?: MemorySubjectRef[];
   fact_source?: MemoryFactSource;`],
   ['export interface QueryOptions {', 'export interface QueryOptions {\n  subjectIds?: string[];'],
-  ['export interface HomeRecommendationViewModel {', 'export interface HomeRecommendationViewModel {\n  relatedFacts?: string[];']
+  ['export interface HomeRecommendationViewModel {', `export interface HomeRecommendationViewModel {
+  relatedFacts?: string[];
+  calendarStart?: number;
+  calendarEnd?: number;
+  calendarAllDay?: boolean;
+  calendarLocation?: string;`]
 ]));
 overlay('datamanager/DataManagerFacade.ets', applyPatches(read('datamanager/DataManagerFacade.ets'), [
   [/^import /, "import { collectionProfileNote } from './CollectionProfileNote';\nimport "],
@@ -491,8 +581,8 @@ let taskPage = applyPatches(read('pages/task/TaskPage.ets'), [
   }
 
   @Builder SimpleTaskRow(task: WorkflowTask) {`],
-  ['          if (this.runningTaskId === task.id || this.preparingTaskId === task.id) {', `          Text(this.androidTaskService(task)).fontSize(12).fontColor($r('app.color.ui_text_secondary')).margin({ top: 4 })
-          if (this.runningTaskId === task.id || this.preparingTaskId === task.id) {`],
+  ["      Text((task.enabled ? task.lastStatus : '已暂停') + ' · ' + task.lastRun)", `      Text(this.androidTaskService(task)).fontSize(12).fontColor($r('app.color.ui_text_secondary')).width('100%')
+      Text((task.enabled ? task.lastStatus : '已暂停') + ' · ' + task.lastRun)`],
   ['  @Builder ToolEditor() {', `  private async pickAndroidWorkflowImage(): Promise<void> {
     let selected = this.selectedPath; let task = this.editingTaskId;
     try {
@@ -517,16 +607,32 @@ let taskPage = applyPatches(read('pages/task/TaskPage.ets'), [
   ['  private closeConfigView(): void {', '  private closeConfigView(): void {\n    if (this.editorOpen) { this.requestCloseEditor(); return; }'],
   ['.onClick(() => { this.editorOpen = false; })', '.onClick(() => { this.requestCloseEditor(); })']
 ]);
+taskPage = applyPatches(taskPage, [
+  ['  private enabledTasks(): WorkflowTask[] {', `  private reviewTasks(): WorkflowTask[] {
+    // Android's extra public-notes workflow remains available in the configuration list.
+    return this.tasks.filter((task: WorkflowTask): boolean => task.id !== 'default_xhs_public_notes');
+  }
+
+  private reviewTasksForScene(sceneId: number): WorkflowTask[] {
+    return this.reviewTasks().filter((task: WorkflowTask): boolean => task.sceneId === sceneId);
+  }
+
+  private enabledTasks(): WorkflowTask[] {`],
+  ['this.tasksForScene(scenes[sceneIndex].sceneId)', 'this.reviewTasksForScene(scenes[sceneIndex].sceneId)'],
+  [/  private enabledTaskCount\(\): number \{[^]*?\n  \}/,
+    '  private enabledTaskCount(): number { return this.enabledTasks().length; }'],
+  ['this.tasksForScene(scene.sceneId)', 'this.reviewTasksForScene(scene.sceneId)', { all: true }],
+  ['    if (this.tasks.length === 0) {', '    if (this.reviewTasks().length === 0) {'],
+  ["this.enabledTaskCount() + ' / ' + this.tasks.length", "this.enabledTaskCount() + ' / ' + this.reviewTasks().length"]
+]);
 overlay('pages/task/TaskPage.ets', patchCollectionTaskPage(taskPage));
 writeJson('entry/src/main/resources/base/profile/main_pages.json', { src: [
   'pages/Index', 'pages/gallery/GalleryPage', 'pages/collection/CollectionGroupDetailPage',
   'pages/collection/PeopleInfoPage', 'pages/collection/PersonInfoPage', 'pages/settings/AvatarManagementPage',
   'pages/task/WorkflowFileViewer', 'pages/settings/DesktopCompanionPage', 'pages/settings/SelfHdcTestPage',
   'pages/LogView', 'pages/OpTest', 'pages/ProfileTest', 'pages/settings/MemorySyncPage', 'pages/settings/CalendarSourcesPage', 'pages/settings/MailSourcesPage', 'pages/meeting/MeetingPage', 'pages/task/GuiPlanPage' ] });
-for (const name of ['source_calendar', 'source_mail', 'source_meeting']) {
-  fs.copyFileSync(path.join(template, 'entry/src/main/resources/base/media', name + '.svg'),
-    path.join(project, 'entry/src/main/resources/base/media', name + '.svg'));
-}
+fs.copyFileSync(path.join(template, 'entry/src/main/resources/base/media/huawei_account_white.svg'),
+  path.join(project, 'entry/src/main/resources/base/media/huawei_account_white.svg'));
 for (const name of ['onboarding_agent', 'onboarding_avatar', 'onboarding_data_home']) {
   fs.copyFileSync(path.join(repo, 'app/src/main/res/drawable-nodpi', name + '.png'),
     path.join(project, 'entry/src/main/resources/base/media', name + '.png'));

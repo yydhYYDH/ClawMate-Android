@@ -493,6 +493,16 @@
       "path": "entry/src/main/resources/base/media/source_wechat.svg",
       "gitBlob": "b21cbbe7e9ece154822c6d2b5090e3e71391ef13",
       "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/source_calendar.svg",
+      "gitBlob": "5827ecfe11be9cb51503ed2139b2c37b85ca67b9",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
+    },
+    {
+      "path": "entry/src/main/resources/base/media/source_mail.svg",
+      "gitBlob": "dba559a097ac48c6edb892043913af329eb03a01",
+      "ref": "ba8e250ffdb4c7b1724e04028029c9d4998b4054"
     }
   ]
 }
