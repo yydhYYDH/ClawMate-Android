@@ -1,5 +1,12 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## Mika 后台屏与悬浮窗真机验收（2026-11-16）
+
+- OPPO PKB110 / Android 16 实测私有虚拟屏能启动计算器，主屏焦点保持在显示器 0。Android 的无障碍显示器清单只有主屏，原会话因此读不到计算器窗口、没有浮窗，并在等待超时后回收显示器。
+- 后台助手按 Mika 的显示器配置增加 `VIRTUAL_DISPLAY_FLAG_PUBLIC`，同时继续启用 `VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY` 以及主屏焦点隔离。系统随后报告虚拟屏和应用窗口，ClawMate 按选定显示器和授权包读取。
+- 原位更新 `com.clawmate.shared`，APK SHA-256 `0e7237e9a00acaf6c3afec99e1c71908158990025adbd1255db851d6173248dc`。无障碍仍开启，已有模型配置、Codex 连接、采集历史和 138 个原生库摘要一致。通过既有云端模型启动计算器，在后台屏读取清除、百分号、退格和除号并返回聊天。主屏右上角显示目标和步骤，主屏焦点始终是 0，结束后虚拟屏和浮窗均退出。第二轮点击「停止控制」，原聊天收到取消，显示器和浮窗回收。已清理测试会话。
+- `./gradlew.bat :shared-app:assembleDebug :android-capabilities:testDebugUnitTest --offline --console=plain` 通过，307 通过、14 跳过。待验收范围包括主屏聊天控制、小红书和微博后台采集闭环。Mika 无线配对、实时预览和虚拟屏接管仍待接入。
+
 ## 鸿蒙真机 UI 对照修正（2026-11-16）
 
 - 以 Pura 80 的 `coevomind-app@ba8e250f` 1.0.15 对照版为基准逐屏核对。首页复用便签拖放反馈和未来一周日历弹窗。日历读取 Android 已启用的来源，完成标记保存在 ClawMate。汇总复用领域顺序和日历、邮箱来源行，顶部恢复「录音分析」文案并连接原 Android 入口。

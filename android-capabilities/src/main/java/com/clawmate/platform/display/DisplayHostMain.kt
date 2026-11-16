@@ -103,8 +103,11 @@ private class DisplayHost(
         frames = buffer
         buffer.setOnImageAvailableListener({ reader -> runCatching { reader.acquireLatestImage()?.close() } }, handler)
         try {
+            // Android accessibility skips private virtual displays owned by the shell.
+            // Match Mika's public, own-content-only display so it can observe the approved app without mirroring.
             val surface = checkNotNull(manager.createVirtualDisplay("ClawMate background", metrics.widthPixels, metrics.heightPixels,
-                metrics.densityDpi, buffer.surface, DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY or
+                metrics.densityDpi, buffer.surface, DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY or
                     trusted or supportsTouch or destroyOnRemoval or ownFocus or preventFocusSteal))
             display = surface
             handler.postDelayed(expiry, 125_000)
