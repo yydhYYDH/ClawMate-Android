@@ -8,7 +8,7 @@ import org.junit.Test
 
 class DeviceFileIndexTest {
     private fun item(id: String, name: String, mime: String? = "text/plain", at: Long = 0) =
-        DeviceFileItem(id, name, mime, 10, at)
+        LocalFileItem(id, name, mime, 10, at)
 
     @Test fun normalizesSeparatorsAndTrailingSlashes() {
         assertEquals("a/b", DeviceFileIndex.normalizePath("/a/b/"))

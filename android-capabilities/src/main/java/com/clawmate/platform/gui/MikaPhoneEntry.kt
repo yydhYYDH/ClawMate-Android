@@ -49,6 +49,8 @@ internal class MikaPhoneRun(
     private val skills: GuideCatalog? = null,
     /** 看图模型；没配置时 describe / find_visually 不出现，也不截图。 */
     private val vision: VisionService? = null,
+    /** 用户授权目录后的设备文件端口；未授权时为空，文件工具不出现。 */
+    private val deviceFiles: com.wangzan101.mika.core.cap.devicefiles.DeviceFilesPort? = null,
 ) {
     /** 用户插话走这里；任务结束后队列不再接收。 */
     val inbox = com.wangzan101.mika.core.run.RunInbox()
@@ -69,7 +71,7 @@ internal class MikaPhoneRun(
         }
         // 知识与技能只给界面任务：闹钟/日历任务用不到 App 做法，加上只是白占提示词。
         val catalog = skills.takeIf { allowed == null }
-        val tools = toolDispatcher(screen, skills = catalog, vision = vision, allowedToolNames = allowed)
+        val tools = toolDispatcher(screen, skills = catalog, vision = vision, deviceFiles = deviceFiles, allowedToolNames = allowed)
             .apply { expand(PHONE) }
         val instruction = when (mode) {
             MikaPhoneMode.SCREEN -> "你是 ClawMate 的手机控制助手。本次仅限用户确认的一个前台应用。" +
@@ -185,7 +187,10 @@ object MikaPhoneEntry {
             Capabilities(toolCalls = true, vision = false, contextTokens = 16_000, reasoning = true), http)
         // 看图模型只在界面任务里用；系统动作与日历批量没有屏幕可看。
         val vision = visionConfig.takeIf { mode == MikaPhoneMode.SCREEN }?.let { mikaVisionService(it, http) }
-        val task = MikaPhoneRun(goal, model, mode, progress, skills, vision)
+        val deviceFiles = com.clawmate.platform.files.DeviceFilesGrant.read(activity)?.let { 
+            com.clawmate.platform.files.AndroidDeviceFilesPort(activity, it) 
+        }
+        val task = MikaPhoneRun(goal, model, mode, progress, skills, vision, deviceFiles)
         return if (mode == MikaPhoneMode.SCREEN) run(activity, task, url.host) else runSystem(activity, task)
     }
 
