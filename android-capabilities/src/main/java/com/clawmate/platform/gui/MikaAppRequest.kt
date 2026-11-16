@@ -21,14 +21,32 @@ internal object MikaAppRequest {
         ' ', '，', '。', '！', '？', '、', '：', ':', ',', '.', ';', '!', '?',
     )
 
+    /** 常用应用的中英文别名：只在标签完全匹配时套用，避免把“小红书助手”之类带偏。 */
+    private val aliases = mapOf(
+        "设置" to listOf("settings"),
+        "微信" to listOf("wechat", "weixin"),
+        "微博" to listOf("weibo"),
+        "哔哩哔哩" to listOf("bilibili"),
+        "小红书" to listOf("xiaohongshu", "rednote"),
+        "支付宝" to listOf("alipay"),
+        "淘宝" to listOf("taobao"),
+        "京东" to listOf("jd"),
+        "美团" to listOf("meituan"),
+        "大众点评" to listOf("dianping"),
+        "抖音" to listOf("douyin", "tiktok"),
+        "飞书" to listOf("feishu", "lark"),
+        "Gmail" to listOf("gmail"),
+    )
+
     fun target(goal: String, apps: List<Pair<String, String>>): String? {
         val text = goal.trim().removePrefix("@").trimStart()
         val prefix = launch.find(text)
+        val expanded = apps.flatMap { app -> (listOf(app.second) + aliases[app.second].orEmpty()).map { app.first to it } }
         val matches = if (prefix != null) {
             val rest = text.substring(prefix.range.last + 1)
-            apps.filter { (_, label) -> label.isNotBlank() && startsWithLabel(rest, label) }
+            expanded.filter { (_, name) -> name.isNotBlank() && startsWithLabel(rest, name) }
         } else {
-            apps.filter { (_, label) -> label.length >= 2 && mentions(text, label) }
+            expanded.filter { (_, name) -> name.length >= 2 && mentions(text, name) }
         }
         val longest = matches.maxOfOrNull { it.second.length } ?: return null
         return matches.filter { it.second.length == longest }.map { it.first }.distinct().singleOrNull()

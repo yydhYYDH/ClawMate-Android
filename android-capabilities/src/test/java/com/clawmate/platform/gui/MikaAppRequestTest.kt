@@ -33,4 +33,11 @@ class MikaAppRequestTest {
     @Test fun englishLaunchStillWorks() {
         assertEquals("com.sina.weibo", MikaAppRequest.target("please open 微博", apps))
     }
+
+    @Test fun englishAliasesFindChineseLabels() {
+        val installed = apps + listOf("com.android.settings" to "设置", "com.tencent.mm" to "微信")
+        assertEquals("com.android.settings", MikaAppRequest.target("open settings and read the battery level", installed))
+        assertEquals("com.tencent.mm", MikaAppRequest.target("please open wechat", installed))
+        assertEquals("tv.danmaku.bili", MikaAppRequest.target("open bilibili", installed + listOf("tv.danmaku.bili" to "哔哩哔哩")))
+    }
 }
