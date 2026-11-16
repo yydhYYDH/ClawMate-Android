@@ -308,12 +308,14 @@ class GuiControlService : AccessibilityService() {
         }
         style?.let { layout.addView(it.badge(if (backgroundDisplay != null) "后台屏 · $targetLabel" else "ClawMate · $targetLabel")) }
         layout.addView(status)
-        fun button(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;textSize=12f;minHeight=0;setOnClickListener{if(!busy)runCatching{currentWindow();action()}.onFailure{stop(it.message ?: "目标应用已变化")}}})}
+        // 按钮都放进可折叠的容器：收起后只留目标、状态与停止，接近悬浮胶囊的占地。
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        fun button(label:String,action:()->Unit){actions.addView(Button(this).apply{text=label;textSize=12f;minHeight=0;setOnClickListener{if(!busy)runCatching{currentWindow();action()}.onFailure{stop(it.message ?: "目标应用已变化")}}})}
         if (weibo != null || xhs != null) {
             status.text = "准备采集"
         } else if (pages != null) {
             status.text = "请打开要采集的页面"
-            layout.addView(Button(this).apply {
+            actions.addView(Button(this).apply {
                 text = if (pages.plan.prompt == null) "开始读取" else "开始模型读屏"
                 textSize = 12f
                 setOnClickListener {
@@ -326,7 +328,7 @@ class GuiControlService : AccessibilityService() {
                         .onFailure { stop(it.message ?: "无法读取页面") }
                 }
             })
-            layout.addView(Button(this).apply {
+            actions.addView(Button(this).apply {
                 text = "Mika 采集（最多 ${pages.plan.pages} 页）"
                 textSize = 12f
                 setOnClickListener {
@@ -346,7 +348,7 @@ class GuiControlService : AccessibilityService() {
             if (display != null) {
                 addMikaPreview(layout, checkNotNull(style), display)
             } else {
-                layout.addView(requireNotNull(style).action("人工接管") { stop("已交给你操作，Mika 已停止") })
+                actions.addView(requireNotNull(style).action("人工接管") { stop("已交给你操作，Mika 已停止") })
             }
         } else if (collectOnly) {
             button("采集当前页"){collectPages(1)}
@@ -358,6 +360,16 @@ class GuiControlService : AccessibilityService() {
             button("向下滑动"){confirmGesture("向下滑动",null)}
             button("返回"){confirmGesture("返回",null)}
         }
+        layout.addView(actions)
+        var collapsed = false
+        layout.addView(Button(this).apply {
+            text = "收起"; textSize = 11f; minHeight = 0
+            setOnClickListener {
+                collapsed = !collapsed
+                actions.visibility = if (collapsed) View.GONE else View.VISIBLE
+                text = if (collapsed) "展开" else "收起"
+            }
+        })
         val stopButton = style?.action(if (mika == null) "停止采集" else "停止控制") {
             stop(if (mika == null) "用户停止采集" else "用户停止手机控制")
         } ?: Button(this).apply{
