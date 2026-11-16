@@ -8,6 +8,7 @@
 - 浮窗可折叠：收起后只留目标、状态、展开与停止，OPPO 上验收了收起/展开。
 - 插话：手机任务改走 `AgentLoop.run(spec, RunInbox)`，浮窗新增「插话…」，输入的一句话进入 RunInbox，Mika 在下一步之前读到；任务结束后再插话会明确提示“未发送”。单测覆盖结束后拒绝。
 - 运行记录：`no_backup/mika-runs.jsonl`，每次手机/系统/采集运行一行摘要（目标、状态、页数、条数、短说明），上限 200 行，不含截图与模型原文；桥接 `mikaRunHistory` 可读。
+- 设备文件（C4）：加入只读 SAF 端口与设置页授权入口。OPPO 上验证：设置页「授权 Mika 读取文件夹」打开系统选择器 → 选 Download → 持久化 `content://…/tree/primary%3ADownload`；「撤销文件授权」后授权记录清空。`importFile` 在沙箱接入前明确 `unsupported`；任务里用文件工具的端到端仍待补。
 - 上游采集存储调研：新增 [docs/UPSTREAM_COLLECTION_STORAGE.md](docs/UPSTREAM_COLLECTION_STORAGE.md)，对照 `mobiinfra-oh@clawmate_dev` 的 `workflows/`、`gallery-log/` 与本机存储。
 
 验证（2026-11-17）：
