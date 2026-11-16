@@ -14,6 +14,13 @@ internal object MikaInput {
         if (text.isEmpty()) return true
         if (text.length > MAX_CHARS) return false
         if (text.any(Char::isISOControl)) return false
-        return goal.contains(text, ignoreCase = true)
+        // 对比时忽略空白与大小写：「英雄联盟 S16」和用户写的「英雄联盟s16」指的是同一件事，
+        // 但页面上的字、模型编的数字仍然对不上，继续被拒。
+        val wanted = normalize(text)
+        return wanted.isNotEmpty() && normalize(goal).contains(wanted)
+    }
+
+    private fun normalize(value: String): String = buildString(value.length) {
+        for (ch in value) if (!ch.isWhitespace()) append(ch.lowercaseChar())
     }
 }

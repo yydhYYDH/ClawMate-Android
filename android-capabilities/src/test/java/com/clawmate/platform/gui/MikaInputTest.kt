@@ -20,6 +20,12 @@ class MikaInputTest {
         assertFalse("tabs are rejected", MikaInput.allowed("abc", "a\tb"))
     }
 
+    @Test fun spaceAndCaseVariantsOfTheUsersWordsAreAccepted() {
+        assertTrue(MikaInput.allowed("去微博帮我找一下有关英雄联盟s16的热点内容", "英雄联盟 S16"))
+        assertTrue(MikaInput.allowed("去微博帮我找一下有关英雄联盟s16的热点内容", "s16"))
+        assertTrue(MikaInput.allowed("search Formula 1 news", "Formula1"))
+    }
+
     @Test fun clearingAFieldIsAlwaysAllowed() {
         assertTrue(MikaInput.allowed("whatever", ""))
     }
