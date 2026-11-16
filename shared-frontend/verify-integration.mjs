@@ -36,6 +36,33 @@ const { SharedAgent } = module('shared-frontend/adapters/platform/SharedAgent.et
   PersonalSources: { definition: kind => ({ type: 'function', function: { name: 'query_' + kind } }), query: async () => '{"ok":false,"error":"fixture denied"}' } });
 const options = () => ({ baseUrl: 'https://fixture.invalid', apiKey: '', model: 'fixture-model', messages: [{ role: 'user', content: '查询历史' }] });
 const tool = (name = 'query_events') => ({ id: 'call-1', type: 'function', function: { name, arguments: '{"keywords":["测试"]}' } });
+await check('Mika phone delegation runs once and returns its receipt to the matching model call', async () => {
+  let runs = 0;
+  let turns = 0;
+  const client = { async chatCompletionStream(request) {
+    assert.ok(request.tools.some(entry => entry.function.name === 'run_phone_task'));
+    if (++turns === 1) {
+      return { content: '', toolCalls: [
+        { ...tool('run_phone_task'), id: 'phone-one' },
+        { ...tool('run_phone_task'), id: 'phone-duplicate' }
+      ] };
+    }
+    const receipts = request.messages.filter(entry => entry.role === 'tool');
+    assert.equal(receipts[0].tool_call_id, 'phone-one');
+    assert.equal(JSON.parse(receipts[0].content).status, 'success');
+    assert.equal(receipts[1].tool_call_id, 'phone-duplicate');
+    assert.equal(JSON.parse(receipts[1].content).status, 'blocked');
+    return { content: '', toolCalls: [] };
+  } };
+  await SharedAgent.run(client, options(), () => '', () => true, () => {}, () => {},
+    undefined, undefined, undefined, async () => {
+      runs++;
+      return '{"status":"success","message":"已读取测试页面"}';
+    });
+  assert.equal(runs, 1);
+  assert.equal(turns, 2);
+});
+
 await check('a streamed tool round sends actual query results back with the matching call ID', async () => {
   let requests = 0, queries = 0, shown = '';
   const client = { async chatCompletionStream(request, callbacks) {

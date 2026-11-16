@@ -1,4 +1,4 @@
-import { CloudModelClient, CloudChatCompletionOptions, CloudChatMessage } from '../utils/CloudModelClient';
+import { CloudModelClient, CloudChatCompletionOptions, CloudChatMessage, CloudChatToolDefinition } from '../utils/CloudModelClient';
 import { MemoryQuery } from './MemoryQuery';
 import { PersonalSources } from './PersonalSources';
 import { CollectedMemory } from './CollectedMemory';
@@ -26,20 +26,34 @@ export interface SharedAgentBudgets {
 
 export const DEFAULT_SHARED_AGENT_BUDGETS: SharedAgentBudgets = { maxTurns: 4, maxQueries: 3, maxDelegations: 1 };
 
+function phoneTaskDefinition(): CloudChatToolDefinition {
+  const definition: CloudChatToolDefinition = {
+    type: 'function',
+    function: {
+      name: 'run_phone_task',
+      description: '仅当用户当前这条消息明确要求实际操作手机上的 App 时使用。用户将在手机上选择应用并确认。整条原始请求会交给手机助手，无需参数。',
+      parameters: JSON.parse('{"type":"object","properties":{},"additionalProperties":false}') as Object
+    }
+  };
+  return definition;
+}
+
 export class SharedAgent {
   static async run(client: CloudModelClient, options: CloudChatCompletionOptions,
     query: (raw: string) => string, active: () => boolean,
     delta: (text: string) => void, trace: (message: string) => void,
     codex?: CodexDelegation, budgets: SharedAgentBudgets = DEFAULT_SHARED_AGENT_BUDGETS,
-    collections?: (raw: string) => Promise<string>): Promise<void> {
+    collections?: (raw: string) => Promise<string>, phone?: () => Promise<string>): Promise<void> {
     options.tools = [MemoryQuery.definition(), PersonalSources.definition('calendar'), PersonalSources.definition('mail')];
     if (collections !== undefined) { options.tools.push(CollectedMemory.definition()); }
     // The tool is only advertised when a delegation sink exists, so the model cannot call
     // something that would fail.
     if (codex !== undefined) { options.tools.push(runCodexTaskDefinition()); }
+    if (phone !== undefined) { options.tools.push(phoneTaskDefinition()); }
     options.toolChoice = 'auto';
     let queries = 0;
     let delegations = 0;
+    let phoneUsed = false;
     for (let turn = 0; turn < budgets.maxTurns; turn++) {
       if (!active()) { throw new Error('用户取消请求'); }
       let response = await client.chatCompletionStream(options, { onContentDelta: (text: string): void => { if (active()) { delta(text); } } });
@@ -49,6 +63,18 @@ export class SharedAgent {
       options.messages.push(assistant);
       for (let call of response.toolCalls) {
         if (!active()) { throw new Error('用户取消请求'); }
+        if (call.function.name === 'run_phone_task') {
+          let result = JSON.stringify({ status: 'blocked', message: '本轮未开启手机控制或已尝试过一次' });
+          if (phone !== undefined && !phoneUsed) {
+            phoneUsed = true;
+            trace('等待确认 Mika 手机控制');
+            result = await phone();
+            trace('Mika 手机任务已结束');
+          }
+          if (!active()) { throw new Error('用户取消请求'); }
+          options.messages.push({ role: 'tool', content: result, tool_call_id: call.id });
+          continue;
+        }
         if (call.function.name === 'run_codex_task') {
           let result: string;
           if (codex === undefined) {

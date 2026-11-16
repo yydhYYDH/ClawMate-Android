@@ -1,5 +1,13 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## Mika 云端聊天手机控制（2026-11-16）
+
+- 云端文字聊天新增 `run_phone_task` 工具，传递用户原始目标。每轮最多委托一次，由手机本机选择应用和确认目标、模型地址及屏幕。原有聊天配置、历史和 APK 包名 `com.clawmate.shared` 沿用。
+- 原版 `AgentLoop` 和动作执行器对接 ClawMate 的按次控制会话。当前端口提供可见无障碍控件读取、按控件点击、翻页、搜索框输入、停止和主屏接管。后台屏助手连接时可选虚拟屏，使用既有同 APK 系统助手和窗口校验。截图读屏、Mika 内置无线调试配对、后台屏接管及 Codex 与本地聊天调用仍待接入。
+- Mika 原版仓库 `:core:test` 共 3840 项，62 失败、5 跳过。原版 agent、action、uistate 与手机能力组 949 项全部通过。ArkUI-X `assembleHap`、运行包封存校验、共享集成 19 项、视觉工作流 22 项与中文手册检查通过。
+- `:android-capabilities:testDebugUnitTest :shared-app:assembleDebug --continue --offline` 成功。304 项单测通过，包括使用上游 AgentLoop 读取受控端口并返回结果，14 项跳过。OPPO 原位更新共享版并确认原签名、首次安装时间、API 配置、Codex 连接、本机采集文件和 138 个原生库一致。设备 APK SHA-256 为 `88f979ab02f1b65b12f9ec96b256fee6ea1b319ec1c8d9a30aa0bc6a68987482`。
+- 正式包的后台屏助手已通过 USB 连接。OPPO 用真实已配置模型发起计算器试跑，云端聊天调用手机工具并返回「请在系统设置开启 ClawMate 按次界面控制」。设备授权关闭时未启动目标应用；临时聊天已删除。正向主屏和虚拟屏读写仍待授权后验收。
+
 ## Mika 原版内核引入（2026-11-16）
 
 - 将 Mika `eb10b349f86654125e0db5325714e410b5431054` 的 Kotlin/JVM `core/src/main` 和资源纳入 `:mika-core`。许可证、NOTICE 和第三方声明随 JAR 打包。

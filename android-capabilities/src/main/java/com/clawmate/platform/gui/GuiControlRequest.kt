@@ -13,7 +13,7 @@ internal class GuiControlRequest(
         "手机控制需要指定应用"
     }
     val supportsBackground: Boolean
-        get() = task is GuiControlTask.Weibo || task is GuiControlTask.Xhs
+        get() = task is GuiControlTask.Weibo || task is GuiControlTask.Xhs || task is GuiControlTask.Mika
 }
 
 internal sealed interface GuiControlTask {
@@ -22,4 +22,5 @@ internal sealed interface GuiControlTask {
     data class Pages(val run: PageGuiRun) : GuiControlTask
     data class Weibo(val run: WeiboGuiRun) : GuiControlTask
     data class Xhs(val run: XhsGuiRun) : GuiControlTask
+    data class Mika(val run: MikaPhoneRun) : GuiControlTask
 }

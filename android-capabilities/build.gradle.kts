@@ -26,6 +26,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":mika-core"))
     // Match versions already selected by the Compose host; keep both hosts on
     // one dependency graph when these engines are consumed independently.
     implementation("androidx.annotation:annotation:1.8.0")

@@ -62,6 +62,7 @@ import { ChatVoiceMetadata, VoiceInteractionStatus, TtsVoiceRuntimeStatus, creat
 interface CodexStarted { id: string; failure: string; }
 /** Native poll response for a chat delegation. */
 interface CodexPolled { v: number; status: string; result?: string; }
+interface MikaPhonePoll { state: string; status: string; message: string; }
 
 interface CaptureResult { v: number; status: string; uri: string; }
 
@@ -136,6 +137,8 @@ struct Index {
   private facade: DataManagerFacade | null = null;
   private activeRecord: ChatSessionRecord | null = null;
   private generation: number = 0;
+  private mikaStarting: boolean = false;
+  private mikaRunId: string = '';
   private streamRaw: string = '';
   private saveTimer: number = -1;
   private runtimeTimer: number = -1;
@@ -157,8 +160,8 @@ struct Index {
     this.refreshModels();
   }
   onPageShow(): void { this.resumeModelPolling(); CollectionReminderService.setWindowReady(true); this.startRuntime(); if (this.ready) { this.reloadData(); CollectionReminderService.refresh().catch(() => {}); } }
-  onPageHide(): void { CollectionReminderService.setWindowReady(false); this.stopModelPolling(); this.cancelChat(); this.stopRuntime(); this.stopVoice(); this.stopAsr(); this.saveSettings(); this.persistChat(); }
-  aboutToDisappear(): void { PrivacyConsent.setRevokeHandler(null); CollectionReminderService.setWindowReady(false); this.stopModelPolling(); Bridge.createBridge('ClawMatePlatform').unRegisterMethod('collectionReminderArrived').catch(() => {}); this.stopRuntime(); this.stopVoice(); this.stopAsr(); this.client.cancelActiveRequests(); this.saveSettings(); this.persistChat(); }
+  onPageHide(): void { CollectionReminderService.setWindowReady(false); this.stopModelPolling(); if (!this.mikaStarting && this.mikaRunId.length === 0) { this.cancelChat(); } this.stopRuntime(); this.stopVoice(); this.stopAsr(); this.saveSettings(); this.persistChat(); }
+  aboutToDisappear(): void { PrivacyConsent.setRevokeHandler(null); CollectionReminderService.setWindowReady(false); this.stopModelPolling(); Bridge.createBridge('ClawMatePlatform').unRegisterMethod('collectionReminderArrived').catch(() => {}); this.stopRuntime(); this.stopVoice(); this.stopAsr(); this.cancelChat(); this.saveSettings(); this.persistChat(); }
   onBackPress(): boolean {
     this.saveSettings(); this.persistChat();
     if (Number(router.getLength()) > 1) { router.back(); return true; }
@@ -199,7 +202,10 @@ struct Index {
         if (message !== undefined) { message.voice = voice; this.messages = this.messages.slice(); this.scheduleChatSave(); } },
       state: (id: string, status: VoiceInteractionStatus): void => { this.voiceMessageId = id; this.voiceStatus = status; },
       authorize: async (): Promise<void> => { await this.authorizeCloud(); } });
-    PrivacyConsent.setRevokeHandler((): void => { if (this.cloudSpeech?.ownsVoice()) { this.stopVoice(); } });
+    PrivacyConsent.setRevokeHandler((): void => {
+      if (this.cloudSpeech?.ownsVoice()) { this.stopVoice(); }
+      if (this.mikaStarting || this.mikaRunId.length > 0) { this.cancelChat(); }
+    });
     this.reloadData();
     let homeState = this.facade.storage.readJson<HomeModelState>(context.filesDir + '/shared-home-state.json', { suggestions: [], concerns: [] });
     this.suggestions = homeState.suggestions || []; this.concerns = homeState.concerns || [];
@@ -487,6 +493,10 @@ struct Index {
   private cancelChat(): void {
     if (this.thinking) { this.recordRuntime('已请求取消当前回复'); }
     this.client.cancelActiveRequests();
+    if (this.mikaRunId.length > 0) {
+      Bridge.createBridge('ClawMatePlatform').callMethod('mikaPhoneCancel', this.mikaRunId).catch(() => {});
+      this.mikaRunId = '';
+    }
     this.generation += 1;
     this.messages.forEach((message: ChatMessage): void => { message.streamingActive = false; });
     this.messages = this.messages.slice(); this.thinking = false;
@@ -638,7 +648,8 @@ struct Index {
           }, (): boolean => generation === this.generation, onDelta, (message: string): void => {
             assistant.trace.push(message); this.messages = this.messages.slice(); this.scheduleChatSave();
           }, allowCodex ? this.codexDelegation(text, generation) : undefined, DEFAULT_SHARED_AGENT_BUDGETS,
-          (raw: string): Promise<string> => CollectedMemory.share(raw, options, (): boolean => generation === this.generation));
+          (raw: string): Promise<string> => CollectedMemory.share(raw, options, (): boolean => generation === this.generation),
+          allowCodex && text.length <= 1000 ? (): Promise<string> => this.runMikaPhoneTask(text, options, ensureActive) : undefined);
         }
       } catch (error) {
         if (generation === this.generation) {
@@ -650,6 +661,38 @@ struct Index {
       }
     } catch (error) { if (generation === this.generation) { showToastSafely((error as Error).message, 3000); } }
     finally { if (!stored) { ChatImages.discard(paths); } this.preparing = false; this.sending = false; }
+  }
+
+  private async runMikaPhoneTask(goal: string, options: CloudChatCompletionOptions, checkActive: () => void): Promise<string> {
+    const bridge = Bridge.createBridge('ClawMatePlatform');
+    let id = '';
+    this.mikaStarting = true;
+    try {
+      checkActive();
+      id = await bridge.callMethod('mikaPhoneStart', goal, options.baseUrl, options.model || '', options.apiKey || '') as string;
+      checkActive();
+      this.mikaRunId = id;
+      this.mikaStarting = false;
+      let deadline = Date.now() + 175000;
+      while (Date.now() < deadline) {
+        checkActive();
+        let status = await bridge.callMethod('mikaPhonePoll', id) as string;
+        checkActive();
+        let state = JSON.parse(status) as MikaPhonePoll;
+        if (state.state === 'done') {
+          return JSON.stringify({ status: state.status, message: state.message });
+        }
+        if (state.state !== 'running') { break; }
+        await NativeCapabilities.wait();
+      }
+      return JSON.stringify({ status: 'failed', message: '手机任务已结束或连接中断' });
+    } catch (error) {
+      return JSON.stringify({ status: 'failed', message: '无法启动或继续 Mika 手机任务' });
+    } finally {
+      if (id.length > 0) { bridge.callMethod('mikaPhoneCancel', id).catch(() => {}); }
+      if (this.mikaRunId === id) { this.mikaRunId = ''; }
+      this.mikaStarting = false;
+    }
   }
 
   /**

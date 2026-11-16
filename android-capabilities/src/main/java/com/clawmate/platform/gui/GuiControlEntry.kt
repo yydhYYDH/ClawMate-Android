@@ -39,7 +39,7 @@ object GuiControlEntry {
         return runPageWorkflow(activity, definition, model, destination)
     }
 
-    private fun launchers(activity: Activity, target: String? = null): List<ResolveInfo> {
+    internal fun launchers(activity: Activity, target: String? = null): List<ResolveInfo> {
         val query = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(target)
         return activity.packageManager.queryIntentActivities(query, 0).filter {
             it.activityInfo.packageName != activity.packageName && it.activityInfo.enabled && it.activityInfo.exported
@@ -88,7 +88,7 @@ object GuiControlEntry {
         )
     }
 
-    private fun foreground(activity:Activity) {
+    internal fun foreground(activity:Activity) {
         check(!activity.isFinishing && !activity.isDestroyed && activity.hasWindowFocus() && !activity.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "请返回前台并解锁后操作" }
     }
     fun settings(activity:Activity) {

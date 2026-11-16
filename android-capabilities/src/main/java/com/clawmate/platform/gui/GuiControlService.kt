@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -27,6 +28,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import com.wangzan101.mika.core.uistate.ActionResult
 import com.clawmate.app.task.runner.RunStatus
 import com.clawmate.platform.display.BackgroundDisplay
 import java.security.MessageDigest
@@ -72,12 +74,13 @@ class GuiControlService : AccessibilityService() {
     private var pendingStart: GuiControlRequest? = null
     private var activeRequest: GuiControlRequest? = null
     private val targetLabel: String get() = activeRequest?.label.orEmpty().take(40)
-    private val collectOnly: Boolean get() = activeRequest?.task != GuiControlTask.ManualControl
+    private val collectOnly: Boolean get() = activeRequest?.task != GuiControlTask.ManualControl && mikaRun == null
     private val collectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var collectionJob: Job? = null
     private val weiboRun get() = (activeRequest?.task as? GuiControlTask.Weibo)?.run
     private val xhsRun get() = (activeRequest?.task as? GuiControlTask.Xhs)?.run
     private val pageRun get() = (activeRequest?.task as? GuiControlTask.Pages)?.run
+    private val mikaRun get() = (activeRequest?.task as? GuiControlTask.Mika)?.run
     private var backgroundDisplay: BackgroundDisplay? = null
     private var xhsCandidate: Pair<Int, Rect>? = null
     private var xhsCandidateSince = 0L
@@ -88,7 +91,7 @@ class GuiControlService : AccessibilityService() {
                 check(grant!!.available(SystemClock.elapsedRealtime())) { "控制会话已到期或达到动作上限" }
                 check(!getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "手机已锁屏，控制已停止" }
                 check(backgroundDisplay?.connected != false) { "后台屏助手已断开" }
-                if (panel != null) currentWindow(allowInputMethod = pageRun?.awaitingPage == true && !busy) else {
+                if (panel != null) currentWindow(allowInputMethod = mikaRun != null || pageRun?.awaitingPage == true && !busy) else {
                     check(SystemClock.elapsedRealtime() <= armedUntil) {
                         when {
                             backgroundDisplay != null -> "后台屏未在时限内打开已确认的页面"
@@ -146,7 +149,7 @@ class GuiControlService : AccessibilityService() {
                 }
                 if (now - xhsCandidateSince < 900) return
             }
-            currentWindow(allowInputMethod = pageRun != null)
+            currentWindow(allowInputMethod = pageRun != null || mikaRun != null)
             showPanel()
         } catch (_: Exception) { /* short launch grace only */ }
     }
@@ -181,7 +184,7 @@ class GuiControlService : AccessibilityService() {
             backgroundDisplay = display
             display = null
             weiboRun?.let { it.current = it.steps.first() }
-            armedUntil = now + if (collectOnly) 20_000 else 5_000
+            armedUntil = now + if (collectOnly || mikaRun != null) 20_000 else 5_000
             lastStatus = if (useBackground) "等待后台屏打开：$targetLabel" else "等待目标应用进入前台：$targetLabel"
             if (!useBackground) startActivity(Intent(request.launch).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             handler.post(watchdog)
@@ -217,6 +220,7 @@ class GuiControlService : AccessibilityService() {
         val interruptedWeibo = weiboRun
         val interruptedXhs = xhsRun
         val interruptedPages = pageRun
+        val interruptedMika = mikaRun
         activeRequest = null
         pendingStart = null
         backgroundDisplay?.close()
@@ -229,6 +233,7 @@ class GuiControlService : AccessibilityService() {
         interruptedWeibo?.finish(RunStatus.CANCELLED, reason)
         interruptedXhs?.finish(RunStatus.CANCELLED, reason)
         interruptedPages?.finish(RunStatus.CANCELLED, reason)
+        interruptedMika?.complete("cancelled", reason)
     }
     private fun sessionWindows(): List<AccessibilityWindowInfo> {
         val display = backgroundDisplay ?: return windows
@@ -277,7 +282,8 @@ class GuiControlService : AccessibilityService() {
         val weibo = weiboRun
         val xhs = xhsRun
         val pages = pageRun
-        val style = if (weibo == null && xhs == null && pages == null) null else GuiCollectionStyle(this)
+        val mika = mikaRun
+        val style = if (weibo == null && xhs == null && pages == null && mika == null) null else GuiCollectionStyle(this)
         val layout = style?.card(compact = true) ?: LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8,8,8,8);setBackgroundColor(0xee18304f.toInt())}
         val status = style?.label("准备采集…", 12, true) ?: TextView(this).apply{
             text=if (collectOnly) "ClawMate · $targetLabel\n本机采集 / 120秒" else "ClawMate · $targetLabel\n120秒 / 最多20次动作"
@@ -303,6 +309,11 @@ class GuiControlService : AccessibilityService() {
                         .onFailure { stop(it.message ?: "无法读取页面") }
                 }
             })
+        } else if (mika != null) {
+            status.text = "正在启动 Mika 手机控制"
+            if (backgroundDisplay == null) {
+                layout.addView(requireNotNull(style).action("人工接管") { stop("已交给你操作，Mika 已停止") })
+            }
         } else if (collectOnly) {
             button("采集当前页"){collectPages(1)}
             button("采集最多${GUI_COLLECTION_PAGE_LIMIT}页"){collectPages(GUI_COLLECTION_PAGE_LIMIT)}
@@ -312,7 +323,9 @@ class GuiControlService : AccessibilityService() {
             button("向下滑动"){confirmGesture("向下滑动",null)}
             button("返回"){confirmGesture("返回",null)}
         }
-        val stopButton = style?.action("停止采集") { stop("用户停止采集") } ?: Button(this).apply{
+        val stopButton = style?.action(if (mika == null) "停止采集" else "停止控制") {
+            stop(if (mika == null) "用户停止采集" else "用户停止手机控制")
+        } ?: Button(this).apply{
             text=if (collectOnly) "停止采集" else "停止控制"
             setOnClickListener{if (collectOnly) stop("用户停止采集") else stop()}
         }
@@ -327,6 +340,37 @@ class GuiControlService : AccessibilityService() {
         lastStatus=if (collectOnly) "本机采集会话进行中：$targetLabel" else "控制会话进行中：$targetLabel；全部操作由用户逐次确认"
         if (weibo != null && Build.VERSION.SDK_INT >= 34) startWeiboSteps(weibo, status)
         if (xhs != null && Build.VERSION.SDK_INT >= 34) startXhsSteps(xhs, status)
+        if (mika != null && Build.VERSION.SDK_INT >= 34) {
+            collectionJob = collectionScope.launch {
+                mika.execute(MikaScreenPort(this@GuiControlService, mika, checkNotNull(grant).target, targetLabel)) {
+                    status.text = it
+                }
+                if (mikaRun === mika) stop("Mika 手机任务已结束")
+            }
+        }
+    }
+
+    internal fun mikaWindow(run: MikaPhoneRun): AccessibilityWindowInfo {
+        check(mikaRun === run && panel != null) { "Mika 手机控制会话已结束" }
+        return currentWindow(allowInputMethod = true)
+    }
+
+    internal fun mikaBounds(window: AccessibilityWindowInfo): Rect = safeBounds(Rect().also(window::getBoundsInScreen))
+
+    internal fun mikaAction(run: MikaPhoneRun, windowId: Int, node: AccessibilityNodeInfo?, action: Int,
+        arguments: Bundle? = null,
+    ): ActionResult {
+        val window = mikaWindow(run)
+        if (node == null && backgroundDisplay != null) return ActionResult.Failed("use_visible_back_control")
+        if (window.id != windowId || node != null &&
+            (!node.refresh() || node.windowId != windowId || node.packageName?.toString() != grant?.target ||
+                !node.isVisibleToUser || !node.isEnabled || node.isPassword || node.isAccessibilityDataSensitive)
+        ) return ActionResult.Failed("stale_snapshot")
+        val session = checkNotNull(grant)
+        session.consume(SystemClock.elapsedRealtime(), session.target,
+            !getSystemService(KeyguardManager::class.java).isKeyguardLocked, 1)
+        val accepted = if (node == null) performGlobalAction(action) else node.performAction(action, arguments)
+        return if (accepted) ActionResult.Ok() else ActionResult.Failed("action_rejected")
     }
 
     private fun requireTargetOffMainScreen(target: String) {

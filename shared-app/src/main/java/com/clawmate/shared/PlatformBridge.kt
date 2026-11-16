@@ -23,6 +23,8 @@ import com.clawmate.app.gallery.ocr.LocalOcrRecognizer
 import com.clawmate.platform.LocalImageAccess
 import com.clawmate.platform.NativeOperations
 import com.clawmate.platform.SharedNativeWork
+import com.clawmate.platform.gui.MikaPhoneEntry
+import com.clawmate.platform.gui.MikaPhoneResult
 import com.clawmate.platform.avatar.AndroidAvatarForeground
 import com.clawmate.platform.avatar.AvatarForegroundRgba
 import com.clawmate.platform.voice.SpeechHttp
@@ -33,6 +35,7 @@ import com.clawmate.app.task.runner.WorkflowModelMailbox
 import org.json.JSONObject
 import org.json.JSONArray
 import java.io.Closeable
+import kotlinx.coroutines.runBlocking
 
 /** Android APIs only; no account, service endpoint or vendor-specific dependency. */
 class PlatformBridge(private val activity: StageActivity) :
@@ -158,6 +161,7 @@ class PlatformBridge(private val activity: StageActivity) :
     private val fileSpeech = SpeechFilePlayer(activity.applicationContext, java.io.File(activity.filesDir,"files/chat-sessions/assets"))
     private var speechMode = ""
     private val workflowJobs = NativeOperations<WorkflowRunResult>(1)
+    private val mikaJobs = NativeOperations<MikaPhoneResult>(1)
     private val workflowModels = java.util.concurrent.ConcurrentHashMap<String, WorkflowModelMailbox>()
     private var asr: AndroidSpeechRecognizerAsrAdapter? = null
     private val meeting = MeetingBridge(activity as SharedActivity)
@@ -372,6 +376,16 @@ class PlatformBridge(private val activity: StageActivity) :
         } else (activity as SharedActivity).reminderWindowReady()
     }
     fun workflowCancel(id: String): Boolean { workflowModels.remove(id)?.close(); workflowJobs.cancel(id); return true }
+    fun mikaPhoneStart(goal: String, url: String, model: String, key: String): String {
+        require(goal.length <= 1000 && url.length <= 2048 && model.length <= 180 && key.length <= 4096)
+        return mikaJobs.start { runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key) } }
+    }
+    fun mikaPhonePoll(id: String): String {
+        val job = mikaJobs.poll(id)
+        return JSONObject().put("state", job.state)
+            .put("status", job.value?.status.orEmpty()).put("message", job.value?.message.orEmpty()).toString()
+    }
+    fun mikaPhoneCancel(id: String): Boolean { mikaJobs.cancel(id); return true }
     fun captureStart(): String = onUi { (activity as SharedActivity).startCapture() }
     fun guiScreenshotStart(): String = onUi {
         check((activity as SharedActivity).reminderWindowReady() && activity.window.decorView.hasWindowFocus()) { "请返回前台并解锁后截图" }
@@ -567,7 +581,7 @@ class PlatformBridge(private val activity: StageActivity) :
         meeting.close()
         ocrJobs.close()
         avatarJobs.close()
-        imageJobs.close(); workflowModels.values.forEach { it.close() }; workflowModels.clear(); workflowJobs.close(); asrCancel()
+        imageJobs.close(); workflowModels.values.forEach { it.close() }; workflowModels.clear(); workflowJobs.close(); mikaJobs.close(); asrCancel()
         onUi { tts?.release(); tts = null; voice = Voice() }
     }
     fun platformInfo(): String = "Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}"
