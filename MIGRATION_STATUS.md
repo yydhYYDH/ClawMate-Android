@@ -6,6 +6,7 @@
 - 真机定位并修复一个会挡住所有采集会话的问题：机器上同时启用了 Mika 的无障碍服务时，它的小面积悬浮窗会被 `currentWindow()` 判成“浮层遮挡目标”，任务卡一点运行就 `多窗口或目标窗口不可见`。现在只有遮住大半内容区的无障碍浮层才按遮挡处理。
 - 微博任务失败的两个直接原因已修：「去微博帮我找…」现在能绑定已安装应用（去/到/在/用 + 应用名，并保留“小红书助手”这类长名字不误判）；输入比较忽略空白与大小写，`英雄联盟 S16` 不再被拒。
 - 浮窗可折叠：收起后只留目标、状态、展开与停止，OPPO 上验收了收起/展开。
+- 插话：手机任务改走 `AgentLoop.run(spec, RunInbox)`，浮窗新增「插话…」，输入的一句话进入 RunInbox，Mika 在下一步之前读到；任务结束后再插话会明确提示“未发送”。单测覆盖结束后拒绝。
 - 运行记录：`no_backup/mika-runs.jsonl`，每次手机/系统/采集运行一行摘要（目标、状态、页数、条数、短说明），上限 200 行，不含截图与模型原文；桥接 `mikaRunHistory` 可读。
 - 上游采集存储调研：新增 [docs/UPSTREAM_COLLECTION_STORAGE.md](docs/UPSTREAM_COLLECTION_STORAGE.md)，对照 `mobiinfra-oh@clawmate_dev` 的 `workflows/`、`gallery-log/` 与本机存储。
 
