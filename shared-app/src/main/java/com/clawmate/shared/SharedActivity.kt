@@ -170,6 +170,10 @@ class SharedActivity : StageActivity() {
             captureStatus = if (resultCode == Activity.RESULT_OK && (captureFile?.length() ?: 0) > 0) "done" else "cancelled"
             if (captureStatus != "done") { captureFile?.delete(); captureFile = null }
         }
+        if (requestCode == 7203) {
+            platform.deviceFilesPicked(if (resultCode == Activity.RESULT_OK) data?.data else null)
+            return
+        }
         if (requestCode == CodexPickers.REQUEST_EXPORT) {
             // The user chose a destination; the waiting export call copies the file there.
             platform.codexExportPicked(if (resultCode == Activity.RESULT_OK) data?.data else null)

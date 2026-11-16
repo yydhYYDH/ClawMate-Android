@@ -402,6 +402,37 @@ class PlatformBridge(private val activity: StageActivity) :
             runBlocking { MikaPhoneEntry.runCloud(activity, goal, url, model, key, mode, progress, vision) }
         }
     }
+    /**
+     * 让用户通过系统文件选择器授权一个目录给 Mika 只读使用。
+     * 返回是否成功发起选择；结果在 SharedActivity 的 onActivityResult(7203) 里落盘。
+     */
+    fun deviceFilesPick(): Boolean = onUi {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+        )
+        activity.startActivityForResult(intent, 7203)
+        true
+    }
+
+    fun deviceFilesPicked(uri: android.net.Uri?) {
+        if (uri == null) return
+        runCatching {
+            activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        com.clawmate.platform.files.DeviceFilesGrant.write(activity, uri)
+    }
+
+    fun deviceFilesGranted(): String =
+        com.clawmate.platform.files.DeviceFilesGrant.read(activity)?.toString().orEmpty()
+
+    fun deviceFilesRevoke(): Boolean {
+        com.clawmate.platform.files.DeviceFilesGrant.read(activity)?.let { uri ->
+            runCatching { activity.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+        com.clawmate.platform.files.DeviceFilesGrant.write(activity, null)
+        return true
+    }
+
     fun mikaPhonePoll(id: String): String {
         val job = mikaJobs.poll(id)
         return JSONObject().put("state", job.state)
@@ -409,8 +440,7 @@ class PlatformBridge(private val activity: StageActivity) :
             .put("progress", job.progress).toString()
     }
     /** 最近的 Mika 运行摘要（手机任务与本机采集）；只读本机私有记录，不含截图。 */
-    fun mikaRunHistory(raw: String): String {
-        val limit = runCatching { JSONObject(raw.ifBlank { "{}" }).optInt("limit", 20) }.getOrDefault(20)
+    fun mikaRunHistory(raw: String): String {        val limit = runCatching { JSONObject(raw.ifBlank { "{}" }).optInt("limit", 20) }.getOrDefault(20)
         val records = com.clawmate.platform.gui.MikaRunLog.recent(activity, limit)
         return JSONObject().put("v", 1).put("records", JSONArray(records.map { record ->
             JSONObject().put("at", record.at).put("kind", record.kind).put("app", record.app)
