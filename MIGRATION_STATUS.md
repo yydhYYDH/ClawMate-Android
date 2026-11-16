@@ -1,5 +1,10 @@
 ﻿# ClawMate Android 迁移状态与日志
 
+## Mika 原版内核引入（2026-11-16）
+
+- 将 Mika `eb10b349f86654125e0db5325714e410b5431054` 的 Kotlin/JVM `core/src/main` 和资源纳入 `:mika-core`。许可证、NOTICE 和第三方声明随 JAR 打包。
+- 沿用 ClawMate 的 Kotlin 1.9.24、序列化与协程版本。五个上游文件只调整 Kotlin 1.9 编译兼容。Gradle 已执行 `:mika-core:jar` 任务，并生成应用知识、站点知识和技能索引。
+
 ## coevomind-app 新版 UI（2026-11-16）
 
 - 对照鸿蒙 `coevomind-app@ba8e250ffdb4c7b1724e04028029c9d4998b4054`，按条目锁定新版 ArkUI 页面和资源。首页复用小 C 秘书、相关记录、便签筛选与交办回执。汇总复用手记、领域筛选、记录卡片和分析快捷入口，连接 Android 的图库、语音纪要、日历与邮箱。任务页复用分场景开关、回顾与文件管理，沿用 Android 工作流、确认、取消及保存逻辑。

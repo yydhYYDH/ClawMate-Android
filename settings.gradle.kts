@@ -22,6 +22,8 @@ dependencyResolutionManagement {
 rootProject.name = "ClawMate"
 include(":app")
 include(":shared-app", ":android-capabilities")
+include(":mika-core")
+project(":mika-core").projectDir = file("third_party/mika/core")
 include(":gui-control-fixture") // Disposable SDK-only cross-app test actor, not a product host.
 val meetingSdkRoot = providers.gradleProperty("meetingSdkRoot")
     .orElse(providers.environmentVariable("MEETING_SDK_ROOT")).orNull
