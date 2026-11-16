@@ -1,5 +1,20 @@
 # ClawMate Android 迁移状态与日志
 
+## Mika 采集接入与第二档进展（2026-11-17）
+
+- 任务页采集可选 Mika：模板会话（微博/小红书/账单等预设）与手动采集会话都出现「Mika 采集（最多 N 页）」。它走 `:mika-core` 的 `phone_collect`（新增 `ToolDispatcher.collectPages`，不经过模型），沿用内核的翻页、去重与停止条件；结果先本机预览，确认后写入 `no_backup/gui-collections.json`，聊天里的 `guiCollectionQuery` 能检索到（单测覆盖）。
+- 真机定位并修复一个会挡住所有采集会话的问题：机器上同时启用了 Mika 的无障碍服务时，它的小面积悬浮窗会被 `currentWindow()` 判成“浮层遮挡目标”，任务卡一点运行就 `多窗口或目标窗口不可见`。现在只有遮住大半内容区的无障碍浮层才按遮挡处理。
+- 微博任务失败的两个直接原因已修：「去微博帮我找…」现在能绑定已安装应用（去/到/在/用 + 应用名，并保留“小红书助手”这类长名字不误判）；输入比较忽略空白与大小写，`英雄联盟 S16` 不再被拒。
+- 浮窗可折叠：收起后只留目标、状态、展开与停止，OPPO 上验收了收起/展开。
+- 运行记录：`no_backup/mika-runs.jsonl`，每次手机/系统/采集运行一行摘要（目标、状态、页数、条数、短说明），上限 200 行，不含截图与模型原文；桥接 `mikaRunHistory` 可读。
+- 上游采集存储调研：新增 [docs/UPSTREAM_COLLECTION_STORAGE.md](docs/UPSTREAM_COLLECTION_STORAGE.md)，对照 `mobiinfra-oh@clawmate_dev` 的 `workflows/`、`gallery-log/` 与本机存储。
+
+验证（2026-11-17）：
+
+- `:android-capabilities:testDebugUnitTest`：353 项、0 失败、14 跳过；新增 MikaCollect/MikaCollectionFlow/MikaAppRequest/MikaRunLog/GuiCollectionSearchMika 等用例。
+- `:shared-app:assembleDebug` 通过；OPPO 安装后，任务卡进入采集会话、面板出现、点「Mika 采集」读到“5 页 · 27 条”，收起/展开正常。
+- 预览保存弹窗带 `FLAG_SECURE`，截图取不到按钮，自动点“保存”未走通；保存本身复用既有共享代码，待人工或后续用窗口坐标复核。
+
 ## Mika 第一档能力接入：知识、看屏、手势与表单输入（2026-11-17）
 
 - 内核从 `eb10b34` 升到 `9fd0be4`（0.1.45）：`core/src/main` 18 个文件、资源无变化；5 处 Kotlin 1.9 兼容改动与本仓库的能力白名单原样保留。提交 `d7cf5f8`。
